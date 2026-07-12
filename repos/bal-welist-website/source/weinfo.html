@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-<｜begin▁of▁sentence｜>8" />
-    <meta name="viewport" content="width=device-w, initial-scale=1.0" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bal Server List</title>
     <link rel="icon" href="Logo_nero.ico" type="image/x-icon">
     <script src="/qrcode.min.js"></script>
@@ -11,22 +11,22 @@
   </head>
   <style>
     table {
-    border-collapse: collapse;
-    width: 100%;
-    margin-top: 20px;
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
     }
     th, td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
     }
     th {
-    background-color: #f2f2f2;
+      background-color: #f2f2f2;
     }
     tr:nth-child(even) {
-    background-color: #f9f9f9;
+      background-color: #f9f9f9;
     }
-    span{
+    span {
       margin-left:10px;
     }
   </style>  
@@ -81,38 +81,53 @@
         const chain = path[1];
         const cdate=new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
         fetchDataAndPopulateTable('/weinfodata/'+chain+"/"+we_id, new URLSearchParams(),(data) => {
-          document.getElementById('wename').innerHTML     = DOMPurify.sanitize(data.url);
-          document.getElementById('wechain').innerHTML    = DOMPurify.sanitize(data.chain);
-          document.getElementById('weinfo').innerHTML     = DOMPurify.sanitize(data.info);
-          document.getElementById('wefees').innerHTML     = data.base_fee;
-          document.getElementById('weheight').innerHTML   = data.last_block;
-          document.getElementById('wepoints').innerHTML   = data.points;
-          document.getElementById('wewin').innerHTML      = data.count_win;
-          document.getElementById('wetld').innerHTML      = DOMPurify.sanitize(data.tld);
-          document.getElementById('webalance').innerHTML  = data.balance;
-          document.getElementById('weversion').innerHTML  = data.version;;
-          document.getElementById('westatus').innerHTML   = DOMPurify.sanitize(data.status);
-          document.getElementById('weupdate').innerHTML   = data.last_update;
+          document.getElementById('wename').innerHTML     = DOMPurify.sanitize(data.url||'—');
+          document.getElementById('wechain').innerHTML    = DOMPurify.sanitize(data.chain||'—');
+          document.getElementById('weinfo').innerHTML     = DOMPurify.sanitize(data.info||'—');
+          document.getElementById('wefees').innerHTML     = data.base_fee != null ? data.base_fee : '—';
+          document.getElementById('weheight').innerHTML   = data.last_block != null ? data.last_block : '—';
+          document.getElementById('wepoints').innerHTML   = data.points != null ? data.points : '—';
+          document.getElementById('wewin').innerHTML      = data.count_win != null ? data.count_win : '—';
+          document.getElementById('wetld').innerHTML      = DOMPurify.sanitize(data.tld||'—');
+          document.getElementById('webalance').innerHTML  = data.balance != null ? data.balance : '—';
+          document.getElementById('weversion').innerHTML  = data.version||'—';
+          const statusMap = {
+            'OK': 'Health check passed',
+            'TIMEOUT': 'Connection timeout',
+            'CONNECTION': 'Connection error',
+            'STATUS': 'HTTP error',
+            'WRONG REPLY': 'Invalid JSON response',
+            'REQUEST': 'Request error',
+            'BODY': 'Body read error',
+            'DECODE': 'Decode error',
+            'KO': 'Generic error'
+          };
+          const st = (data.status||'').split(':')[0];
+          document.getElementById('westatus').innerHTML   = statusMap[st] || '—';
 
           const tableBody = document.querySelector('#wetimes tbody');
           tableBody.innerHTML ='';
-          Object.entries(data.times).forEach(([key,wetime]) => {
-            const row = document.createElement('tr');
-            const d = new Date(wetime.time/1000);
-            row.innerHTML = `
-              <td>${wetime.blockHeight}</td>
-              <td>${DOMPurify.sanitize(wetime.blockHash)}</td>
-              <td>${d}</td>
-              <td>${wetime.diff/1000000} s</td>
-              <td>${wetime.position+1}</td>
-              <td>${wetime.participants}</td>
-              <td>${wetime.points}</td>
-            `;
-            tableBody.appendChild(row);
-          })
+          if (data.times && data.times.length) {
+            Object.entries(data.times).forEach(([key,wetime]) => {
+              const row = document.createElement('tr');
+              const d = new Date(wetime.time/1000);
+              row.innerHTML = `
+                <td>${wetime.blockHeight != null ? wetime.blockHeight : '—'}</td>
+                <td>${DOMPurify.sanitize(wetime.blockHash||'—')}</td>
+                <td>${d}</td>
+                <td>${wetime.diff != null ? wetime.diff/1000000 + ' s' : '—'}</td>
+                <td>${wetime.position != null ? wetime.position+1 : '—'}</td>
+                <td>${wetime.participants != null ? wetime.participants : '—'}</td>
+                <td>${wetime.points != null ? wetime.points : '—'}</td>
+              `;
+              tableBody.appendChild(row);
+            });
+          } else {
+            tableBody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:#999">No rounds yet.</td></tr>';
+          }
           var prev=0;
           var next=0;
-          if (data.times.length > 0){
+          if (data.times && data.times.length > 0){
             prev = data.times[0].blockHeight+data.times.length;
             next = data.times[data.times.length-1].blockHeight;
             if (prev < 0 ){
@@ -126,8 +141,6 @@
       } 
 
       getWeInfo();
-
     </script>
   </body>
 </html>
-

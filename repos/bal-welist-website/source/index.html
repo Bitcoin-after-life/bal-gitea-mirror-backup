@@ -117,13 +117,6 @@ tbody tr:hover{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .score{font-family:var(--display);font-weight:600;font-size:15px}
 
-.status{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;white-space:nowrap}
-.dot{width:8px;height:8px;border-radius:50%;flex:none}
-.status.online{color:var(--ok)}
-.status.online .dot{background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
-.status.offline{color:var(--off)}
-.status.offline .dot{background:var(--off);box-shadow:0 0 0 3px var(--off-soft)}
-
 .add-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:24px;margin:40px 0;align-items:start}
 .panel{
   background:var(--panel);border:1px solid var(--line);
@@ -143,8 +136,14 @@ tbody tr:hover{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
   background:var(--accent);color:#fff;
 }
 .btn:hover{filter:brightness(1.06)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
 .note{font-size:13px;color:var(--muted);margin-top:16px;line-height:1.55}
 .note strong{color:var(--ink)}
+.btn-share{
+  display:block;margin:0 auto 8px;font:inherit;font-size:13px;cursor:pointer;
+  padding:8px 16px;border-radius:8px;border:1px solid var(--line-strong);
+  background:var(--panel);color:var(--accent);
+}
 
 .invoice{display:none}
 .invoice.show{display:block}
@@ -152,12 +151,26 @@ tbody tr:hover{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
 .invoice .row:last-child{border-bottom:0}
 .invoice .row span:first-child{color:var(--muted)}
 .invoice .row span:last-child{font-family:var(--mono);text-align:right;word-break:break-all}
-#qrcode{margin:18px auto 4px;width:160px;height:160px}
-#qrcode img{width:160px;height:160px}
+.invoice .row a{color:var(--accent);text-decoration:none}
+.invoice .row a:hover{text-decoration:underline}
+#qrcode{margin:18px auto 4px;width:160px}
+#qrcode canvas,#qrcode img{width:160px!important;height:160px!important;max-width:100%}
+#qr-overlay{
+  display:none;position:fixed;inset:0;z-index:999;
+  background:rgba(0,0,0,.7);cursor:pointer;
+  align-items:center;justify-content:center;
+}
+#qr-overlay.show{display:flex}
+#qr-big{padding:24px;background:#fff;border-radius:12px}
+#qr-big canvas,#qr-big img{width:280px!important;height:280px!important;max-width:90vw}
 .ok-line{color:var(--ok);font-weight:600;font-size:14px;margin-bottom:14px}
 .err-line{color:#d32f2f;font-weight:600;font-size:14px;margin-bottom:14px}
-.flag-ok{color:var(--ok);font-weight:600;font-size:13px}
-.flag-err{color:#d32f2f;font-weight:600;font-size:13px}
+.terms-box{display:none;margin:16px 0;padding:20px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
+.terms-box.show{display:block}
+.terms-box .lead{margin:0 0 12px;color:var(--ink);font-weight:600}
+.terms-box a.mono{font-size:14px;word-break:break-all}
+.terms-box label{font-size:14px;cursor:pointer}
+.terms-box .btn{margin-top:14px}
 
 .intro-card{
   background:var(--panel);border:1px solid var(--line);
@@ -254,8 +267,6 @@ footer a{color:var(--accent);text-decoration:none}
             <th>Info</th>
             <th class="num">Fee</th>
             <th>Version</th>
-            <th class="num">Balance</th>
-            <th>Status</th>
             <th class="num">Height</th>
             <th class="num">Wins</th>
             <th class="num">Score</th>
@@ -277,33 +288,50 @@ footer a{color:var(--accent);text-decoration:none}
         <h2>Add your Will Executor</h2>
         <p class="lead">Enter your server URL. It will be checked online before it appears in the list.</p>
         <div class="form-row">
-          <input type="text" id="url" placeholder="https://bitcoin-after.life:9137">
-          <button class="btn" id="submit">Add server</button>
+          <input type="text" id="url" placeholder="https://we.bitcoin-after.life">
+        </div>
+        <div style="margin-top:8px">
+          <input type="text" id="contact" placeholder="Email, npub or Telegram (optional)" style="width:100%;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--ink)">
+        </div>
+        <button class="btn" id="submit" style="margin-top:8px">Add server</button>
+
+        <div class="ok-line" id="iv-status"></div>
+
+        <div class="terms-box" id="terms-box">
+          <p class="lead">You are about to add this server:</p>
+          <p><a id="terms-url" href="#" target="_blank" rel="noopener" class="mono"></a></p>
+          <p style="font-size:13px;margin-top:4px"><strong>Make sure the link above works correctly before paying. No refunds or URL changes after payment.</strong></p>
+          <p style="font-size:14px">
+            <label>
+              <input type="checkbox" id="terms-check">
+              I accept the <a href="/terms.html" target="_blank">terms and conditions</a>
+            </label>
+          </p>
+          <button class="btn" id="terms-accept" disabled>Accept & Show Invoice</button>
         </div>
 
-        <div class="ok-line" id="iv-status">✓ Server added. Pay the invoice to complete.</div>
-
         <div class="invoice" id="invoice">
-          <div class="row"><span>Minimum amount</span><span id="iv-min">—</span></div>
+          <div class="row"><span>Annual fee</span><span id="iv-min">—</span></div>
           <div class="row"><span>Chain</span><span id="iv-chain">—</span></div>
           <div class="row"><span>Address</span><span id="iv-addr">—</span></div>
           <div class="row"><span>Balance</span><span id="iv-balance">—</span></div>
-          <div class="row"><span>Status</span><span id="iv-status2">—</span></div>
-          <div class="row"><span>Server</span><span><span id="iv-url">—</span> <span id="iv-url-check"></span></span></div>
+          <div class="row"><span>Status</span><span id="iv-status">—</span></div>
+          <div class="row"><span>Contact</span><span id="iv-contact">—</span></div>
+          <div class="row"><span>Server</span><span id="iv-url">—</span></div>
+          <div class="row"><span>Will Executor</span><span><a id="iv-weinfo" href="#" target="_blank">—</a></span></div>
           <div id="qrcode"></div>
+          <button class="btn-share" id="share-btn">Share invoice</button>
+          <p class="note">
+            <strong>Please make sure your server is online before you attempt to add it.</strong>
+          </p>
         </div>
 
-        <p class="note">
-          <strong>Please make sure your server is online before you attempt to add it.</strong>
-          Servers that are offline will not appear in this list. They will be checked regularly
-          until they come back online.
-        </p>
       </div>
 
       <div class="panel">
         <h2>How ranking works</h2>
         <p class="lead">Bid-based ranking: higher contributions rank higher.</p>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Listing threshold</span><b class="mono">50,000 sats</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Deposit threshold</span><b class="mono"><span id="thr-min">50,000</span> sats</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Plugin integration</span><b>automatic</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:var(--muted)">Early-adopter guarantee</span><b>12 months</b></div>
       </div>
@@ -343,14 +371,29 @@ footer a{color:var(--accent);text-decoration:none}
     <div class="wrap">
       <span>Bitcoin After Life — Will Executor List</span>
       <a href="mailto:welist@bitcoin-after.life">welist@bitcoin-after.life</a>
+      <a class="mono" id="commit-link" href="https://bitcoin-after.life/gitea/bitcoinafterlife/bal-welist-website/commit/COMMIT_HASH_PLACEHOLDER">COMMIT_HASH_PLACEHOLDER</a>
     </div>
   </footer>
 
 <script>
 let allServers = [];
 let withTor = true, q = "";
+let minAmount = 50000;
 
 const fmt = n => (n != null ? Number(n).toLocaleString('en-US') : '—');
+const trunc = (s, m=40) => s && s.length > m ? s.slice(0, m) + '…' : s;
+
+const statusMap = {
+  'OK': 'Health check passed',
+  'TIMEOUT': 'Connection timeout',
+  'CONNECTION': 'Connection error',
+  'STATUS': 'HTTP error',
+  'WRONG REPLY': 'Invalid JSON response',
+  'REQUEST': 'Request error',
+  'BODY': 'Body read error',
+  'DECODE': 'Decode error',
+  'KO': 'Generic error'
+};
 
 function getChain() {
   const btn = document.querySelector('#chainSeg [aria-pressed="true"]');
@@ -361,7 +404,7 @@ function getFiltered() {
   return allServers
     .filter(d => withTor ? true : !d.onion)
     .filter(d => (d.url + " " + (d.info||"")).toLowerCase().includes(q.toLowerCase()))
-    .sort((a, b) => (b.points||0) - (a.points||0));
+    .sort((a, b) => (b.last_block||0) - (a.last_block||0) || (b.points||0) - (a.points||0) || (b.count_win||0) - (a.count_win||0) || (a.base_fee||0) - (b.base_fee||0) || (b.version||'').localeCompare(a.version||''));
 }
 
 function render() {
@@ -371,25 +414,20 @@ function render() {
   tb.innerHTML = ""; ml.innerHTML = "";
 
   if (!list.length) {
-    tb.innerHTML = '<tr><td colspan="10" style="padding:28px;text-align:center;color:var(--muted)">No servers found.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="8" style="padding:28px;text-align:center;color:var(--muted)">No servers found.</td></tr>';
   }
 
   list.forEach((d, i) => {
     const rank = i + 1;
-    const st = d.status === "online" || d.status === "OK"
-      ? '<span class="status online"><span class="dot"></span>Online</span>'
-      : '<span class="status offline"><span class="dot"></span>Offline</span>';
     const weLink = `/weinfo/${d.chain||getChain()}/${d.id}`;
 
     tb.insertAdjacentHTML('beforeend', `
       <tr>
         <td class="num"><span class="rank ${rank<=3?'top':''}">${rank}</span></td>
-        <td class="url"><a href="${weLink}">${DOMPurify.sanitize(d.url)}</a></td>
+        <td class="url"><a href="${weLink}" title="${DOMPurify.sanitize(d.url)}">${DOMPurify.sanitize(trunc(d.url))}</a></td>
         <td class="info">${DOMPurify.sanitize(d.info||'—')}</td>
         <td class="num">${fmt(d.base_fee)}</td>
         <td class="mono">${DOMPurify.sanitize(d.version||'—')}</td>
-        <td class="num">${fmt(d.balance)}</td>
-        <td>${st}</td>
         <td class="num">${fmt(d.last_block)}</td>
         <td class="num">${d.count_win != null ? d.count_win : '—'}</td>
         <td class="num"><span class="score">${fmt(d.points)}</span></td>
@@ -398,14 +436,12 @@ function render() {
     ml.insertAdjacentHTML('beforeend', `
       <div class="srv">
         <div class="top">
-          <div><div class="rk">#${rank}</div><a href="${weLink}" style="color:var(--ink);font-weight:600;text-decoration:none;font-size:14px">${DOMPurify.sanitize(d.url)}</a></div>
-          ${st}
+          <div><div class="rk">#${rank}</div><a href="${weLink}" title="${DOMPurify.sanitize(d.url)}" style="color:var(--ink);font-weight:600;text-decoration:none;font-size:14px">${DOMPurify.sanitize(trunc(d.url))}</a></div>
         </div>
         <div class="grid">
           <div><span>Score</span><b>${fmt(d.points)}</b></div>
           <div><span>Wins</span><b>${d.count_win != null ? d.count_win : '—'}</b></div>
           <div><span>Fee</span><b>${fmt(d.base_fee)} sat</b></div>
-          <div><span>Balance</span><b>${fmt(d.balance)}</b></div>
           <div><span>Version</span><b>${DOMPurify.sanitize(d.version||'—')}</b></div>
           <div><span>Height</span><b>${fmt(d.last_block)}</b></div>
         </div>
@@ -436,23 +472,17 @@ async function fetchData() {
   }
 }
 
-async function checkServer(url, chain) {
-  const flag = document.getElementById('iv-url-check');
-  flag.textContent = 'checking…';
-  flag.className = '';
+async function fetchMinAmount() {
+  const chain = getChain();
   try {
-    const r = await fetch(url + '/' + chain + '/info');
-    const data = await r.json();
-    if (data && data.address && data.base_fee != null) {
-      flag.textContent = '✓ verified';
-      flag.className = 'flag-ok';
-    } else {
-      flag.textContent = '✗ error';
-      flag.className = 'flag-err';
-    }
+    const r = await fetch('/min_deposit/' + chain);
+    const val = parseInt(await r.text(), 10);
+    if (isNaN(val)) throw new Error('invalid');
+    minAmount = val;
+    document.getElementById('thr-min').textContent = fmt(val);
   } catch (err) {
-    flag.textContent = '✗ error';
-    flag.className = 'flag-err';
+    minAmount = 50000;
+    document.getElementById('thr-min').textContent = '50,000';
   }
 }
 
@@ -472,6 +502,7 @@ document.getElementById('chainSeg').addEventListener('click', e => {
   [...e.currentTarget.children].forEach(x => x.setAttribute('aria-pressed', 'false'));
   b.setAttribute('aria-pressed', 'true');
   fetchData();
+  fetchMinAmount();
 });
 
 document.getElementById('submit').addEventListener('click', async () => {
@@ -490,17 +521,23 @@ document.getElementById('submit').addEventListener('click', async () => {
   document.getElementById('iv-chain').textContent = '—';
   document.getElementById('iv-addr').textContent = '—';
   document.getElementById('iv-balance').textContent = '—';
-  document.getElementById('iv-status2').textContent = '—';
   document.getElementById('iv-url').textContent = '—';
-  document.getElementById('iv-url-check').textContent = '';
-  document.getElementById('iv-url-check').className = '';
+  document.getElementById('iv-contact').textContent = '—';
+  document.getElementById('iv-weinfo').href = '#';
+  document.getElementById('iv-weinfo').textContent = '—';
   document.getElementById('qrcode').innerHTML = '';
+  document.getElementById('qrcode').style.cursor = '';
+  document.getElementById('qr-overlay').classList.remove('show');
+  document.getElementById('share-btn').textContent = 'Share invoice';
+  document.getElementById('terms-box').classList.remove('show');
+  document.getElementById('terms-check').checked = false;
+  document.getElementById('terms-accept').disabled = true;
   const chain = getChain();
   try {
     const response = await fetch('/data', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, chain })
+      body: JSON.stringify({ url, chain, contact: document.getElementById('contact').value.trim() || undefined })
     });
     const result = await response.json();
     if (!response.ok) {
@@ -508,33 +545,89 @@ document.getElementById('submit').addEventListener('click', async () => {
       document.getElementById('iv-status').textContent = 'Error: ' + (result.message || result.error || JSON.stringify(result));
       return;
     }
-    document.getElementById('iv-status').className = 'ok-line';
-    document.getElementById('iv-status').textContent = '✓ Server added: ' + (result.url || url) + '. Pay the invoice to complete.';
-    document.getElementById('iv-min').textContent = (result.min_amount || '50,000') + ' sats';
+    document.getElementById('iv-min').textContent = fmt(result.min_amount != null ? result.min_amount : minAmount) + ' sats';
     document.getElementById('iv-chain').textContent = result.chain || chain;
     document.getElementById('iv-addr').textContent = result.address || '—';
     document.getElementById('iv-balance').textContent = result.balance != null ? fmt(result.balance) : '—';
-    document.getElementById('iv-status2').textContent = result.status || '—';
-    const invoiceuri = `bitcoin:${result.address}?label=BAL&message=Order+For+url+%26+${encodeURIComponent(url)}`;
+    const statusVal = result.status || '—';
+    const st = (statusVal||'').split(':')[0];
+    document.getElementById('iv-status').textContent = statusMap[st] || '—';
+    document.getElementById('iv-contact').textContent = document.getElementById('contact').value.trim() || '—';
+    const weLink = result.id ? `/weinfo/${result.chain || chain}/${result.id}` : null;
+    const weinfoEl = document.getElementById('iv-weinfo');
+    if (weLink) {
+      weinfoEl.href = weLink;
+      weinfoEl.textContent = 'View page';
+    } else {
+      weinfoEl.href = '#';
+      weinfoEl.textContent = '—';
+    }
+    const amountSats = result.amount != null ? result.amount : minAmount;
+    const amountBtc = (amountSats / 1e8).toFixed(8).replace(/\.?0+$/, '');
+    const invoiceuri = `bitcoin:${result.address}?amount=${amountBtc}&label=BAL&message=Order+For+url+%26+${encodeURIComponent(url)}`;
     const qrEl = document.getElementById('qrcode');
     qrEl.innerHTML = '';
-    new QRCode(qrEl, invoiceuri);
-    inv.classList.add('show');
-    inv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    new QRCode(qrEl, { text: invoiceuri, width: 160, height: 160 });
+    qrEl.style.cursor = 'pointer';
+    qrEl.onclick = function () {
+      const overlay = document.getElementById('qr-overlay');
+      const big = document.getElementById('qr-big');
+      big.innerHTML = '';
+      new QRCode(big, { text: invoiceuri, width: 280, height: 280 });
+      overlay.classList.add('show');
+    };
+    document.getElementById('qr-overlay').onclick = function () {
+      this.classList.remove('show');
+    };
+    const shareBtn = document.getElementById('share-btn');
+    shareBtn.textContent = 'Share invoice';
+    shareBtn.onclick = function () {
+      if (navigator.share) {
+        navigator.share({ title: 'BAL Invoice', text: invoiceuri });
+      } else {
+        navigator.clipboard.writeText(invoiceuri).then(() => {
+          this.textContent = 'Copied!';
+          setTimeout(() => this.textContent = 'Share invoice', 2000);
+        });
+      }
+    };
     const serverUrl = result.url || url;
+    const infoUrl = serverUrl + '/' + (result.chain || chain) + '/info';
     document.getElementById('iv-url').textContent = serverUrl;
-    checkServer(serverUrl, result.chain || chain);
+    document.getElementById('terms-url').href = infoUrl;
+    document.getElementById('terms-url').textContent = serverUrl;
+    document.getElementById('terms-box').classList.add('show');
+    document.getElementById('terms-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (err) {
     document.getElementById('iv-status').className = 'err-line';
     document.getElementById('iv-status').textContent = 'Network error. Please try again.';
   }
 });
 
+document.getElementById('terms-check').addEventListener('change', function () {
+  document.getElementById('terms-accept').disabled = !this.checked;
+});
+
+document.getElementById('terms-accept').addEventListener('click', function () {
+  document.getElementById('terms-box').classList.remove('show');
+  const inv = document.getElementById('invoice');
+  document.getElementById('iv-status').className = 'ok-line';
+  document.getElementById('iv-status').textContent = '✓ Server added: ' + document.getElementById('iv-url').textContent + '. Pay the invoice to complete.';
+  inv.classList.add('show');
+  inv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+
+document.getElementById('url').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('submit').click();
+});
+
 (function init() {
   const blob = new Blob([JSON.stringify(allServers, null, 2)], { type: 'application/json' });
   document.getElementById('download').href = URL.createObjectURL(blob);
   fetchData();
+  fetchMinAmount();
 })();
 </script>
+<div id="qr-overlay"><div id="qr-big"></div></div>
 </body>
 </html>
