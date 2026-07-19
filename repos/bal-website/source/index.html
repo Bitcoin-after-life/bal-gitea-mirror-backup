@@ -6,6 +6,9 @@
 <title>Bitcoin After Life Protocol — Decentralized Bitcoin Inheritance</title>
 <meta name="description" content="Bitcoin After Life (BAL) Protocol — Decentralized Bitcoin inheritance through time-locked transactions. No notary, no custodian. Open-source Electrum plugin and Will-Executor network.">
 <meta name="theme-color" content="#2d6cdf">
+<link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/pitura/ico/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/pitura/ico/favicon-16.png">
 <!--
   =========================================================
   Bitcoin After Life Protocol — landing page
@@ -13,7 +16,7 @@
   Accent: blue (#2d6cdf), faithful to the reference file.
   Content: index2.html + updated facts from the GitHub repo
   (Electrum 4.7.2, PyQt6, install flow, Anticipate/Postpone,
-  Server-column states, release v0.5.1, MIT license).
+  Server-column states, release v0.6.0, MIT license).
   All UI copy is in English by project convention.
   =========================================================
 -->
@@ -91,7 +94,8 @@ header.hero{padding:56px 0 40px;border-bottom:1px solid var(--line);background:
 }
 .hero h1 .blue{color:var(--accent)}
 .hero .lead{color:var(--muted);font-size:17px;max-width:540px;margin:0 0 26px}
-.cta-row{display:flex;gap:11px;flex-wrap:wrap;margin-bottom:22px}
+.cta-row{display:grid;grid-template-columns:1fr 1fr;gap:11px;max-width:540px;margin-bottom:22px}
+.cta-row .btn{justify-content:center;text-align:center}
 .btn{
   font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;
   padding:11px 18px;border-radius:9px;border:1px solid var(--accent);
@@ -124,6 +128,9 @@ header.hero{padding:56px 0 40px;border-bottom:1px solid var(--line);background:
 .hero-card .stat{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 8px}
 .hero-card .stat .n{font-family:var(--display);font-weight:600;font-size:20px;line-height:1}
 .hero-card .stat .l{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:6px}
+.hero-card .stat .sig{font-size:10px;margin-top:2px;display:none}
+.hero-card .stat .sig a{color:var(--muted);text-decoration:underline}
+.hero-card .stat .sig a:hover{color:var(--accent)}
 
 /* ---------- Section scaffolding ---------- */
 .section{padding:56px 0}
@@ -244,6 +251,7 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
   .hero .wrap{grid-template-columns:1fr;gap:28px}
   .hero-card{order:-1}
   .cols-3,.steps,.install-grid{grid-template-columns:1fr}
+  .cta-row{grid-template-columns:1fr;max-width:none}
   .cols-2{grid-template-columns:1fr}
   .hero h1{font-size:34px}
   .topbar nav a:not(.x):not(.manifesto){display:none}
@@ -298,7 +306,7 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
       <div class="name">BAL Protocol</div>
       <div class="tag">Electrum plugin + Will-Executor</div>
       <div class="stats">
-        <div class="stat"><div class="n">v0.5.1</div><div class="l">Latest release</div></div>
+        <div class="stat"><div class="n"><a id="latest-release-link" href="https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases">-</a></div><div class="l">Latest release</div><div class="sig"><a id="latest-release-sig" href="#">sig</a></div></div>
         <div class="stat"><div class="n">10 yr</div><div class="l">Min. support</div></div>
         <div class="stat"><div class="n">MIT</div><div class="l">License</div></div>
         <div class="stat"><div class="n">100%</div><div class="l">Bitcoin-funded</div></div>
@@ -590,7 +598,7 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
       <a href="https://bitcoin-after.life">bitcoin-after.life</a>
       <a href="mailto:info@bitcoin-after.life">info@bitcoin-after.life</a>
       <a href="https://x.com/BitcoinAfterLif">@BitcoinAfterLif</a>
-      <a href="https://bitcoin-after.life/public_key.gpg">PGP Key</a>
+      <a href="https://bitcoin-after.life/pgp">PGP Key</a>
       <a href="https://bitcoin-after.life/gitea/bitcoinafterlife">Source Code</a>
     </div>
     <div class="built">Built with ₿itcoin. No FIAT was used in the making of this protocol.</div>
@@ -610,6 +618,31 @@ items.forEach(d => {
     if (d.open) items.forEach(o => { if (o !== d) o.open = false; });
   });
 });
+</script>
+
+<script>
+(function () {
+  const apiUrl = 'https://bitcoin-after.life/gitea/api/v1/repos/bitcoinafterlife/bal-electrum-plugin/releases/latest';
+  const link = document.getElementById('latest-release-link');
+  const sig = document.getElementById('latest-release-sig');
+  if (!link) return;
+  fetch(apiUrl)
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
+    .then(data => {
+      if (data && data.tag_name) {
+        const tag = data.tag_name;
+        link.textContent = tag;
+        link.href = 'https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases/download/' + tag + '/bal_electrum_plugin_' + tag + '.zip';
+        if (sig) {
+          sig.href = 'https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases/download/' + tag + '/bal_electrum_plugin_' + tag + '.zip.sig';
+          sig.style.display = 'inline';
+        }
+      }
+    })
+    .catch(err => {
+      console.error('Failed to fetch latest release:', err);
+    });
+})();
 </script>
 </body>
 </html>

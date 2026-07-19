@@ -41,6 +41,7 @@
       <div><span>Version:</span><span id="weversion">&nbsp;</span></div>
       <div><span>Fees:</span><span id="wefees">&nbsp;</span></div>
       <div><span>Tld:</span><span id="wetld">&nbsp;</span></div>
+      <div><span>Last Update:</span><span id="weupdate">&nbsp;</span></div>
     </div>
     <div style="float:left;border:1;margin-right:50px;">
       <div><span>Height:</span><span id="weheight">&nbsp;</span></div>
@@ -49,8 +50,9 @@
     </div>
     <div style="border:1;margin-right:50px;">
       <div><span>Balance:</span><span id="webalance">&nbsp;</span></div>
+      <div><span>Donations:</span><span id="wedonations">&nbsp;</span></div>
       <div><span>Status:</span><span id="westatus">&nbsp;</span></div>
-      <div><span>Last Update:</span><span id="weupdate">&nbsp;</span></div>
+      <div><span>Expiry:</span><span id="weexpiry">&nbsp;</span></div>
     </div>
     <div>
       <table id="wetimes">
@@ -89,8 +91,13 @@
           document.getElementById('wepoints').innerHTML   = data.points != null ? data.points : '—';
           document.getElementById('wewin').innerHTML      = data.count_win != null ? data.count_win : '—';
           document.getElementById('wetld').innerHTML      = DOMPurify.sanitize(data.tld||'—');
-          document.getElementById('webalance').innerHTML  = data.balance != null ? data.balance : '—';
+          const bal = data.balance != null ? data.balance : null;
+          const unc = data.unconfirmed_balance != null ? data.unconfirmed_balance : null;
+          document.getElementById('webalance').innerHTML  = bal ? (unc ? bal + ' (' + unc + ')' : bal) : '—';
+          document.getElementById('wedonations').innerHTML = data.donation != null ? data.donation : '—';
           document.getElementById('weversion').innerHTML  = data.version||'—';
+          document.getElementById('weexpiry').innerHTML   = '<b>' + (data.expiry_date || '—') + '</b>';
+          document.getElementById('weupdate').innerHTML   = data.last_update || '—';
           const statusMap = {
             'OK': 'Health check passed',
             'TIMEOUT': 'Connection timeout',

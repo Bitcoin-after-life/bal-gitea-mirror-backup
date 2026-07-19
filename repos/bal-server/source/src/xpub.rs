@@ -103,7 +103,11 @@ fn calc_checksum(desc: &str) -> Result<String, String> {
 }
 
 pub fn get_bitcoincore_descriptor(xpub: &String) -> String {
-    let fingerprint = calculate_fingerprint(xpub);
+    let fingerprint = match calculate_fingerprint(xpub) {
+        Ok(f) => f,
+        Err(_) => return String::new(), // Invalid xpub, return empty descriptor
+    };
+
     let mut bip = 84;
     let cpub = xpub.to_string();
     match &xpub[0..4] {
@@ -117,11 +121,11 @@ pub fn get_bitcoincore_descriptor(xpub: &String) -> String {
             bip = 84;
         }
     };
-    let descriptor = format!(
-        "wpkh([{}/84h/0h/0h]{}/0/*)",
-        fingerprint,
-        convert_xpub(xpub)
-    );
+    let xpub_converted = match convert_xpub(xpub) {
+        Ok(c) => c,
+        Err(_) => return String::new(), // Invalid xpub, return empty descriptor
+    };
+    let descriptor = format!("wpkh([{}/84h/0h/0h]{}/0/*)", fingerprint, xpub_converted);
     let descriptor = match calc_checksum(&descriptor) {
         Ok(checksum) => {
             let clean_descriptor = descriptor.split('#').next().unwrap_or(&descriptor);
@@ -135,18 +139,24 @@ pub fn get_bitcoincore_descriptor(xpub: &String) -> String {
     descriptor
     //format!("{}#{}",descriptor,checksum)
 }
-fn convert_xpub(xpub: &String) -> String {
-    if xpub[0..4] == *"xpub" || xpub[0..4] == *"ypub" || xpub[0..4] == *"zpub" {
-        return convert_to(xpub, BS58Prefix::Xpub).unwrap();
+fn convert_xpub(xpub: &String) -> Result<String, String> {
+    if xpub.len() >= 4 && (&xpub[0..4] == "xpub" || &xpub[0..4] == "ypub" || &xpub[0..4] == "zpub")
+    {
+        convert_to(xpub, BS58Prefix::Xpub)
+    } else if xpub.len() >= 4
+        && (&xpub[0..4] == "tpub" || &xpub[0..4] == "vpub" || &xpub[0..4] == "upub")
+    {
+        convert_to(xpub, BS58Prefix::Tpub)
     } else {
-        return convert_to(xpub, BS58Prefix::Tpub).unwrap();
+        Err("Invalid xpub prefix: expected xpub, ypub, zpub, tpub, vpub, or upub".to_string())
     }
 }
-pub fn calculate_fingerprint(tpub: &str) -> String {
-    let xpub = Xpub::from_str(&convert_to(tpub, BS58Prefix::Xpub).unwrap()).unwrap();
+pub fn calculate_fingerprint(tpub: &str) -> Result<String, String> {
+    let xpub = Xpub::from_str(&convert_to(tpub, BS58Prefix::Xpub)?)
+        .map_err(|e| format!("Invalid xpub: {}", e))?;
     let fp = xpub.fingerprint();
-    let pp = xpub.parent_fingerprint;
-    format!("{}", fp)
+    let _pp = xpub.parent_fingerprint;
+    Ok(format!("{}", fp))
 }
 
 fn base58check_decode(s: &str) -> Result<Vec<u8>, String> {

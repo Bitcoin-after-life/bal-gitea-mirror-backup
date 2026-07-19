@@ -20,6 +20,8 @@ use std::str;
 use std::{thread, time::Duration};
 use zmq::{Context, DEALER, DONTWAIT, Socket};
 
+use bal_server::db::open_db;
+use bal_server::validation::is_valid_welist_url;
 use base64::{Engine as _, engine::general_purpose};
 use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
@@ -33,7 +35,6 @@ const LOCKTIME_THRESHOLD: i64 = 5000000;
 const VERSION: &str = "0.0.2";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MyConfig {
-    zmq_listener: String,
     db_file: String,
     bitcoin_dir: String,
     regtest: NetworkParams,
@@ -49,8 +50,6 @@ struct MyConfig {
 impl Default for MyConfig {
     fn default() -> Self {
         MyConfig {
-            zmq_listener: env::var("BAL_PUSHER_ZMQ_LISTENER")
-                .unwrap_or("tcp://127.0.0.1:28332".to_string()),
             db_file: env::var("BAL_PUSHER_DB_FILE").unwrap_or("bal.db".to_string()),
             bitcoin_dir: env::var("BAL_PUSHER_BITCOIN_DIR").unwrap_or("".to_string()),
             regtest: get_network_params_default(Network::Regtest),
@@ -61,7 +60,7 @@ impl Default for MyConfig {
             send_stats: env::var("BAL_PUSHER_SEND_STATS")
                 .unwrap_or("false".to_string())
                 .parse::<bool>()
-                .unwrap(),
+                .unwrap_or(false),
             url: env::var("BAL_SERVER_URL").unwrap_or("http://localhost/".to_string()),
             ssl_key_path: env::var("SSL_KEY_PATH").unwrap_or("privkey.pem".to_string()),
         }
@@ -77,7 +76,7 @@ struct NetworkParams {
     cookie_file: String,
     rpc_user: String,
     rpc_pass: String,
-    zmq_listener:String
+    zmq_listener: String,
 }
 fn get_network_params(cfg: &MyConfig, network: Network) -> &NetworkParams {
     match network {
@@ -102,7 +101,7 @@ fn get_network_params_default(network: Network) -> NetworkParams {
         },
         Network::Testnet4 => NetworkParams {
             host: "http://i27.0.0.1".to_string(),
-            port: 18332,
+            port: 48332,
             dir_path: "testnet4/".to_string(),
             db_field: "testnet4".to_string(),
             cookie_file: "".to_string(),
@@ -199,6 +198,7 @@ fn get_client(
     network: &NetworkParams,
 ) -> Result<(Client, GetBlockchainInfoResult), Box<dyn StdError>> {
     let url = format!("{}:{}/", network.host, &network.port);
+    debug!("trying to connect to bitcoin daemon:{url}");
     match get_client_from_username(&url, network) {
         Ok(client) => Ok(client),
         Err(_) => match get_client_from_cookie(&url, &network) {
@@ -237,11 +237,23 @@ async fn main_result(cfg: &MyConfig, network_params: &NetworkParams) -> Result<(
             debug!("best block hash: {}", bcinfo.best_block_hash);
 
             let average_time = bcinfo.median_time;
-            let db = sqlite::open(&cfg.db_file).unwrap();
+            let db = match open_db(&cfg.db_file) {
+                Ok(c) => c,
+                Err(e) => {
+                    error!("Fatal: {}", e);
+                    std::process::exit(1);
+                }
+            };
             info!("db open {}", &cfg.db_file);
 
             let sqlquery = "SELECT  * FROM tbl_tx WHERE network = :network AND status = :status AND ( locktime < :bestblock_height  OR locktime > :locktime_threshold AND locktime < :bestblock_time);";
-            let query_tx = db.prepare(sqlquery).unwrap().into_iter();
+            let query_tx = match db.prepare(sqlquery) {
+                Ok(q) => q.into_iter(),
+                Err(e) => {
+                    warn!("tbl_tx not ready yet (tables may not exist): {}", e);
+                    return Ok(());
+                }
+            };
             trace!("query_tx: {}", sqlquery);
             trace!(":locktime_threshold: {}", LOCKTIME_THRESHOLD);
             trace!(":bestblock_time: {}", average_time);
@@ -251,19 +263,28 @@ async fn main_result(cfg: &MyConfig, network_params: &NetworkParams) -> Result<(
             //let query_tx = db.prepare("SELECT * FROM tbl_tx where status = :status").unwrap().into_iter();
             let mut pushed_txs: Vec<String> = Vec::new();
             let mut invalid_txs: std::collections::HashMap<String, String> = HashMap::new();
-            for row in query_tx
-                .bind::<&[(_, Value)]>(
-                    &[
-                        (":locktime_threshold", (LOCKTIME_THRESHOLD as i64).into()),
-                        (":bestblock_time", (average_time as i64).into()),
-                        (":bestblock_height", (bcinfo.blocks as i64).into()),
-                        (":network", network_params.db_field.clone().into()),
-                        (":status", 0.into()),
-                    ][..],
-                )
-                .unwrap()
-                .map(|row| row.unwrap())
-            {
+            for row_result in match query_tx.bind::<&[(_, Value)]>(
+                &[
+                    (":locktime_threshold", (LOCKTIME_THRESHOLD as i64).into()),
+                    (":bestblock_time", (average_time as i64).into()),
+                    (":bestblock_height", (bcinfo.blocks as i64).into()),
+                    (":network", network_params.db_field.clone().into()),
+                    (":status", 0.into()),
+                ][..],
+            ) {
+                Ok(bound) => bound,
+                Err(e) => {
+                    error!("Failed to bind query parameters: {}", e);
+                    return Ok(());
+                }
+            } {
+                let row = match row_result {
+                    Ok(r) => r,
+                    Err(e) => {
+                        warn!("Failed to read row: {}", e);
+                        continue;
+                    }
+                };
                 let tx = row.read::<&str, _>("tx");
                 let txid = row.read::<&str, _>("txid");
                 let locktime = row.read::<i64, _>("locktime");
@@ -297,36 +318,42 @@ async fn main_result(cfg: &MyConfig, network_params: &NetworkParams) -> Result<(
                 };
             }
 
-            if pushed_txs.len() > 0 {
-                let sql = format!(
-                    "UPDATE tbl_tx SET status = 1 WHERE txid in ('{}');",
-                    pushed_txs.join("','")
-                );
-                trace!("sqlok: {}", &sql);
-                let _ = db.execute(&sql);
+            for txid in &pushed_txs {
+                let sql = "UPDATE tbl_tx SET status = 1 WHERE txid = ?";
+                let mut stmt = db.prepare(sql).unwrap();
+                stmt.bind((1, Value::String(txid.clone()))).unwrap();
+                let _ = stmt.next();
             }
-            if invalid_txs.len() > 0 {
-                for (txid, txerr) in &invalid_txs {
-                    //let _ = db.execute(format!("UPDATE tbl_tx SET status = 2 WHERE txid in ('{}'Yp);",invalid_txs.join("','")));
-                    let sql = format!(
-                        "UPDATE tbl_tx SET status = 2, push_err='{txerr}' WHERE txid = '{txid}'"
-                    );
-                    trace!("sqlerror: {}", &sql);
-                    let _ = db.execute(&sql);
-                }
+            for (txid, txerr) in &invalid_txs {
+                let sql = "UPDATE tbl_tx SET status = 2, push_err = ? WHERE txid = ?";
+                let mut stmt = db.prepare(sql).unwrap();
+                stmt.bind((1, Value::String(txerr.clone()))).unwrap();
+                stmt.bind((2, Value::String(txid.clone()))).unwrap();
+                let _ = stmt.next();
             }
             let _ = send_stats_report(cfg, bcinfo).await;
             let _ = calculate_stats(&db, network_params.db_field.clone()).await;
         }
         Err(erx) => {
-            panic!("impossible to get client {}", erx)
+            error!("impossible to get client: {}, retrying on next block", erx);
+            thread::sleep(Duration::from_secs(5));
+            return Ok(());
         }
     }
     Ok(())
 }
 async fn calculate_stats(db: &Connection, chain: String) -> Result<(), reqwest::Error> {
+    // Validate chain to prevent SQL injection via environment variable tampering
+    if !chain
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        || chain.is_empty()
+    {
+        error!("Invalid chain name: {chain}");
+        return Ok(());
+    }
     //let sql = "drop table if exists tbl_stats;";
-    let sql = "DELETE FROM tbl_stats WHERE chain = '{chain}';";
+    let sql = format!("DELETE FROM tbl_stats WHERE chain = '{chain}';");
     if let Err(err) = db.execute(&sql) {
         error!("error deleting from tbl_stats where chain:{chain} error: {err}");
     }
@@ -403,7 +430,13 @@ async fn send_stats_report(
         debug!("sending report to welist");
         let welist_url = env::var("WELIST_SERVER_URL")
             .unwrap_or("https://welist.bitcoin-after.life".to_string());
-
+        if !is_valid_welist_url(&welist_url) {
+            warn!(
+                "Invalid or unsafe WELIST_SERVER_URL: {}. Skipping stats report.",
+                welist_url
+            );
+            return Ok(());
+        }
         let client = rClient::new();
         let url = format!("{}/ping", welist_url);
         debug!("welist url: {}", url);
@@ -480,9 +513,15 @@ fn parse_env_netconfig(cfg_lock: &mut MyConfig, chain: &str) -> NetworkParams {
     }
     match env::var(format!("BAL_PUSHER_{}_PORT", chain.to_uppercase())) {
         Ok(value) => match value.parse::<u64>() {
-            Ok(value) => {
-                cfg.port = value.try_into().unwrap();
-            }
+            Ok(value) => match u16::try_from(value) {
+                Ok(port) => cfg.port = port,
+                Err(e) => {
+                    error!(
+                        "Port value {} exceeds u16 range for chain {}: {}",
+                        value, chain, e
+                    );
+                }
+            },
             Err(_) => {}
         },
         Err(_) => {}
@@ -517,9 +556,14 @@ fn parse_env_netconfig(cfg_lock: &mut MyConfig, chain: &str) -> NetworkParams {
         }
         Err(_) => {}
     }
+    println!(
+        "{}",
+        format!("BAL_PUSHER_{}_ZMQ_HASHBLOCK", chain.to_uppercase())
+    );
     match env::var(format!("BAL_PUSHER_{}_ZMQ_HASHBLOCK", chain.to_uppercase())) {
         Ok(value) => {
-            cfg.rpc_pass = value;
+            println!("value:{}", value);
+            cfg.zmq_listener = value;
         }
         Err(_) => {}
     }
@@ -622,17 +666,38 @@ async fn main() -> std::io::Result<()> {
 
     let zmq_address = network_params.zmq_listener.clone();
     info!("zmq listening on: {}", zmq_address);
-    socket.connect(&zmq_address).unwrap();
+    loop {
+        match socket.connect(&zmq_address) {
+            Ok(_) => break,
+            Err(e) => {
+                error!("ZMQ connect failed: {}, retrying in 5s...", e);
+                thread::sleep(Duration::from_secs(5));
+            }
+        }
+    }
 
-    socket.set_subscribe(b"").unwrap();
+    match socket.set_subscribe(b"") {
+        Ok(_) => {}
+        Err(e) => {
+            error!("ZMQ subscribe failed: {}, exiting", e);
+            return Ok(());
+        }
+    }
 
     let _ = main_result(&cfg, network_params).await;
     info!("waiting new blocks..");
     let mut last_seq: Vec<u8> = [0; 4].to_vec();
     let mut counter = 0;
     let max = 100;
+    socket.set_rcvtimeo(5000).unwrap(); // 5 seconds timeout
     loop {
-        let message = socket.recv_multipart(0).unwrap();
+        let message = match socket.recv_multipart(0) {
+            Ok(m) => m,
+            Err(e) => {
+                warn!("ZMQ recv timeout or error: {}, retrying...", e);
+                continue;
+            }
+        };
         let topic = message[0].clone();
         let body = message[1].clone();
         let seq = message[2].clone();

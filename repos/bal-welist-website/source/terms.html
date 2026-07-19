@@ -7,9 +7,12 @@
 <link rel="icon" href="Logo_nero.ico" type="image/x-icon">
 <!--
   Sections 2-4 rewritten on 2026-07 for the yearly-listing model
-  (flat yearly fee, renewal from 6 months before expiry, list
-  ordered by points). Section 1, header, footer and the dynamic
-  min-deposit script are unchanged from the previous version.
+  (flat yearly fee, renewal from 6 months before expiry). The list
+  is ordered by total excess donated, then total amount paid, then
+  base fee, then WeTime points as a tie-breaker (see Section 3),
+  matching the server-side get_list() ordering. Section 1, header,
+  footer and the dynamic min-deposit script are unchanged from the
+  previous version.
 -->
 <style>
 :root{
@@ -235,7 +238,7 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
 
     <section class="info-section">
       <h2>2. Listing &amp; Renewal</h2>
-      <p class="sub">A listing works like a hosting plan: a flat yearly fee buys your server one year of presence in the list. No balances, no ranking by deposit, no daily decay. Payments are non-refundable (see Section&nbsp;1) — double-check your server URL before paying.</p>
+      <p class="sub">A listing works like a hosting plan: a flat yearly fee buys your server one year of presence in the list. Your paid amount accumulates and never decays — it is preserved across renewals and also determines your position in the list (see Section&nbsp;3). Payments are non-refundable (see Section&nbsp;1) — double-check your server URL before paying.</p>
       <div class="info-grid">
         <div class="info-block">
           <span class="ic">01 · PAYMENT</span>
@@ -252,7 +255,7 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         <div class="info-block">
           <span class="ic">03 · CAPACITY</span>
           <h3>No Cap on Listings</h3>
-          <p>There is no fixed number of slots: every server with remaining listing time is shown. Paying buys presence in the list, not a position in it (see Section&nbsp;3).</p>
+          <p>There is no fixed number of slots: every server with remaining listing time is shown. Paying buys presence in the list; the total amount paid also affects your position in it (see Section&nbsp;3).</p>
           <p>Removal from the list does not affect users who already have your server in their plugin: the plugin's server list is add-only. Being listed matters for reaching new users.</p>
         </div>
         <div class="info-block">
@@ -283,13 +286,19 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
 
     <section class="info-section">
       <h2>3. List Order &amp; Server Page</h2>
-      <p class="sub">The list is ordered by points, earned by proving your server is online and synchronized. Payment does not affect position.</p>
+      <p class="sub">The list is ordered by four criteria: first by total excess donated (higher first), then by total amount paid in balance (higher first), then by the base fee charged (lower first), and finally by WeTime points (higher first) as a tie-breaker.</p>
       <div class="info-grid">
         <div class="info-block">
           <span class="ic">ORDER</span>
-          <h3>Points &amp; WeTime</h3>
+          <h3>How Position Is Determined</h3>
+          <p>Servers are sorted by four criteria, in order: first by the total excess donated (higher first), then by the total paid amount (higher first), then by the base fee they charge (lower first), and finally by WeTime points (higher first) to break any remaining ties.</p>
+          <p>Because excess donated comes first and never decays, over-paying or tipping more — on top of any payment — directly and permanently moves a server up the list. Paying more than the exact yearly fee is the fastest way to improve position.</p>
+        </div>
+        <div class="info-block">
+          <span class="ic">POINTS</span>
+          <h3>WeTime Points</h3>
           <p>Points are earned by participating in WeTime rounds. Each executor periodically submits its block hash; the faster the response within the same block, the more points awarded. The win count tracks how many times an executor was the fastest responder.</p>
-          <p>Points are not transferable, not redeemable and have no monetary value: they exist only to order this list. Points measure presence and reactivity — they do not certify how a server will handle inheritance transactions.</p>
+          <p>Points are not transferable, not redeemable and have no monetary value: within this list they act only as a tie-breaker. Points measure presence and reactivity — they do not certify how a server will handle inheritance transactions.</p>
         </div>
         <div class="info-block">
           <span class="ic">DETAILS</span>

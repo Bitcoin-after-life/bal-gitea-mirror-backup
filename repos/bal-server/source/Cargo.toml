@@ -1,6 +1,6 @@
 [package]
 name = "bal_server"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -17,9 +17,8 @@ chrono = 		{ version = "0.4.40" }
 env_logger = 		{ version = "0.11.5" }
 hex = 			{ version = "0.4.3" }
 hex-conservative = 	{ version = "0.1.1" }
-hyper = 		{ version = "1.3.1", features = ["http1","server"] }
-hyper-util = 		{ version = "0.1.3", features = ["tokio"] }
-http-body-util = 	{ version = "0.1" }
+actix-web = 		{ version = "4.9.0" }
+actix-governor = 	{ version = "0.6.0" }
 log = 			{ version = "0.4.21" }
 openssl = 		{ version = "0.10.74", features = ["vendored"] }
 sha2 = 			{ version = "0.10.8" }
@@ -28,6 +27,16 @@ serde_json = 		{ version = "1.0.116" }
 sqlite = 		{ version = "0.34.0" }
 regex = 		{ version = "1.10.4" }
 reqwest = 		{ version = "0.12.24", features = ["json","socks"] }
-tokio = 		{ version = "1", features = ["rt", "net","macros","rt-multi-thread"] }  # Keep only necessary runtime components
+actix-rt = 		{ version = "2.10.0" }
+tokio = 		{ version = "1", features = ["rt", "net","macros","rt-multi-thread"] }
+url = 			{ version = "2" }
 zmq = 			{ version = "0.10.0" }
+
+[[bin]]
+name = "bal-server"
+path = "src/bin/bal-server.rs"
+
+[[bin]]
+name = "bal-pusher"
+path = "src/bin/bal-pusher.rs"
 

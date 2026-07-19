@@ -1,0 +1,2018 @@
+"""
+bal.gui.qt.dialogs
+==================
+
+All modal/non-modal dialogs of the plugin.
+
+    * BalDialog                  - common base dialog (icon, close handling).
+    * BalWizard* (Dialog/Widget) - the step-by-step "create your will" wizard.
+    * BalWaitingDialog /
+      BalBlockingWaitingDialog   - progress dialogs for background tasks.
+    * BalBuildWillDialog         - the central build/sign/push/broadcast flow.
+    * WillDetailDialog           - shows the full will tree for one wallet.
+    * WillExecutorDialog         - manage the list of will-executor servers.
+
+To keep the dialogs verbatim while avoiding import cycles with the list views,
+the few list classes they reference are imported lazily inside the methods that
+use them (see ``lists`` imports below).
+"""
+
+from .common import *
+from .common import _, _logger  # underscore names are not re-exported by "import *"
+from .widgets import (BalCheckBox, BalLineEdit, BalTextEdit, BalTxFeesWidget,
+                      LockTimeWidget, PercAmountEdit, ThresholdTimeWidget,
+                      WillSettingsWidget, WillWidget, basic_reminder_offsets,
+                      compute_reminder_offsets)
+from .calendar import BalCalendar, BalCalendarButton
+# NOTE: list views (HeirListWidget, PreviewList, WillExecutorWidget) are
+# imported lazily where needed to avoid a dialogs<->lists import cycle.
+
+
+class BalDialog(QDialog,MessageBoxMixin):
+    _stopping = False
+    def __init__(self, parent, bal_plugin, title=None, icon="icons/bal16x16.png"):
+        import signal
+        from PyQt6.QtCore import QMetaObject, Qt
+        from PyQt6.QtWidgets import QApplication
+        def handler(signum, frame):
+            QMetaObject.invokeMethod(self, "close", Qt.ConnectionType.QueuedConnection)
+
+        #signal.signal(signal.SIGINT, handler)
+        # NOTE: do NOT store this as ``self.parent`` - that would shadow
+        # QWidget.parent() and can make the dialog disappear behind Electrum.
+        self._bal_parent = parent
+        self.thread = None
+        # Anchor the dialog to the *top-level* Electrum window so it always
+        # stays in front of it (instead of falling behind).
+        super().__init__(top_level_of(parent))
+        if title:
+            self.setWindowTitle(title)
+        # WindowModalDialog.__init__(self,parent)
+        self.setWindowIcon(read_QIcon_from_bytes(bal_plugin.read_file(icon)))
+        
+    def closeEvent(self, event):
+        self._stopping = True
+        # NOTE: we deliberately do NOT stop ``self.thread`` here.
+        #
+        # Electrum's ``TaskThread`` delivers results via ``on_done`` which calls
+        # ``cb_done`` (often ``self.accept`` -> closes this dialog) *before*
+        # ``cb_result`` (``on_success`` -> e.g. updating the will-executor
+        # list).  If we stop/join the thread inside ``closeEvent`` the close
+        # triggered by ``accept`` tears the thread down *before* ``on_success``
+        # runs, so the downloaded data is silently dropped.  The original plugin
+        # left this commented out for exactly this reason; subclasses that own a
+        # genuinely long-lived thread stop it explicitly in their own close
+        # handler.
+        super().closeEvent(event)
+
+    def hideEvent(self, event):
+        self._stopping = True
+        super().hideEvent(event)
+
+
+class BalWizardDialog(BalDialog):
+    def __init__(self, bal_window: "BalWindow"):
+        assert bal_window
+        BalDialog.__init__(
+            self, bal_window.window, bal_window.bal_plugin, _("Bal Wizard Setup")
+        )
+        self.setMinimumSize(800, 400)
+        self.bal_window = bal_window
+        self._bal_parent = bal_window.window
+        self.layout = QVBoxLayout(self)
+        self.widget = BalWizardHeirsWidget(
+            bal_window, self, self.on_next_heir, None, self.on_cancel_heir
+        )
+        self.layout.addWidget(self.widget)
+
+    def next_widget(self, widget):
+        self.layout.removeWidget(self.widget)
+        self.widget.close()
+        self.widget = widget
+        self.layout.addWidget(self.widget)
+        # self.update()
+        # self.repaint()
+
+    def on_next_heir(self):
+        self.next_widget(
+            BalWizardLocktimeAndFeeWidget(
+                self.bal_window,
+                self,
+                self.on_next_locktimeandfee,
+                self.on_previous_heir,
+                self.on_cancel_heir,
+            )
+        )
+
+    def on_previous_heir(self):
+        self.next_widget(
+            BalWizardHeirsWidget(
+                self.bal_window, self, self.on_next_heir, None, self.on_cancel_heir
+            )
+        )
+
+    def on_cancel_heir(self):
+        pass
+
+    def on_next_wedonwload(self):
+        self.next_widget(
+            BalWizardWEWidget(
+                self.bal_window,
+                self,
+                self.on_next_we,
+                self.on_next_locktimeandfee,
+                self.on_cancel_heir,
+            )
+        )
+
+    def on_next_we(self):
+        close_window = BalBuildWillDialog(self.bal_window)
+        close_window.build_will_task()
+
+        # Run the SAME final server check as the "Check" button (allegato15,
+        # case B): previously the wizard only ran build_will_task() and skipped
+        # the will-executor verification, so the user always had to press
+        # "Check" manually after finishing the wizard. We now replicate exactly
+        # the lists.py check() logic: after building, query every will that
+        # needs a server check (Will.needs_server_check) and run
+        # check_transactions(), which shows the "Checking transactions" dialog.
+        will = {}
+        for wid, w in self.bal_window.willitems.items():
+            if Will.needs_server_check(w):
+                will[wid] = w
+        if will:
+            self.bal_window.check_transactions(will)
+
+        self.close()
+        # self.next_widget(BalWizardLocktimeAndFeeWidget(self.bal_window,self,self.on_next_locktimeandfee,self.on_next_wedonwload,self.on_next_wedonwload.on_cancel_heir))
+
+    def on_next_locktimeandfee(self):
+        self.next_widget(
+            BalWizardWEDownloadWidget(
+                self.bal_window,
+                self,
+                self.on_next_wedonwload,
+                self.on_next_heir,
+                self.on_cancel_heir,
+            )
+        )
+
+    def on_accept(self):
+        self.bal_window.update_all()
+        pass
+
+    def on_reject(self):
+        pass
+
+    def on_close(self):
+        self.bal_window.update_all()
+        pass
+
+    def closeEvent(self, event):
+        self._stopping = True
+        # self.bal_window.heir_list_widget.will_settings_widget.update_will_settings()
+        pass
+
+
+
+class BalWizardWidget(QWidget):
+    title = None
+    message = None
+
+    def __init__(
+        self, bal_window: "BalWindow", parent, on_next, on_previous, on_cancel
+    ):
+        QWidget.__init__(self, parent)
+        self.vbox = QVBoxLayout(self)
+        self.bal_window = bal_window
+        self._bal_parent = parent
+        self.on_next = on_next
+        self.on_cancel = on_cancel
+        self.titleLabel = QLabel(self.title)
+        self.vbox.addWidget(self.titleLabel)
+        self.messageLabel = QLabel(_(self.message))
+        self.vbox.addWidget(self.messageLabel)
+
+        self.content = self.get_content()
+        self.content_container = QWidget()
+        self.containrelayout = QVBoxLayout(self.content_container)
+        self.containrelayout.addWidget(self.content)
+
+        self.vbox.addWidget(self.content_container)
+
+        spacer_widget = QWidget()
+        spacer_widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        self.vbox.addWidget(spacer_widget)
+
+        self.buttons = []
+        if on_previous:
+            self.on_previous = on_previous
+            self.previous_button = QPushButton(_("Previous"))
+            self.previous_button.clicked.connect(self._on_previous)
+            self.buttons.append(self.previous_button)
+
+        self.next_button = QPushButton(_("Next"))
+        self.next_button.clicked.connect(self._on_next)
+        self.buttons.append(self.next_button)
+
+        self.abort_button = QPushButton(_("Cancel"))
+        self.abort_button.clicked.connect(self._on_cancel)
+        self.buttons.append(self.abort_button)
+
+        self.vbox.addLayout(Buttons(*self.buttons))
+
+    def _on_cancel(self):
+        self.on_cancel()
+        self._bal_parent.close()
+
+    def _on_next(self):
+        if self.validate():
+            self.on_next()
+
+    def _on_previous(self):
+        self.on_previous()
+
+    def get_content(self):
+        pass
+
+    def validate(self):
+        return True
+
+
+
+class BalWizardHeirsWidget(BalWizardWidget):
+    title = "Bitcoin After Life Heirs"
+    message = (
+        "Please add your heirs\n remember that 100% of wallet balance will be spent"
+    )
+
+    def get_content(self):
+        # Lazy import to avoid a dialogs<->lists import cycle (lists imports
+        # BalBuildWillDialog from this module at load time).
+        from .lists import HeirListWidget
+        self.heir_list_widget = HeirListWidget(self.bal_window, self)
+        button_add = QPushButton(_("Add"))
+        button_add.clicked.connect(self.add_heir)
+        button_import = QPushButton(_("Import"))
+        button_import.clicked.connect(self.import_from_file)
+        button_export = QPushButton(_("Export"))
+        button_export.clicked.connect(self.export_to_file)
+        widget = QWidget()
+        vbox = QVBoxLayout(widget)
+        vbox.addWidget(self.heir_list_widget)
+        vbox.addLayout(Buttons(button_add, button_import, button_export))
+        return widget
+
+    def import_from_file(self):
+        self.bal_window.import_heirs()
+        self.heir_list_widget.update()
+
+    def export_to_file(self):
+        self.bal_window.export_heirs()
+
+    def add_heir(self):
+        self.bal_window.new_heir_dialog()
+        self.heir_list_widget.update()
+
+    def validate(self):
+        return True
+
+
+
+class BalWizardWEDownloadWidget(BalWizardWidget):
+    title = _("Bitcoin After Life Will-Executors")
+    message = _("Choose willexecutors download method")
+
+    def get_content(self):
+        # question = QLabel()
+        self.combo = QComboBox()
+        self.combo.addItems(
+            [
+                "Automatically download and select willexecutors",
+                "Only download willexecutors list",
+                "Import willexecutor list from file",
+                "Manual",
+            ]
+        )
+        # heir_name.setFixedWidth(32 * char_width_in_lineedit())
+        return self.combo
+
+    def validate(self):
+        return True
+
+    def _on_next(self):
+
+        index = self.combo.currentIndex()
+        _logger.debug(f"selected index:{index}")
+        if index < 3:
+            self.bal_window.willexecutors = Willexecutors.get_willexecutors(
+                self.bal_window.bal_plugin
+            )
+
+            if index == 2:
+
+                def do_nothing():
+                    self.bal_window.willexecutors.update(self.willexecutors)
+                    Willexecutors.save(
+                        self.bal_window.bal_plugin, self.bal_window.willexecutors
+                    )
+                    pass
+
+                import_meta_gui(
+                    self.bal_window.window,
+                    _("willexecutors"),
+                    self.import_json_file,
+                    do_nothing,
+                )
+
+            if index < 2:
+
+                def on_success(willexecutors):
+                    def ping_on_success(result):
+                        ping_on_done()
+
+                    def ping_on_failure(exec_info):
+                        ping_on_done()
+
+                    def ping_on_done():
+                        # Task #02 - "Automatically download and select"
+                        # (index 0): the green SELECTED tick must follow the
+                        # green ping dot, i.e. select ONLY servers that actually
+                        # answered the ping (status == 200) and DESELECT every
+                        # server that did not (timeout / error / never pinged).
+                        #
+                        # Why the explicit deselect matters: previously a server
+                        # that had been selected on an earlier download but is
+                        # now unreachable stayed selected, so the plugin kept
+                        # broadcasting to a dead server and got stuck. Forcing
+                        # selected=False for non-200 servers discards them at the
+                        # source. Re-running this (each "Automatically download"
+                        # action) re-evaluates every server: one that failed
+                        # before but now answers is selected again.
+                        #
+                        # We compare the status as a string ("200") to stay
+                        # consistent with the will-executor list view
+                        # (lists.py uses str(status) == "200"), and use .get()
+                        # so a missing "status" key never raises.
+                        if index < 1:
+                            for we in self.bal_window.willexecutors:
+                                wedict = self.bal_window.willexecutors[we]
+                                responded = str(wedict.get("status", "")) == "200"
+                                wedict["selected"] = responded
+                        Willexecutors.save(
+                            self.bal_window.bal_plugin, self.bal_window.willexecutors
+                        )
+
+                    self.bal_window.ping_willexecutors(
+                        self.bal_window.willexecutors, ping_on_success, ping_on_failure
+                    )
+
+                self.bal_window.download_list(self.bal_window.willexecutors, on_success)
+
+        elif index == 3:
+            # TODO DO NOTHING
+            pass
+
+        self.bal_window.will_list_widget.update()
+        if self.validate():
+            return self.on_next()
+
+    def import_json_file(self, path):
+        data = read_json_file(path)
+        data = self._validate(data)
+        self.willexecutors = data
+
+    def _validate(self, data):
+        return data
+
+
+
+class BalWizardWEWidget(BalWizardWidget):
+    title = "Bitcoin After Life Will-Executors"
+    message = _("Configure and select your willexecutors")
+
+    def get_content(self):
+        # Lazy import to avoid a dialogs<->lists import cycle.
+        from .lists import WillExecutorWidget
+        widget = QWidget()
+        vbox = QVBoxLayout(widget)
+        vbox.addWidget(
+            WillExecutorWidget(
+                self,
+                self.bal_window,
+                Willexecutors.get_willexecutors(self.bal_window.bal_plugin),
+            )
+        )
+        return widget
+
+
+
+class BalWizardLocktimeAndFeeWidget(BalWizardWidget):
+    title = "Bitcoin After Life Will Settings"
+    message = _("")
+
+    def get_content(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        # The wizard ("Build your will") is the ONLY place the delivery time,
+        # check alive and fee can be edited, so it is the only read_only=False.
+        layout.addWidget(WillSettingsWidget(self.bal_window, self, "v",
+                                            read_only=False))
+        spacer_widget = QWidget()
+        spacer_widget.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
+        layout.addWidget(spacer_widget)
+        return widget
+
+
+
+class BalWaitingDialog(BalDialog):
+    updatemessage = pyqtSignal([str], arguments=["message"])
+
+    def __init__(
+        self,
+        bal_window: "BalWindow",
+        message: str,
+        task,
+        on_success=None,
+        on_error=None,
+        on_cancel=None,
+        exe=True,
+    ):
+        assert bal_window
+        BalDialog.__init__(
+            self, bal_window.window, bal_window.bal_plugin, _("Please wait")
+        )
+        self.message_label = QLabel(message)
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.message_label)
+        self.updatemessage.connect(self.update_message)
+        if on_cancel:
+            self.cancel_button = CancelButton(self)
+            self.cancel_button.clicked.connect(on_cancel)
+            vbox.addLayout(Buttons(self.cancel_button))
+        self.accepted.connect(self.on_accepted)
+        self.task = task
+        self.on_success = on_success
+        self.on_error = on_error
+        self.on_cancel = on_cancel
+        if exe:
+            self.exe()
+
+    def exe(self):
+        self.thread = TaskThread(self)
+        self.thread.finished.connect(self.deleteLater)  # see #3956
+        self.thread.finished.connect(self.finished)
+        self.thread.add(self.task, self.on_success, self.accept, self.on_error)
+        # IMPORTANT: keep the *application-modal* exec() of the original code.
+        # This dialog is driven by a TaskThread whose result (on_success, e.g.
+        # populating the will-executor list) is delivered via a queued signal
+        # while exec() spins the modal event loop.  Switching to window-modal
+        # changed how the modal loop interacts with that delivery and could
+        # cause the downloaded list to never be applied.  We only add the
+        # raise/activate so the dialog stays visible, without altering modality.
+        bring_to_front(self)
+        self.exec()
+
+    def hello(self):
+        pass
+
+    def finished(self):
+        pass
+
+
+    def on_accepted(self):
+        pass
+
+    def update_message(self, msg):
+        self.message_label.setText(msg)
+
+    def update(self, msg):
+        self.updatemessage.emit(msg)
+
+    def getText(self):
+        return self.message_label.text()
+
+
+
+
+class BalBlockingWaitingDialog(BalDialog):
+    def __init__(self, bal_window: "BalWindow", message: str, task: Callable[[], Any]):
+        BalDialog.__init__(self, bal_window, bal_window.bal_plugin, _("Please wait"))
+        self.message_label = QLabel(message)
+        vbox = QVBoxLayout(self)
+        vbox.addWidget(self.message_label)
+        self.finished.connect(self.deleteLater)  # see #3956
+        # show popup (window-modal + on top so it is actually visible)
+        show_on_top(self)
+        # Refresh the GUI so the popup is painted (and message_label drawn)
+        # BEFORE we block the GUI thread running the task; otherwise the popup
+        # appears empty/frozen.
+        from PyQt6.QtWidgets import QApplication
+        QApplication.processEvents()
+        QApplication.processEvents()
+        try:
+            # block and run given task
+            task()
+        finally:
+            # close popup
+            self.accept()
+
+
+class BalBuildWillDialog(BalDialog):
+    updatemessage = pyqtSignal()
+    COLOR_WARNING = "#cfa808"
+    COLOR_ERROR = "#ff0000"
+    COLOR_OK = "#05ad05"
+
+    def __init__(self, bal_window, parent=None):
+        if not parent:
+            parent = bal_window.window
+        BalDialog.__init__(self, parent, bal_window.bal_plugin, _("Building Will"))
+        # (parent already stored as self._bal_parent by BalDialog.__init__)
+        self.updatemessage.connect(self.msg_update)
+        self.bal_window = bal_window
+        self.bal_plugin = bal_window.bal_plugin
+        self.message_label = QLabel(_("Building Will:"))
+        # Allow the long report text to wrap instead of forcing the dialog ever
+        # wider, and let it grow downward inside the scroll area below.
+        self.message_label.setWordWrap(True)
+        self.message_label.setAlignment(
+            Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft
+        )
+        self.vbox = QVBoxLayout(self)
+
+        # SCROLLABLE message area (allegato14): with many will-executors the
+        # report can reach dozens of lines. Previously the dialog kept resizing
+        # itself taller for every new line (see msg_update's resize), so with
+        # e.g. 50 will-executors the window grew past the screen and the bottom
+        # buttons (Close) became unreachable. We now put the message label in a
+        # QScrollArea with a capped maximum height: once the text exceeds that
+        # height a vertical scrollbar appears and the buttons stay visible.
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setWidget(self.message_label)
+        # Open the report area ~450px tall (owner request: 500px left too much
+        # empty space below the short report; 450px lines up with the desired
+        # window height). The dialog may still grow up to 700px to fit a few more
+        # lines; beyond that the vertical scrollbar takes over and the bottom
+        # buttons stay reachable.
+        self.scroll_area.setMinimumHeight(450)
+        self.scroll_area.setMaximumHeight(700)
+        self.vbox.addWidget(self.scroll_area, 1)
+
+        # Kept for backward compatibility (referenced by old/commented code);
+        # no longer used to lay out the messages.
+        self.qwidget = QWidget(self)
+        self.labelsbox = QVBoxLayout(self.qwidget)
+        self.setMinimumWidth(600)
+        self.setMinimumHeight(100)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.labels = []
+        self.check_row = None
+        self.inval_row = None
+        self.build_row = None
+        self.sign_row = None
+        self.push_row = None
+        # Manual next-steps hint (Sign / Broadcast) shown to the user after the
+        # dialog finishes; None when nothing is left to do.
+        self._next_steps_hint = None
+        # Set to True by _sync_locktime_to_built_txs when the delivery date was
+        # automatically anticipated during a rebuild. Used to explain to the
+        # user WHY signing is being requested (otherwise the sign prompt appears
+        # without any reason, as the owner reported).
+        self._date_was_anticipated = False
+        # Set to True right after we broadcast an automatic invalidation
+        # transaction (the "postpone" path). On the very next phase-1 re-check
+        # Electrum may not have seen the invalidation tx yet, so it would still
+        # report a postpone and the wizard would re-prompt to invalidate over
+        # and over (the reported loop). When this flag is set and a postpone is
+        # STILL detected, we STOP with a clear message instead of re-prompting.
+        self._invalidation_broadcast = False
+        self.network = Network.get_instance()
+        self._stopping = False
+        self.thread = TaskThread(self)
+        self.thread.finished.connect(self.task_finished)  # see #3956
+
+    def task_finished(self):
+        pass
+
+    def build_will_task(self):
+        _logger.debug("build will task to be started")
+        self.thread.add(
+            self.task_phase1,
+            on_success=self.on_success_phase1,
+            on_done=self.on_accept,
+            on_error=self.on_error_phase1,
+        )
+        # exec() already shows the dialog modally; route through the helper so
+        # it is window-modal and brought to the front (no separate show()).
+        show_modal(self)
+
+    def task_phase1(self):
+        if self._stopping:
+            return
+        txs = None
+        _logger.debug("close plugin phase 1 started")
+        varrow = self.msg_set_status("Checking variables")
+        try:
+            self.bal_window.init_class_variables()
+        except CheckAliveError as cae:
+            fee_per_byte = self.bal_window.will_settings.get("baltx_fees", 1)
+            tx = Will.invalidate_will(
+                self.bal_window.willitems, self.bal_window.wallet, fee_per_byte
+            )
+            if tx:
+                _logger.debug(
+                    "during phase1 CAE: {}, Continue to invalidate".format(cae)
+                )
+                self.msg_set_status("Checking variables",varrow, "Check Alive Threshold Passed: you have to Invalidate your old Will",self.COLOR_ERROR)
+            else:
+                raise cae
+            return None, tx
+        except NoHeirsException:
+            self.msg_set_status("Checking variables", varrow,"No Heirs",self.COLOR_ERROR)
+            #self.msg_set_checking("No Heirs")
+            return False, None
+        except Exception as e:
+            raise e
+        try:
+            _logger.debug("checking variables")
+            Will.check_amounts(
+                self.bal_window.heirs,
+                self.bal_window.willexecutors,
+                self.bal_window.window.wallet.get_utxos(),
+                self.bal_window.date_to_check,
+                self.bal_window.window.wallet.dust_threshold(),
+            )
+            _logger.debug("variables ok")
+            self.msg_set_status("Checking variables", varrow, "Ok", self.COLOR_OK)
+        except AmountException:
+            self.msg_set_checking(
+                self.msg_warning(
+                    "In the inheritance process, "
+                    + "the entire wallet will always be fully emptied. \n"
+                    + "Your settings require an adjustment of the amounts"
+                )
+            )
+
+        self.msg_set_checking()
+        have_to_build = False
+        try:
+            self.bal_window.check_will()
+            self.msg_set_checking(self.msg_ok())
+        except WillExpiredException:
+            # UNIFY INVALIDATE PROCEDURE (+ task #03):
+            #
+            # The will is already expired (e.g. the CHECK button is pressed on an
+            # expired will). Previously this returned (None, invalidate_tx),
+            # which routed to the automatic invalidate path (password prompt +
+            # auto-broadcast) that did NOT set the "BAL Invalidate transaction"
+            # history label.
+            #
+            # We now return the SAME "invalidate_classic" signal used elsewhere,
+            # so on_success_phase1 shows the warning popup and auto-opens
+            # Electrum's classic transaction window (which sets the label). This
+            # makes the CHECK button and the WIZARD behave identically and fixes
+            # the missing-label bug (#03).
+            _logger.debug("expired")
+            self.msg_set_checking("Expired")
+            return "invalidate_classic", None
+        except WillPostponedException as e:
+            # An already signed/sent will is being postponed.  Like an expired
+            # will, the previously committed coins must be invalidated on-chain
+            # FIRST (otherwise a will-executor could broadcast the old,
+            # earlier-locktime tx and execute the inheritance too early).  We
+            # return (None, tx) so phase 2 asks the user to sign and broadcast
+            # the invalidation; afterwards the user presses Prepare again to
+            # rebuild the new (postponed) inheritance.
+            _logger.debug(f"postponed {e}")
+            self.msg_set_checking(_("Postponed: invalidating old will"))
+            fee_per_byte = self.bal_window.will_settings.get("baltx_fees", 1)
+            return None, Will.invalidate_will(
+                self.bal_window.willitems, self.bal_window.wallet, fee_per_byte
+            )
+        except NoHeirsException as e:
+            _logger.debug("no heirs")
+            self.msg_set_checking("No Heirs")
+        except NotCompleteWillException as e:
+            _logger.debug(f"not complete {e} true")
+            message = False
+            have_to_build = True
+            # Task #7a: if the will was already executed, the wallet is empty and
+            # this exception is expected. Before showing the alarming "Found
+            # CHANGES ... a NEW WILL must be prepared" message, add a clear,
+            # reassuring note on the "Checking your will" row telling the user
+            # the inheritance is already on its way (mempool) or done (on-chain).
+            # The original message is still shown afterwards (owner request: the
+            # red/"changes" message stays, this is only an extra, more precise
+            # informative line).
+            # NOTE: we add the informative note as its OWN extra row (not via
+            # msg_set_checking, which reuses self.check_row and would be
+            # overwritten by the "Found CHANGES" line set below). Passing row=None
+            # to msg_set_status appends a new line, so the executed/mempool note
+            # and the original message are BOTH visible.
+            executed_status = self._executed_inheritance_status()
+            if executed_status == "CONFIRMED":
+                # Green: the inheritance transaction is confirmed on the
+                # blockchain, so it has been executed correctly.
+                self.msg_set_status(
+                    _("Checking your will"),
+                    None,
+                    _("An inheritance of this wallet is already executed (on blockchain)"),
+                    self.COLOR_OK,
+                )
+            elif executed_status == "MEMPOOL":
+                # Orange (warning colour): the transaction is in the mempool,
+                # waiting to be confirmed. Not an error, just "in progress".
+                self.msg_set_status(
+                    _("Checking your will"),
+                    None,
+                    _("Inheritance in mempool (waiting confirmation)"),
+                    self.COLOR_WARNING,
+                )
+            if isinstance(e, HeirChangeException):
+                message = _("Heirs changed:")
+            elif isinstance(e, WillExecutorNotPresent):
+                message = _("Will-Executor not present")
+            elif isinstance(e, WillexecutorChangeException):
+                message = _("Will-Executor changed")
+            elif isinstance(e, TxFeesChangedException):
+                message = _("Txfees are changed")
+            elif isinstance(e, HeirNotFoundException):
+                # Task #01b: the old text "Heir not found" was misleading.
+                # In practice this branch is reached whenever the will is no
+                # longer coherent and must be rebuilt - very often simply
+                # because the delivery date was anticipated, NOT because an heir
+                # is genuinely missing. We therefore show a clear, accurate
+                # message that covers both the DATE and the HEIRS cases.
+                message = _(
+                    "Found CHANGES to the DATE or the HEIRS,\n"
+                    "a NEW WILL must be prepared."
+                )
+            if message:
+                _logger.debug(f"message: {message}")
+                self.msg_set_checking(message)
+            else:
+                # Task #01b: the old fallback text "New" was unclear. When the
+                # will is incomplete without a more specific reason, it still
+                # means the will has to be rebuilt, so we use the same clear
+                # message as the HeirNotFoundException branch above.
+                self.msg_set_checking(
+                    _(
+                        "Found CHANGES to the DATE or the HEIRS,\n"
+                        "a NEW WILL must be prepared."
+                    )
+                )
+
+        if have_to_build:
+            self.msg_set_building()
+            try:
+                txs = self.bal_window.build_will()
+                if not txs:
+                    self.msg_set_building(
+                        _(
+                            "Could not build the will ! Possible reasons:\n"
+                            "1- the Balance of wallet is too low to cover the "
+                            "fees for miners and will executors,\n"
+                            "2- the Heirs' shares are below the minimum (Dust "
+                            "UTXO, less than 546 Satoshi),\n"
+                            "3- the Check Alive Date/Time is later than the "
+                            "delivery time (it must be earlier),\n"
+                            "Skipped"
+                        ),
+                        # Orange (warning) instead of red (error): an empty
+                        # wallet after the inheritance was executed is a NORMAL
+                        # situation, not a failure, so the colour should not
+                        # alarm the user (owner request).
+                        color=self.COLOR_WARNING,
+                    )
+                    return False, None
+
+                self.bal_window.check_will()
+                self._build_success_report()
+            except WillExecutorNotPresent:
+                self.msg_set_status(
+                    _("Will-Executor excluded"), None, _("Skipped"), self.COLOR_ERROR
+                )
+
+            except WillExpiredException as e:
+                # An expired will is an EXPECTED situation (the locktime has
+                # passed). After adding/changing an heir the will is rebuilt
+                # above (build_will), and the freshly rebuilt transactions can
+                # themselves already be expired.
+                #
+                # We must NOT trigger the wizard's automatic invalidation loop
+                # here (return None, invalidate_tx). That loop re-runs
+                # task_phase1 right after broadcasting the invalidation, but the
+                # invalidation tx is not yet visible in the mempool, so the will
+                # is still detected as expired and the user is asked to
+                # invalidate again and again (infinite loop). It also never sets
+                # the "BAL Invalidate transaction" history label.
+                #
+                # Instead we reproduce EXACTLY what the "Tools -> invalidate"
+                # menu does (BalWalletWindow.invalidate_will): open Electrum's
+                # classic transaction dialog so the user can sign and broadcast
+                # the invalidation manually, set the proper history label, and
+                # stop. This is robust regardless of mempool confirmation state.
+                #
+                # The actual call to invalidate_will() (which opens GUI windows)
+                # must run in the GUI thread, so we only RETURN a signal here
+                # ("invalidate_classic"); on_success_phase1 performs the call.
+                # We still show the expired notice as a WARNING (orange).
+                self.msg_set_building(self.msg_warning(e))
+                return "invalidate_classic", None
+
+            except NotCompleteWillException as e:
+                # IMPORTANT (bugs E/F/K): build_will() above has just REBUILT the
+                # whole will because the heirs (or the date) changed. The
+                # post-build re-validation (check_will) then legitimately reports
+                # that the new will differs from the previous one - e.g. it
+                # raises HeirNotFoundException for a heir that is not yet covered
+                # by an already-signed transaction. That is NOT an error: it is
+                # exactly the signal that the freshly built transactions still
+                # need to be SIGNED (and then broadcast).
+                #
+                # Previously this fell through to the generic "except Exception"
+                # below, which (1) printed the heir name in RED and (2) returned
+                # have_to_sign=False, so the rebuilt will was never signed
+                # ("Nothing to do"). We now treat it as a successful rebuild:
+                # show the green "Ok" + the heir list and FALL THROUGH to the
+                # have_to_sign detection, so the new (status "New", not COMPLETE)
+                # transactions are correctly detected and signed/broadcast.
+                _logger.debug(f"will rebuilt, needs signing: {e}")
+                self._build_success_report()
+
+            except HeirAmountIsDustException:
+                # ALL-DUST CASE (owner request): every heir's share is below the
+                # Bitcoin dust limit, so the inheritance would pay nobody. We do
+                # NOT build, sign or check anything - we show a clear message in
+                # red and stop, so no "empty" will ends up in the list. This is
+                # raised by Heirs.prepare_lists only when ALL real heirs are
+                # dust; a mix of dust + valid heirs never reaches here.
+                self.msg_set_building(
+                    self.msg_error(
+                        _(
+                            "All heirs' shares are below the dust limit: "
+                            "the inheritance cannot be created. "
+                            "Increase the amounts or reduce the number of heirs."
+                        )
+                    )
+                )
+                return False, None
+
+            except Exception as e:
+                self.msg_set_building(self.msg_error(e))
+                raise e
+                return False, None
+
+        # DUST report (one line PER HEIR, not per will-executor).
+        #
+        # WHY: the wallet balance can be so small that each heir's share falls
+        # below Bitcoin's dust limit, so the inheritance is not feasible. The
+        # "is DUST" condition depends ONLY on the heir's amount, NOT on which
+        # will-executor transaction we are looking at. The previous code looped
+        # over every valid will (one per will-executor) AND every heir, so with
+        # e.g. 20 will-executors and 10 heirs it printed 20x10 = 200 identical
+        # "is DUST ... Excluded from will <wid>" rows (owner report, allegato13).
+        #
+        # We now collect the dust heirs in a de-duplicated dict (heir id ->
+        # dust amount) across all valid wills and print ONE row per heir,
+        # without the will-executor reference. So N heirs => at most N rows,
+        # regardless of how many will-executors exist.
+        dust_heirs = {}
+        for wid in Will.only_valid(self.bal_window.willitems):
+            heirs = self.bal_window.willitems[wid].heirs
+            for hid, heir in heirs.items():
+                if "DUST" in str(heir[HEIR_REAL_AMOUNT]):
+                    # Keep the first dust amount seen for this heir; it is the
+                    # same share in every will-executor copy of the will.
+                    dust_heirs.setdefault(hid, heir[HEIR_DUST_AMOUNT])
+        for hid, dust_amount in dust_heirs.items():
+            self.msg_set_status(
+                f"{_('Heir')} {hid}",
+                None,
+                f"{dust_amount} is DUST - excluded (amount below dust limit)",
+                self.COLOR_WARNING,
+            )
+
+        have_to_sign = False
+        for wid in Will.only_valid(self.bal_window.willitems):
+            if not self.bal_window.willitems[wid].get_status("COMPLETE"):
+                have_to_sign = True
+                break
+        return have_to_sign, txs
+
+    def _build_success_report(self):
+        """Mark the build step as done and list every heir in green.
+
+        Called after a successful (re)build of the will. It:
+          1. labels each inheritance transaction in Electrum's history;
+          2. shows the green "Ok" result on the "Building your will" row;
+          3. lists EVERY heir of the freshly built will, one per line, in green
+             (the "Ok" colour), so the user can confirm at a glance who will
+             inherit.
+
+        Previously a heir name could appear in RED (it was the text of a rebuild
+        exception) and the heir list was only shown on the "all clean" path,
+        which is why after changing/deleting an heir the user saw a single red
+        heir name and no green list. This helper is now used both on the clean
+        path and on the "will was rebuilt and needs signing" path, so the green
+        heir list is always shown.
+
+        Internal will-executor pseudo-heirs (reserved ``w!ll3x3c"`` prefix) are
+        skipped, exactly as the core coherence check does. A set keeps the list
+        unique even when an heir appears in several transactions.
+        """
+        for wid in Will.only_valid(self.bal_window.willitems):
+            # Label shown in Electrum's History tab for inheritance txs.
+            self.bal_window.wallet.set_label(wid, "BAL Inheritance transaction")
+        # Keep the plugin's stored delivery date in sync with the (possibly
+        # auto-anticipated) transactions, otherwise the next Check would wrongly
+        # ask to invalidate. See _sync_locktime_to_built_txs for the full why.
+        self._sync_locktime_to_built_txs()
+        self.msg_set_building(self.msg_ok())
+        # List EACH heir on its OWN line, green + bold (owner request: revert the
+        # one-line "Heirs: a, b, c" form of v0.4.6). Heir names can be long, and
+        # now that the report area scrolls (allegato1) there is no need to cram
+        # them onto a single line. We de-duplicate (an heir can appear in several
+        # will-executor transactions) and skip the internal will-executor
+        # pseudo-heirs (reserved ``w!ll3x3c"`` prefix), exactly as before.
+        shown_heirs = set()
+        for wid in Will.only_valid(self.bal_window.willitems):
+            for hname in self.bal_window.willitems[wid].heirs:
+                if str(hname)[:9] == 'w!ll3x3c"':
+                    continue
+                if hname in shown_heirs:
+                    continue
+                shown_heirs.add(hname)
+                self.msg_set_status(_("Heir"), None, str(hname), self.COLOR_OK)
+
+    def _sync_locktime_to_built_txs(self):
+        """Align the plugin's stored delivery date with the built transactions.
+
+        WHY this is needed (bug reported by the owner):
+        When the will is rebuilt while it still spends the same coins as a
+        previous one (e.g. after deleting an heir WITHOUT changing the date),
+        the core engine AUTOMATICALLY anticipates the transaction locktime by
+        one day (see Will.check_anticipate / Util.anticipate_locktime). This is
+        correct and required so the new transaction can be mined BEFORE the old
+        one it replaces.
+
+        However the plugin's own stored delivery date
+        (WILL_SETTINGS["locktime"]) was NOT updated and stayed at the original
+        date. On the next Check the plugin compared the stored date (original)
+        with the transaction locktime (original minus one day) and, since
+        stored > tx, mistook the automatic anticipation for a user POSTPONE,
+        wrongly asking to invalidate the will.
+
+        Fix: after a (re)build, set the stored delivery date to the MINIMUM
+        locktime among the valid built transactions. We only ever move the date
+        EARLIER (anticipation): if the minimum is not strictly below the current
+        stored date we leave it untouched, so a genuine user-chosen postpone is
+        never silently overwritten. The owner confirmed that, when several
+        transactions carry different locktimes, taking the minimum is the
+        desired behaviour, and that the date shown in the panel/wizard must
+        reflect this anticipated date (so the calendar .ics also uses it).
+
+        We route the update through BalWindow.update_setting_widgets, which is
+        the single place that (1) stores the value in WILL_SETTINGS, (2)
+        persists it to Electrum's database and (3) refreshes the date widgets in
+        every panel/wizard, so the visible date and the .ics export stay
+        consistent.
+        """
+        # Minimum locktime across the valid (just built) inheritance txs.
+        # Will.get_min_locktime returns None when there is no valid tx.
+        min_locktime = Will.get_min_locktime(self.bal_window.willitems, None)
+        if min_locktime is None:
+            return
+        min_locktime = int(min_locktime)
+        # Current stored delivery date, as a comparable UNIX timestamp.
+        try:
+            current = int(
+                Util.parse_locktime_string(
+                    self.bal_window.will_settings["locktime"]
+                )
+            )
+        except Exception:
+            # If the stored value cannot be parsed, fall back to syncing.
+            current = None
+        # Only anticipate (move the date EARLIER); never overwrite a postpone.
+        if current is not None and min_locktime >= current:
+            return
+        _logger.debug(
+            f"sync delivery date to anticipated tx locktime: "
+            f"{current} -> {min_locktime}"
+        )
+        # Remember that we anticipated the date, so the later sign prompt can
+        # explain WHY signing is needed (see on_success_phase1).
+        self._date_was_anticipated = True
+        # update_setting_widgets stores the value, persists it and refreshes the
+        # date widgets in all panels/wizard (so the .ics calendar uses it too).
+        self.bal_window.update_setting_widgets(
+            min_locktime, "locktime", update_all=True
+        )
+
+    def on_accept(self):
+        try:
+            self.bal_window.update_all()
+        except Exception as e:
+            import traceback
+            _logger.error(f"NoneType_catch on_accept: {e}\n{traceback.format_exc()}")
+        pass
+
+    def on_accept_phase2(self):
+        try:
+            self.bal_window.update_all()
+        except Exception as e:
+            import traceback
+            _logger.error(f"NoneType_catch on_accept_phase2: {e}\n{traceback.format_exc()}")
+        pass
+
+    def on_error_push(self):
+        pass
+
+    def wait(self, secs):
+        wait_row = None
+        for i in range(secs, 0, -1):
+            if self._stopping:
+                return
+            wait_row = self.msg_edit_row(_(f"Please wait {i}secs"), wait_row)
+            time.sleep(1)
+        self.msg_del_row(wait_row)
+
+    def loop_broadcast_invalidating(self, tx):
+        if self._stopping:
+            return
+        self.msg_set_invalidating("Broadcasting")
+        try:
+            tx.add_info_from_wallet(self.bal_window.wallet)
+            self.network.run_from_another_thread(tx.add_info_from_network(self.network))
+
+            # IMPORTANT (task #21 fix): get the txid from the transaction
+            # object, NOT from broadcast_transaction()'s return value.
+            # Network.broadcast_transaction is declared "-> None" and ALWAYS
+            # returns None (it only raises on failure). The previous code stored
+            # that None into `txid` and put set_label() in the `else: # txid`
+            # branch, which was therefore NEVER reached - that is why the
+            # "BAL Invalidate transaction" history label kept missing on this
+            # automatic ("postpone") path. The transaction is already signed and
+            # complete here, so tx.txid() is the correct, stable id - exactly
+            # what the working Tools -> Invalidate path uses
+            # (BalWalletWindow.invalidate_will -> result.txid()).
+            txid = tx.txid()
+
+            # Set the history label BEFORE broadcasting. set_label only writes to
+            # the local wallet metadata (no network needed), so doing it first
+            # guarantees the label exists the moment the transaction shows up in
+            # the History tab, regardless of how fast the broadcast/notification
+            # arrives.
+            if txid:
+                self.bal_window.wallet.set_label(txid, "BAL Invalidate transaction")
+            else:
+                _logger.debug(f"invalidate tx has no txid: {tx}")
+
+            self.network.run_from_another_thread(
+                self.network.broadcast_transaction(tx, timeout=120), timeout=120
+            )
+            self.msg_set_invalidating(self.msg_ok())
+
+        except TxBroadcastError as e:
+            _logger.error(f"fail to broadcast transaction:{e}")
+            msg = e.get_message_for_gui()
+            self.msg_set_invalidating(self.msg_error(msg))
+        except BestEffortRequestFailed as e:
+            self.msg_set_invalidating(self.msg_error(e))
+
+    def loop_push(self):
+        # Broadcast is "one-shot" (Group B / B2 follow-up): each selected
+        # will-executor is contacted ONCE. Transactions that are broadcast
+        # successfully become PUSHED; transactions whose server fails or times
+        # out are left as PUSH_FAIL and simply skipped - they are NOT retried
+        # automatically. A dead will-executor could otherwise never answer and
+        # make the plugin retry forever. The user can broadcast a failed
+        # transaction manually later with the "Broadcast" button. Note that
+        # get_willexecutor_transactions already excludes PUSHED transactions, so
+        # the successful ones are never re-sent on a subsequent run.
+        if self._stopping:
+            return
+        self.msg_set_pushing(_("Broadcasting"))
+        try:
+
+            willexecutors = Willexecutors.get_willexecutor_transactions(
+                self.bal_window.willitems
+            )
+
+            # Only push to the will-executors the user actually selected.  We
+            # filter the mapping up-front so push_transactions_parallel only
+            # talks to the relevant servers.
+            selected = {
+                url: we
+                for url, we in willexecutors.items()
+                if Willexecutors.is_selected(self.bal_window.willexecutors.get(url))
+            }
+
+            # Servers that report "already present" need their stored tx
+            # verified afterwards (network I/O); collect them here and process
+            # them sequentially after the parallel push, keeping the original
+            # check logic untouched.
+            already_present = []
+            total = len(selected)
+            done = {"count": 0}
+
+            deadline = Willexecutors.PUSH_GLOBAL_DEADLINE
+
+            def _status_line():
+                # e.g. "Broadcasting your will to executors: 2/3 (5s / 30s)".
+                # The "/ 30s" makes the maximum wait explicit, so the user knows
+                # the wizard will proceed by then (the global deadline) instead
+                # of wondering how long the counter will keep climbing.
+                return "{} {}/{} ({}s / {}s)".format(
+                    _("Broadcasting"), done["count"], total,
+                    min(int(time.time() - push_start), deadline), deadline,
+                )
+
+            def on_each(url, willexecutor, ok, exc):
+                # Runs from a worker thread.  Do only thread-safe book-keeping
+                # plus a signal-based UI update (msg_edit_row emits a pyqtSignal,
+                # which is marshalled to the GUI thread).
+                if isinstance(exc, Willexecutors.AlreadyPresentException):
+                    already_present.append(url)
+                elif ok:
+                    for wid in willexecutor["txsids"]:
+                        self.bal_window.willitems[wid].set_status("PUSHED", True)
+                else:
+                    # One-shot: mark the failed transactions and move on. They
+                    # are left as PUSH_FAIL (no automatic retry).
+                    for wid in willexecutor["txsids"]:
+                        self.bal_window.willitems[wid].set_status("PUSH_FAIL", True)
+                done["count"] += 1
+                # Show the per-server result (Ok/Ko) in bold + color so the
+                # outcome stands out, keeping the server URL in normal weight.
+                result = self.msg_ok("Ok") if ok else self.msg_error("Ko")
+                self.msg_edit_row("{} : {}".format(url, result))
+                self.msg_set_pushing(_status_line())
+
+            def on_timeout(url, willexecutor):
+                # The global deadline elapsed before this server answered. Mark
+                # its txs as failed and move on (one-shot: no automatic retry).
+                # The user can broadcast them manually later if desired.
+                for wid in willexecutor.get("txsids", []):
+                    self.bal_window.willitems[wid].set_status("PUSH_FAIL", True)
+                self.msg_edit_row(
+                    "{} : {}".format(url, self.msg_error(_("Timeout - no answer")))
+                )
+
+            if self._stopping:
+                return
+            # Push to all selected will-executors in parallel: a slow/dead
+            # server no longer blocks the others, so the wizard's "Broadcasting"
+            # step is no longer sequential.  Each server keeps a short retry
+            # behaviour, and a global deadline guarantees the wizard always
+            # proceeds even if a server never answers.
+            push_start = time.time()
+            self.msg_set_pushing(_status_line())
+
+            # Refresh the elapsed-seconds counter while the (blocking) parallel
+            # push runs, so the user sees time advancing instead of a frozen
+            # "Trasmissione".  The tick is driven from THIS (Task) thread by
+            # push_transactions_parallel, the same thread that drives on_each, so
+            # the pyqtSignal repaint is reliable (a separate heartbeat thread's
+            # signal emissions were not being marshalled and never repainted).
+            def on_tick():
+                if self._stopping:
+                    return
+                self.msg_set_pushing(_status_line())
+
+            Willexecutors.push_transactions_parallel(
+                selected, on_each=on_each, on_timeout=on_timeout, on_tick=on_tick
+            )
+
+            # Final summary line with the total elapsed time.
+            self.msg_set_pushing(
+                "{}/{} ({}s)".format(done["count"], total,
+                                     int(time.time() - push_start))
+            )
+
+            # Verify the "already present" servers (sequential, original logic).
+            self.bal_plugin = self.bal_window.bal_plugin
+            for url in already_present:
+                for wid in willexecutors[url]["txsids"]:
+                    if self._stopping:
+                        return
+                    row = self.msg_edit_row(
+                        "checking {} - {} : <b>{}</b>".format(
+                            self.bal_window.willitems[wid].we["url"], wid, "Waiting"
+                        )
+                    )
+                    w = self.bal_window.willitems[wid]
+                    w.set_check_willexecutor(
+                        Willexecutors.check_transaction(wid, w.we["url"])
+                    )
+                    # Show the CHECKED result in bold + color (green True /
+                    # red False) so the outcome stands out, keeping the server
+                    # URL and tx id in normal weight.
+                    checked = self.bal_window.willitems[wid].get_status("CHECKED")
+                    result = self.msg_ok(checked) if checked else self.msg_error(checked)
+                    row = self.msg_edit_row(
+                        "checked {} - {} : {}".format(
+                            self.bal_window.willitems[wid].we["url"],
+                            wid,
+                            result,
+                        ),
+                        row,
+                    )
+
+            # One-shot broadcast: we deliberately do NOT raise/retry when some
+            # will-executors failed. Their transactions stay PUSH_FAIL and are
+            # left for the user to broadcast manually. This prevents an endless
+            # retry loop against a will-executor that may never answer.
+
+        except Exception as e:
+            # Only genuine, unexpected errors reach here now (not the old
+            # "retry" signal). Report the error; do not loop.
+            self.msg_set_pushing(self.msg_error(e))
+            self.wait(10)
+            if not self._stopping:
+                pass
+
+    def invalidate_task(self, password, bal_window, tx):
+        if self._stopping:
+            return
+        _logger.debug(f"invalidate tx: {tx}")
+        # fee_per_byte = bal_window.will_settings.get("baltx_fees", 1)
+        tx = self.bal_window.wallet.sign_transaction(tx, password)
+        try:
+            if tx:
+                if tx.is_complete():
+                    self.loop_broadcast_invalidating(tx)
+                    # Wait 10 seconds (was 5) AFTER broadcasting the
+                    # invalidation so Electrum's wallet/network has time to see
+                    # the new transaction before we re-run phase 1. Without this
+                    # pause the immediate re-check still detected the old
+                    # (not-yet-invalidated) will and re-prompted to invalidate,
+                    # producing the reported loop. This runs in the worker
+                    # thread, so the GUI is not frozen by the sleep.
+                    self.wait(10)
+                    # Remember that we just broadcast an invalidation. If the
+                    # next phase-1 re-check STILL reports a postpone (because
+                    # Electrum has not registered the tx yet), we stop with a
+                    # clear message instead of looping (see on_success_phase1).
+                    self._invalidation_broadcast = True
+                else:
+                    raise Exception("tx not complete")
+            else:
+                raise Exception("not tx")
+        except Exception as e:
+            (f"exception:{e}")
+            self.msg_set_invalidating(f"Error: {e}")
+            raise Exception("Impossible to sign") from e
+
+    def on_success_invalidate(self, success):
+        self.thread.add(
+            self.task_phase1,
+            on_success=self.on_success_phase1,
+            on_done=self.on_accept,
+            on_error=self.on_error_phase1,
+        )
+
+    def on_success_phase1(self, result):
+        try:
+            self._on_success_phase1_body(result)
+        except Exception as e:
+            import traceback
+            _logger.error(f"NoneType_catch on_success_phase1: {e}\n{traceback.format_exc()}")
+
+    def _on_success_phase1_body(self, result):
+        if self._stopping:
+            return
+        self.have_to_sign, tx = list(result)
+        # if not tx:
+        #    self.msg_edit_row(self.msg_error("Error, no tx was built"))
+        #    return
+
+        # Special signal raised by task_phase1 when the freshly rebuilt will is
+        # already expired (e.g. an heir was added to an expired will). Instead of
+        # running the wizard's automatic invalidation loop (which would re-check
+        # before the invalidation tx reaches the mempool and loop forever), we
+        # behave exactly like the "Tools -> invalidate" menu: open Electrum's
+        # classic transaction dialog so the user signs and broadcasts the
+        # invalidation manually, with the "BAL Invalidate transaction" label.
+        # This runs in the GUI thread (on_success callback), so opening windows
+        # is safe. We then stop and close the wizard.
+        if self.have_to_sign == "invalidate_classic":
+            self.thread.stop()
+            # UNIFY INVALIDATE PROCEDURE (+ task #03):
+            #
+            # When an heir is added to an already-expired will, the rebuilt will
+            # is itself expired and the old will must be invalidated on-chain
+            # before the new one can be used.
+            #
+            # We make the CHECK button and the WIZARD behave IDENTICALLY:
+            #   1. show a WARNING popup (no "Tools -> Invalidate" wording);
+            #   2. AUTOMATICALLY open Electrum's classic transaction dialog via
+            #      BalWalletWindow.invalidate_will() (the same code used by the
+            #      Tools -> Invalidate menu). That path already sets the
+            #      "BAL Invalidate transaction" history label - which fixes
+            #      task #03 (the label was previously missing on the automatic
+            #      path).
+            #
+            # Window-stacking note (history): opening the transaction window
+            # straight from within the closing wizard used to leave it BEHIND
+            # the main window on some window managers. The robust fix is to
+            # close the wizard FIRST and defer the call with QTimer.singleShot
+            # so it runs on the next event-loop iteration, when the wizard is
+            # already gone and the transaction window becomes the front-most,
+            # focused window.
+            self.close()
+            self.bal_window.show_message(
+                _(
+                    "Your will has expired and must be invalidated before it "
+                    "can be rebuilt.\n"
+                    "A transaction window will now open:\n"
+                    "please SIGN and then BROADCAST it to invalidate your old "
+                    "will.\n"
+                    "After the invalidation is confirmed, press the Check "
+                    "button to finish the will."
+                )
+            )
+            # Deferred so the wizard is fully closed before the classic
+            # invalidate window opens (keeps it in front, fixes the old
+            # "window behind" problem).
+            QTimer.singleShot(0, self.bal_window.invalidate_will)
+            return
+
+        _logger.debug("have to sign {}".format(self.have_to_sign))
+        password = None
+        if self.have_to_sign is None:
+            _logger.debug("have to invalidate")
+
+            # LOOP GUARD (task #21): if we already broadcast an invalidation on
+            # the previous pass and phase 1 STILL reports a postpone, Electrum
+            # has simply not seen the invalidation transaction yet. Re-prompting
+            # to invalidate here is exactly what produced the reported endless
+            # loop ("Invalidate your old will" reappearing right after signing).
+            # Instead of re-prompting, STOP cleanly with a clear message and
+            # tell the user to retry the Check once the invalidation confirms.
+            if self._invalidation_broadcast:
+                self.thread.stop()
+                self.msg_set_invalidating(self.msg_ok())
+                self.bal_window.show_message(
+                    _(
+                        "Your old will has been invalidated and the "
+                        "transaction was broadcast.\n"
+                        "Electrum may need a little time to register it.\n"
+                        "Please wait until the invalidation transaction is "
+                        "confirmed, then press the Check button again to "
+                        "finish updating your will."
+                    )
+                )
+                self._add_close_button()
+                return
+
+            self.msg_set_invalidating()
+            # need to sign invalidate and restart phase 1
+
+            password = self.bal_window.get_wallet_password(
+                _("Invalidate your old will"), parent=self
+            )
+            if password is False:
+                # The user cancelled the password prompt for the invalidation.
+                # We must NOT call self.wait(3) here: on_success_phase1 runs in
+                # the GUI thread, so wait()'s time.sleep() would freeze the UI
+                # for several seconds. While frozen the dialog cannot repaint
+                # the area it just resized, leaving a black, undrawn rectangle
+                # at the bottom of the "Building Will" window (the reported bug).
+                #
+                # Instead, mark the invalidation as "Aborted" and offer a
+                # non-blocking "Close" button (the same helper used by the
+                # normal finish path), so the user can read the outcome and
+                # dismiss the dialog when they want, without blocking the GUI.
+                self.msg_set_invalidating(_("Aborted"))
+                self._add_close_button()
+                return
+            self.thread.add(
+                partial(self.invalidate_task, password, self.bal_window, tx),
+                on_success=self.on_success_invalidate,
+                on_done=self.on_accept,
+                on_error=self.on_error,
+            )
+
+            return
+
+        elif self.have_to_sign:
+            auto_sign = (
+                self.bal_window.bal_plugin.is_basic_mode()
+                or self.bal_window.bal_plugin.AUTO_SIGN.get()
+            )
+            if not auto_sign:
+                self.msg_set_signing(
+                    _("Auto-sign disabled — sign manually")
+                )
+                self.have_to_sign = False
+            else:
+                # If the will was rebuilt with an automatically anticipated
+                # delivery date, explain WHY we are now asking to sign:
+                # otherwise the sign prompt appears with no reason (owner
+                # feedback). The note is shown on the "Building your will"
+                # row (orange warning) before the modal password prompt
+                # opens, so the user can read it.
+                if self._date_was_anticipated:
+                    self.msg_set_building(
+                        "<b>{}</b>".format(
+                            _(
+                                "The delivery date was automatically moved "
+                                "one day earlier so the updated will can "
+                                "correctly replace the previous one.\n"
+                                "Please sign (and broadcast) to confirm "
+                                "the change."
+                            )
+                        )
+                    )
+                password = self.bal_window.get_wallet_password(
+                    _("Sign your will"), parent=self
+                )
+                if password is False:
+                    self.msg_set_signing(_("Aborted"))
+        else:
+            self.msg_set_signing(_("Nothing to do"))
+        self.thread.add(
+            partial(self.task_phase2, password),
+            on_success=self.on_success_phase2,
+            on_done=self.on_accept_phase2,
+            on_error=self.on_error_phase2,
+        )
+        return
+
+    def on_success_phase2(self, arg=False):
+        self.thread.stop()
+        self.bal_window.save_willitems()
+        self.msg_edit_row(_("Finished"))
+        # Instead of auto-closing after a countdown, let the user decide when to
+        # dismiss the dialog: they can read the full "Building Will" report at
+        # their own pace and then press "Close".  This runs in the GUI thread
+        # (on_success callback) so building the button here is safe.
+        self._add_close_button()
+
+    def _add_close_button(self):
+        """Add a right-aligned "Close" button and a "Calendar" dropdown button.
+
+        Replaces the old automatic countdown (self.wait(5) + self.close()).
+        Guarded so it is only built once even if called again.
+        """
+        if getattr(self, "_close_button", None) is not None:
+            return
+
+        calendar_button = BalCalendarButton(self.bal_window, self._ics_provider)
+        calendar_button.setText(_("Calendar"))
+
+        self._close_button = QPushButton(_("Close"))
+        self._close_button.clicked.connect(self._on_close_clicked)
+        button_row = QHBoxLayout()
+        button_row.addStretch(1)
+        button_row.addWidget(calendar_button)
+        button_row.addWidget(self._close_button)
+        self.vbox.addLayout(button_row)
+        self._close_button.setFocus()
+
+    def _ics_provider(self):
+        """Return the .ics content for the current will data."""
+        from datetime import datetime, timedelta
+
+        try:
+            locktime_ts = Util.parse_locktime_string(
+                self.bal_window.will_settings["locktime"]
+            )
+            locktime = datetime.fromtimestamp(locktime_ts)
+
+            if self.bal_window.bal_plugin.is_basic_mode():
+                days_to_deadline = (locktime - datetime.now()).days
+                offsets = basic_reminder_offsets(days_to_deadline)
+            else:
+                threshold_ts = BalTimestamp(
+                    self.bal_window.will_settings["threshold"]
+                ).to_timestamp()
+                threshold = datetime.fromtimestamp(threshold_ts)
+                days = (locktime - threshold).days
+                try:
+                    count = int(self.bal_window.bal_plugin.NUM_REMINDERS.get())
+                except Exception:
+                    count = 3
+                offsets = compute_reminder_offsets(days, count)
+
+            now = BalCalendar.format_time(datetime.now())
+
+            heirs_details = "\r\n".join(
+                f" {heir} - {self.bal_window.heirs[heir][0]}, "
+                f"{self.bal_window.heirs[heir][1]}"
+                for heir in self.bal_window.heirs
+            )
+
+            if self.bal_window.bal_plugin.is_basic_mode():
+                raw_description = self.bal_window.bal_plugin.EVENT_DESCRIPTION.default
+                raw_summary = self.bal_window.bal_plugin.EVENT_SUMMARY.default
+            else:
+                raw_description = self.bal_window.bal_plugin.EVENT_DESCRIPTION.get()
+                raw_summary = self.bal_window.bal_plugin.EVENT_SUMMARY.get()
+
+            event_description = BalCalendar.ical_escape(
+                f"{raw_description}"
+                .replace("$wallet_name", str(self.bal_window.wallet))
+                .replace("$heirs_complete", heirs_details)
+            )
+            summary_base = (
+                f"{raw_summary}"
+                .replace("$wallet_name", str(self.bal_window.wallet))
+            )
+
+            lines = [
+                "BEGIN:VCALENDAR",
+                "VERSION:2.0",
+                "PRODID:-//Bitcoin After Life//Electrum Plugin/"
+                f"{BalPlugin.__version__}",
+            ]
+
+            total = len(offsets)
+            # ToDo #2: if no reminder falls in the future (the delivery date is
+            # too close or already passed), there are no events to write.
+            # Return None so the caller shows a clear warning instead of
+            # producing an empty, seemingly-broken .ics file.
+            if total == 0:
+                return None
+            for idx, offset in enumerate(offsets, start=1):
+                event_dt = BalCalendar.format_time(locktime - timedelta(days=offset))
+                summary = BalCalendar.ical_escape(
+                    f"{summary_base} (reminder {idx}/{total})"
+                )
+                lines.extend([
+                    "BEGIN:VEVENT",
+                    f"UID:bal-{str(self.bal_window.wallet)}-{offset}d",
+                    f"DTSTAMP:{now}",
+                    f"DTSTART:{event_dt}",
+                    f"DTEND:{event_dt}",
+                    f"SUMMARY:{summary}",
+                    f"DESCRIPTION:{event_description}",
+                    "END:VEVENT",
+                ])
+
+            lines.append("END:VCALENDAR")
+            lines = [s.rstrip("\r\n") for s in lines]
+            return "\r\n".join(lines) + "\r\n"
+        except Exception as e:
+            _logger.error(f"failed to generate .ics: {e}")
+            return None
+
+    def _on_close_clicked(self):
+        # Close the dialog first, then show the persistent popup guiding the
+        # user through any remaining MANUAL steps (Sign / Broadcast).  Showing
+        # the (modal) hint after close() mirrors the previous behaviour where
+        # the hint appeared once the auto-closing dialog was gone.
+        self.close()
+        if self._next_steps_hint:
+            self.bal_window.show_message(self._next_steps_hint)
+
+    def closeEvent(self, event):
+        self._stopping = True
+        # Stop AND join the thread, then propagate the close event (previously
+        # it neither waited nor called super().closeEvent()).
+        stop_thread(getattr(self, "thread", None))
+        super().closeEvent(event)
+
+    def task_phase2(self, password):
+        if self._stopping:
+            return
+        if self.have_to_sign:
+            try:
+                if txs := self.bal_window.sign_transactions(password):
+                    for txid, tx in txs.items():
+                        self.bal_window.willitems[txid].tx = copy.deepcopy(tx)
+                    self.bal_window.save_willitems()
+                    self.msg_set_signing(self.msg_ok())
+            except Exception as e:
+                self.msg_set_signing(self.msg_error(e))
+
+        self.msg_set_pushing()
+        have_to_push = False
+        for wid in Will.only_valid(self.bal_window.willitems):
+            w = self.bal_window.willitems[wid]
+            if w.we and w.get_status("COMPLETE") and not w.get_status("PUSHED"):
+                have_to_push = True
+        if not have_to_push:
+            self.msg_set_pushing(_("Nothing to do"))
+        else:
+            try:
+                self.loop_push()
+                self.msg_set_pushing(self.msg_ok())
+
+            except Exception as e:
+                # td = traceback.format_exc()
+                self.msg_set_pushing(self.msg_error(e))
+        # Blank separator row: visually detach the final "All done" summary
+        # from the per-step result rows above it, so the closing line stands
+        # out as the overall outcome rather than just another step.
+        self.msg_edit_row("")
+        # Final summary row: the whole "Building Will" sequence above (check /
+        # sign / broadcast) finished without errors.  Give it an explicit
+        # left-side label ("All done") so this closing Ok is not an orphan
+        # result like the other rows have.
+        self.msg_edit_row("{}:\t{}".format(_("All done"), self.msg_ok()))
+
+        # Guide the user through any remaining MANUAL steps.  After the will is
+        # (re)built -- e.g. because an heir was removed/added from the Wizard --
+        # the new transactions may still need to be SIGNED and/or BROADCAST by
+        # the user.  This dialog only signs/pushes automatically when it already
+        # has the password and the will is in the right state; in every other
+        # case the user is otherwise left without any indication of what to do
+        # next.  We inspect the real status of the valid wills and tell the user
+        # exactly which buttons to press.
+        self._show_next_steps_hint()
+
+    def _show_next_steps_hint(self):
+        """Append a clear "what to do next" line to the Building Will dialog.
+
+        Pure UX guidance (no logic change): looks at the valid wills and, if any
+        still needs signing or broadcasting, tells the user to press 'Sign'
+        and/or 'Broadcast' manually.  The computed hint is also stored in
+        ``self._next_steps_hint`` so a persistent popup can be shown after the
+        dialog closes (this dialog auto-closes after a few seconds, which is too
+        short to be sure the user noticed the in-dialog line).
+        """
+        self._next_steps_hint = None
+        # Group B / B2: when AUTO_SIGN is ON the dialog has already signed and
+        # broadcast the will automatically, so the manual "press Sign/Broadcast"
+        # hints (and the follow-up popup) would be wrong/confusing. Suppress
+        # them in that case. When AUTO_SIGN is OFF, keep the previous behaviour
+        # and guide the user through the remaining manual steps.
+        try:
+            if (
+                self.bal_window.bal_plugin.is_basic_mode()
+                or self.bal_window.bal_plugin.AUTO_SIGN.get()
+            ):
+                return
+        except Exception:
+            # If the setting cannot be read for any reason, fall back to the
+            # original behaviour (show the manual hints).
+            pass
+        try:
+            need_sign = False
+            need_push = False
+            for wid in Will.only_valid(self.bal_window.willitems):
+                w = self.bal_window.willitems[wid]
+                if not w.get_status("COMPLETE"):
+                    # Not signed yet.
+                    need_sign = True
+                elif w.we and not w.get_status("PUSHED"):
+                    # Signed but not yet sent to its will-executor.
+                    need_push = True
+
+            if need_sign and need_push:
+                hint = _(
+                    "Next steps (manual): press 'Sign' to sign your will, "
+                    "then 'Broadcast' to send it to the will-executors."
+                )
+            elif need_sign:
+                hint = _(
+                    "Next step (manual): press 'Sign' to sign your will."
+                )
+            elif need_push:
+                hint = _(
+                    "Next step (manual): press 'Broadcast' to send your will "
+                    "to the will-executors."
+                )
+            else:
+                # Nothing left to do (already signed and, if needed, sent).
+                return
+
+            self._next_steps_hint = hint
+            self.msg_edit_row("<b>{}</b>".format(hint))
+        except Exception as hint_err:
+            _logger.debug(f"next-steps hint error: {hint_err}")
+
+    def on_error(self, error):
+        _logger.error(error)
+        pass
+
+    def on_error_phase1(self, error):
+        self.bal_window.update_all()
+        a, b, c = error
+        self.msg_edit_row(self.msg_error(f"Error: {b}"))
+        import traceback
+        _logger.error(f"error phase1: {b}\n{''.join(traceback.format_exception(a, b, c))}")
+        button=QPushButton(_("Close"))
+        button.clicked.connect(self.close)
+        self.vbox.addWidget(button)
+        self.resize(self.vbox.sizeHint()+button.sizeHint()*2)
+        self.repaint()
+    def on_error_phase2(self, error):
+        self.bal_window.upade_all()
+        a, b, c = error
+        self.msg_edit_row(self.msg_error(f"Error: {b}"))
+        _logger.error(f"error phase2: {b}")
+
+    def _executed_inheritance_status(self):
+        """Return the on-chain status of an already-executed inheritance.
+
+        Task #7a (owner request). After an inheritance is executed the wallet is
+        fully emptied (the plugin always empties the wallet). Pressing CHECK on
+        such an empty wallet makes ``check_will`` raise NotCompleteWillException
+        (the heirs no longer match the empty wallet), which previously showed the
+        alarming "Found CHANGES ... a NEW WILL must be prepared" message even
+        though the inheritance was, in fact, correctly executed.
+
+        To reassure the user we look at the will items, whose status is already
+        set to CONFIRMED / MEMPOOL by ``Will.check_will`` (see core/will.py), and
+        return a short code describing the real situation:
+
+        Returns:
+            "CONFIRMED" if at least one will transaction is confirmed on-chain
+                (the inheritance is already executed);
+            "MEMPOOL" if none is confirmed but at least one is in the mempool
+                (waiting for confirmation);
+            None if neither (the change really has to be rebuilt).
+
+        CONFIRMED takes precedence over MEMPOOL, since a confirmed transaction is
+        the strongest evidence that the inheritance has gone through.
+        """
+        has_mempool = False
+        try:
+            for _wid, witem in self.bal_window.willitems.items():
+                if witem.get_status("CONFIRMED"):
+                    return "CONFIRMED"
+                if witem.get_status("MEMPOOL"):
+                    has_mempool = True
+        except Exception as _err:
+            # Never let this purely informational check break the flow.
+            _logger.debug(f"_executed_inheritance_status error: {_err}")
+        return "MEMPOOL" if has_mempool else None
+
+    def msg_set_checking(self, status="Waiting", row=None):
+        row = self.check_row if row is None else row
+        self.check_row = self.msg_set_status(_("Checking your will"), row, status)
+
+    def msg_set_invalidating(self, status=None, row=None):
+        row = self.inval_row if row is None else row
+        self.inval_row = self.msg_set_status(
+            _("Invalidating old will"), self.inval_row, status
+        )
+
+    def msg_set_building(self, status=None, row=None,color=None):
+        row = self.build_row if row is None else row
+        self.build_row = self.msg_set_status(
+            "Building your will", self.build_row, status, color
+        )
+
+    def msg_set_signing(self, status=None, row=None):
+        row = self.sign_row if row is None else row
+        self.sign_row = self.msg_set_status("Signing your will", self.sign_row, status)
+
+    def msg_set_pushing(self, status=None, row=None):
+        row = self.push_row if row is None else row
+        self.push_row = self.msg_set_status(
+            "Broadcasting your will to executors", self.push_row, status
+        )
+
+    def msg_set_waiting(self, status=None, row=None):
+        row = self.wait_row if row is None else row
+        self.wait_row = self.msg_edit_row(f"Please wait {status}secs", self.wait_row)
+
+    def msg_error(self, e):
+        # Results are shown in bold so the outcome stands out from the
+        # left-side state label (which stays in normal weight).
+        return "<font color='{}'><b>{}</b></font>".format(self.COLOR_ERROR, e)
+
+    def msg_ok(self, e="Ok"):
+        # Results are shown in bold (see msg_error).
+        return "<font color='{}'><b>{}</b></font>".format(self.COLOR_OK, e)
+
+    def msg_warning(self, e):
+        # Results are shown in bold (see msg_error).
+        return "<font color='{}'><b>{}</b></font>".format(self.COLOR_WARNING, e)
+
+    def msg_set_status(self, msg, row=None, status=None, color=None):
+        # The left "state" label keeps its normal weight; only the right-side
+        # result (``status``) is rendered in bold so it is easy to read at a
+        # glance.  ``status`` may already contain rich-text emitted by
+        # msg_ok/msg_error/msg_warning (which add their own <b>...</b>); wrapping
+        # it again in <b> is harmless for those cases.
+        status = "Wait" if status is None else status
+        if color is None:
+            line = "{}:\t<b>{}</b>".format(_(msg), status)
+        else:
+            line = "{}:\t<font color={}><b>{}</b></font>".format(
+                _(msg), color, status
+            )
+        return self.msg_edit_row(line, row)
+
+    def ask_password(self, msg=None):
+        self.password = self.bal_window.get_wallet_password(msg, parent=self)
+
+    def msg_edit_row(self, line, row=None):
+        try:
+            self.labels[row] = line
+        except Exception:
+            self.labels.append(line)
+            row = len(self.labels) - 1
+
+        self.updatemessage.emit()
+
+        return row
+
+    def msg_del_row(self, row):
+        try:
+            del self.labels[row]
+        except Exception:
+            pass
+        self.updatemessage.emit()
+
+    # def clear_layout(self,layout):
+    #    while layout.count():
+    #        item = layout.takeAt(0)
+    #        w = item.widget()
+    #        if w:
+    #            w.setParent(None)
+    #            w.deleteLater()
+
+    # def msg_update(self):
+    #    self.clear_layout(self.labelsbox)
+    #    for label in self.labels:
+    #        label=label.replace("\n","<br>")
+    #        qlabel=QLabel(label)
+    #        qlabel.setWordWrap(True)
+    #        self.labelsbox.addWidget(qlabel)
+
+    #    self.labelsbox.activate()
+    #    self.qwidget.setMinimumSize(self.labelsbox.sizeHint())
+    #    self.qwidget.adjustSize()
+    #    from PyQt6.QtWidgets import QApplication
+    #    QApplication.processEvents()
+    #
+    #    self.adjustSize()
+    def msg_update(self):
+        full_text = "<br><br>".join(self.labels).replace("\n", "<br>")
+        self.message_label.setText(full_text)
+        self.message_label.adjustSize()
+        # Auto-scroll the report to the BOTTOM so the newest line is always
+        # visible (allegato14). The QScrollArea caps the height, so instead of
+        # resizing the whole dialog taller we move its vertical scrollbar to the
+        # maximum. ensureWidgetVisible is deferred via the scrollbar range so it
+        # reflects the just-added text.
+        scrollbar = self.scroll_area.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
+        # Let the dialog grow only up to the scroll area's capped height; beyond
+        # that the scrollbar handles overflow and the buttons stay reachable.
+        self.resize(self.sizeHint())
+        # Re-assert the bottom position after the resize/relayout settled.
+        scrollbar.setValue(scrollbar.maximum())
+
+    def get_text(self):
+        return self.message_label.text()
+
+    pass
+
+
+
+class WillDetailDialog(BalDialog):
+    def __init__(self, bal_window):
+
+        self.will = bal_window.willitems
+        self.threshold = bal_window.will_settings["real_threshold"]
+
+        self.bal_window = bal_window
+        Will.add_willtree(self.will)
+        super().__init__(bal_window.window, bal_window.bal_plugin)
+        self.config = bal_window.window.config
+        self.wallet = bal_window.wallet
+        self.format_amount = bal_window.window.format_amount
+        self.base_unit = bal_window.window.base_unit
+        self.format_fiat_and_units = bal_window.window.format_fiat_and_units
+        self.fx = bal_window.window.fx
+        self.format_fee_rate = bal_window.window.format_fee_rate
+        self.decimal_point = bal_window.window.get_decimal_point()
+        self.base_unit_name = decimal_point_to_base_unit_name(self.decimal_point)
+        self.setWindowTitle(_("Will Details"))
+        self.setMinimumSize(670, 700)
+        self.vlayout = QVBoxLayout()
+        w = QWidget()
+        hlayout = QHBoxLayout(w)
+
+        b = QPushButton(_("Sign"))
+        b.clicked.connect(self.ask_password_and_sign_transactions)
+        hlayout.addWidget(b)
+
+        b = QPushButton(_("Broadcast"))
+        b.clicked.connect(self.broadcast_transactions)
+        hlayout.addWidget(b)
+
+        b = QPushButton(_("Export"))
+        b.clicked.connect(self.export_will)
+        hlayout.addWidget(b)
+        b = QPushButton(_("Invalidate"))
+        b.clicked.connect(bal_window.invalidate_will)
+        hlayout.addWidget(b)
+        self.vlayout.addWidget(w)
+
+        self.paint_scroll_area()
+        self.vlayout.addWidget(
+            QLabel(_("Expiration date: ") + str(BalTimestamp(self.threshold)))
+        )
+        self.vlayout.addWidget(self.scrollbox)
+        w = QWidget()
+        hlayout = QHBoxLayout(w)
+        hlayout.addWidget(
+            QLabel(_("Valid Txs:") + str(len(Will.only_valid_list(self.will))))
+        )
+        hlayout.addWidget(QLabel(_("Total Txs:") + str(len(self.will))))
+        self.vlayout.addWidget(w)
+        self.setLayout(self.vlayout)
+
+    def paint_scroll_area(self):
+        self.scrollbox = QScrollArea()
+        viewport = QWidget(self.scrollbox)
+        self.willlayout = QVBoxLayout(viewport)
+        self.detailsWidget = WillWidget(parent=self)
+        self.willlayout.addWidget(self.detailsWidget)
+
+        self.scrollbox.setWidget(viewport)
+        viewport.setLayout(self.willlayout)
+
+    def ask_password_and_sign_transactions(self):
+        self.bal_window.ask_password_and_sign_transactions(callback=self.update)
+        self.update()
+
+    def broadcast_transactions(self):
+        self.bal_window.broadcast_transactions()
+        self.update()
+
+    def export_will(self):
+        self.bal_window.export_will()
+
+    def toggle_replaced(self):
+        self.bal_window.bal_plugin.hide_replaced()
+        toggle = _("Hide")
+        if self.bal_window.bal_plugin._hide_replaced:
+            toggle = _("Unhide")
+        self.toggle_replace_button.setText(f"{toggle} {_('replaced')}")
+        self.update()
+
+    def toggle_invalidated(self):
+        self.bal_window.bal_plugin.hide_invalidated()
+        toggle = _("Hide")
+        if self.bal_window.bal_plugin._hide_invalidated:
+            toggle = _("Unhide")
+        self.toggle_invalidate_button.setText(_(f"{toggle} {_('invalidated')}"))
+        self.update()
+
+    def update(self):
+        self.will = self.bal_window.willitems
+        pos = self.vlayout.indexOf(self.scrollbox)
+        self.vlayout.removeWidget(self.scrollbox)
+        self.paint_scroll_area()
+        self.vlayout.insertWidget(pos, self.scrollbox)
+        super().update()
+
+
+
+class WillExecutorDialog(BalDialog, MessageBoxMixin):
+    def __init__(self, bal_window, parent=None):
+        if not parent:
+            parent = bal_window.window
+        BalDialog.__init__(self, parent, bal_window.bal_plugin)
+        self.bal_plugin = bal_window.bal_plugin
+        self.config = self.bal_plugin.config
+        self.bal_window = bal_window
+        self.willexecutors_list = Willexecutors.get_willexecutors(self.bal_plugin)
+
+        self.setWindowTitle(_("Will-Executor Service List"))
+        self.setMinimumSize(1000, 200)
+
+        # Lazy import to avoid a dialogs<->lists import cycle.
+        from .lists import WillExecutorWidget
+        vbox = QVBoxLayout(self)
+        self.will_executor_list_widget = WillExecutorWidget(
+            self, self.bal_window, self.willexecutors_list
+        )
+        vbox.addWidget(self.will_executor_list_widget)
+
+    def is_hidden(self):
+        return self.isMinimized() or self.isHidden()
+
+    def show_or_hide(self):
+        if self.is_hidden():
+            self.bring_to_top()
+        else:
+            self.hide()
+
+    def bring_to_top(self):
+        self.show()
+        # raise_() alone does not grab focus on some window managers (Windows);
+        # activateWindow() ensures the dialog actually comes to the front.
+        bring_to_front(self)
+
+    def closeEvent(self, event):
+        event.accept()
+
+

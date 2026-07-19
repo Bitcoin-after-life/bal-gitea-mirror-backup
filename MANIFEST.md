@@ -2,15 +2,13 @@
 
 Source: `https://bitcoin-after.life/gitea/bitcoinafterlife`
 
-Last run (UTC): `2026-07-12 06:11:25`
+Last run (UTC): `2026-07-19 06:06:30`
 
 | Repository | Default branch | Last commit | Date |
 |---|---|---|---|
-| `bal-electrum-plugin` | `main` | 37a3beb wizard test | 2026-05-20 06:22:25 -0400 |
-| `bal-server` | `main` | 7bd002b fix testnet4 | 2026-03-17 21:06:37 -0400 |
+| `bal-electrum-plugin` | `main` | 415d23f v0.5.18: update changelog | 2026-07-16 12:32:22 +0000 |
+| `bal-server` | `main` | 190cac9 refactor: rename bal-server-actix.rs to bal-server.r | 2026-07-17 10:31:56 -0400 |
 | `bal-pusher` | `main` | f7ccc29 release: bal-pusher-0.1.0 | 2025-04-21 21:47:48 -0400 |
-| `bal_plugin_windows_installation` | `main` | 09e338d plugin installation windows | 2025-04-11 10:39:00 -0400 |
-| `bal_plugin_manual` | `main` | b7418f9 old email | 2025-04-14 11:28:45 -0400 |
-| `bal_plugin_linux_installation` | `main` | c938e4c Delete BAL_PLUGIN_installation_linux notags.pdf | 2025-04-27 15:39:20 -0400 |
-| `bal-website` | `main` | e173dc0 # release updated | 2026-07-04 08:59:59 +0000 |
-| `bal-welist-website` | `main` | f9ffc38 fix: add missing statusMap definition and iv-balance | 2026-07-11 20:27:54 -0400 |
+| `bal_plugin_manual_v0.1.0` | `main` | b7418f9 old email | 2025-04-14 11:28:45 -0400 |
+| `bal-website` | `main` | 1608bbf Upload files to "/" | 2026-07-17 18:22:26 +0000 |
+| `bal-welist-website` | `main` | 373580b Update index.html | 2026-07-17 11:19:51 +0000 |

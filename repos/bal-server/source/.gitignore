@@ -1,0 +1,41 @@
+.gitsecret/keys/random_seed
+!*.secret
+
+# Environment files - NEVER commit tokens or secrets
+*.env
+.env
+.env.local
+.env.production
+.env.secret
+
+# Shell scripts that load env vars (contain secrets, local only)
+bal-pusher.sh
+bal-server.sh
+
+# Private keys - NEVER commit to git
+# Only public_key.pem should be tracked (if needed)
+*.pem
+!public_key.pem
+data/*.pem
+!data/public_key.pem
+*.key
+!*.secret
+private_key.pem
+privkey.pem
+ec.key
+chiave_privata.key
+
+# Other sensitive files
+bal.db
+.bal.db
+download_bal_db.sh
+
+# IDE files
+*.swp
+*.swo
+# Rust build artifacts
+/target
+Cargo.lock
+!lib/
+!contrib/
+!src/

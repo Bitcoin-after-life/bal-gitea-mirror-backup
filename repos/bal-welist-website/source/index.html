@@ -117,7 +117,8 @@ tbody tr:hover{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .score{font-family:var(--display);font-weight:600;font-size:15px}
 
-.add-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:24px;margin:40px 0;align-items:start}
+.add-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:24px;margin:40px 0;align-items:stretch}
+.add-grid>.panel{display:flex;flex-direction:column}
 .panel{
   background:var(--panel);border:1px solid var(--line);
   border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);
@@ -139,6 +140,12 @@ tbody tr:hover{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
 .btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
 .note{font-size:13px;color:var(--muted);margin-top:16px;line-height:1.55}
 .note strong{color:var(--ink)}
+.freshness-note{
+  font-size:12px;line-height:1.4;color:var(--muted);
+  background:var(--accent-soft);border:1px solid var(--line);border-radius:8px;
+  padding:7px 12px;margin:0 0 12px;
+}
+.freshness-note strong{color:var(--ink)}
 .btn-share{
   display:block;margin:0 auto 8px;font:inherit;font-size:13px;cursor:pointer;
   padding:8px 16px;border-radius:8px;border:1px solid var(--line-strong);
@@ -228,7 +235,6 @@ footer a{color:var(--accent);text-decoration:none}
       <div class="hero-stats">
         <div class="stat"><div class="n" id="s-online">0</div><div class="l">Online</div></div>
         <div class="stat"><div class="n" id="s-total">0</div><div class="l">Servers</div></div>
-        <div class="stat"><div class="n" id="s-block">—</div><div class="l">Block</div></div>
       </div>
     </div>
   </header>
@@ -258,6 +264,10 @@ footer a{color:var(--accent);text-decoration:none}
       <a class="btn-ghost" id="download" href="#" download="willexecutors.json">↓ JSON</a>
     </div>
 
+    <p class="freshness-note">
+      <strong>Fee/description/version</strong> refresh about once a day (timing varies). <strong>Deposits</strong> are credited instantly after 3 confirmations (~30 min).
+    </p>
+
     <div class="table-card">
       <table id="tbl">
         <thead>
@@ -286,7 +296,7 @@ footer a{color:var(--accent);text-decoration:none}
     <div class="add-grid">
       <div class="panel">
         <h2>Add your Will Executor</h2>
-        <p class="lead">Enter your server URL. It will be checked online before it appears in the list.</p>
+        <p class="lead">Enter your server URL. It will appear in the list once your deposit is confirmed (typically about 30 minutes).</p>
         <div class="form-row">
           <input type="text" id="url" placeholder="https://we.bitcoin-after.life">
         </div>
@@ -300,7 +310,7 @@ footer a{color:var(--accent);text-decoration:none}
         <div class="terms-box" id="terms-box">
           <p class="lead">You are about to add this server:</p>
           <p><a id="terms-url" href="#" target="_blank" rel="noopener" class="mono"></a></p>
-          <p style="font-size:13px;margin-top:4px"><strong>Make sure the link above works correctly before paying. No refunds or URL changes after payment.</strong></p>
+          <p style="font-size:13px;margin-top:4px"><strong>Make sure the link above works correctly before paying. No refunds after payment. URL changes require proof of ownership — see the <a href="/terms.html" target="_blank">Terms</a>.</strong></p>
           <p style="font-size:14px">
             <label>
               <input type="checkbox" id="terms-check">
@@ -315,10 +325,11 @@ footer a{color:var(--accent);text-decoration:none}
           <div class="row"><span>Chain</span><span id="iv-chain">—</span></div>
           <div class="row"><span>Address</span><span id="iv-addr">—</span></div>
           <div class="row"><span>Balance</span><span id="iv-balance">—</span></div>
-          <div class="row"><span>Status</span><span id="iv-status">—</span></div>
+          <div class="row"><span>Donations</span><span id="iv-donations">—</span></div>
           <div class="row"><span>Contact</span><span id="iv-contact">—</span></div>
           <div class="row"><span>Server</span><span id="iv-url">—</span></div>
           <div class="row"><span>Will Executor</span><span><a id="iv-weinfo" href="#" target="_blank">—</a></span></div>
+          <div class="row" id="iv-nextdep-row" style="display:none"><span>Next renewal</span><span id="iv-nextdep">—</span></div>
           <div id="qrcode"></div>
           <button class="btn-share" id="share-btn">Share invoice</button>
           <p class="note">
@@ -330,10 +341,11 @@ footer a{color:var(--accent);text-decoration:none}
 
       <div class="panel">
         <h2>How ranking works</h2>
-        <p class="lead">Bid-based ranking: higher contributions rank higher.</p>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Deposit threshold</span><b class="mono"><span id="thr-min">50,000</span> sats</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Plugin integration</span><b>automatic</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:var(--muted)">Early-adopter guarantee</span><b>12 months</b></div>
+        <p class="lead">Ordered by excess donated, then total paid, then base fee (lower first), then WeTime points.</p>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Yearly fee</span><b class="mono"><span id="thr-min">50,000</span> sats</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Listing period</span><b>365 days</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Renewal window</span><b>from 6 months before expiry</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:var(--muted)">Plugin integration</span><b>automatic</b></div>
       </div>
     </div>
 
@@ -348,13 +360,13 @@ footer a{color:var(--accent);text-decoration:none}
         <div class="info-block">
           <span class="ic">02</span>
           <h3>Ranking System</h3>
-          <p>This leaderboard operates on a bid-based ranking system where higher contributions result in better positioning.</p>
+          <p>This leaderboard is ordered by excess donated (over the yearly fee), then total amount paid, then lower base fee, then WeTime points.</p>
         </div>
 
         <div class="info-block">
           <span class="ic">03</span>
-          <h3>Early Adopter Incentives</h3>
-          <p>To support the project's initial launch phase, we plan to maintain the first Will Executor servers for a minimum of 12 months, rewarding early participants. Subsequently, premium positions will be available through an auction system based on protocol revenue generation.</p>
+          <h3>Listing &amp; Renewal</h3>
+          <p>A flat yearly fee buys 365 days of presence in the list, starting when your payment reaches 3 confirmations. You can renew for one additional year at any time from 6 months before expiry; listings that are not renewed are removed at expiry. See the <a href="/terms.html" target="_blank">Terms</a> for details.</p>
         </div>
 
         <div class="info-block">
@@ -371,6 +383,7 @@ footer a{color:var(--accent);text-decoration:none}
     <div class="wrap">
       <span>Bitcoin After Life — Will Executor List</span>
       <a href="mailto:welist@bitcoin-after.life">welist@bitcoin-after.life</a>
+      <a href="/terms.html">Terms</a>
       <a class="mono" id="commit-link" href="https://bitcoin-after.life/gitea/bitcoinafterlife/bal-welist-website/commit/COMMIT_HASH_PLACEHOLDER">COMMIT_HASH_PLACEHOLDER</a>
     </div>
   </footer>
@@ -383,18 +396,6 @@ let minAmount = 50000;
 const fmt = n => (n != null ? Number(n).toLocaleString('en-US') : '—');
 const trunc = (s, m=40) => s && s.length > m ? s.slice(0, m) + '…' : s;
 
-const statusMap = {
-  'OK': 'Health check passed',
-  'TIMEOUT': 'Connection timeout',
-  'CONNECTION': 'Connection error',
-  'STATUS': 'HTTP error',
-  'WRONG REPLY': 'Invalid JSON response',
-  'REQUEST': 'Request error',
-  'BODY': 'Body read error',
-  'DECODE': 'Decode error',
-  'KO': 'Generic error'
-};
-
 function getChain() {
   const btn = document.querySelector('#chainSeg [aria-pressed="true"]');
   return btn ? btn.dataset.c : 'bitcoin';
@@ -402,9 +403,7 @@ function getChain() {
 
 function getFiltered() {
   return allServers
-    .filter(d => withTor ? true : !d.onion)
-    .filter(d => (d.url + " " + (d.info||"")).toLowerCase().includes(q.toLowerCase()))
-    .sort((a, b) => (b.last_block||0) - (a.last_block||0) || (b.points||0) - (a.points||0) || (b.count_win||0) - (a.count_win||0) || (a.base_fee||0) - (b.base_fee||0) || (b.version||'').localeCompare(a.version||''));
+    .filter(d => (d.url + " " + (d.info||"")).toLowerCase().includes(q.toLowerCase()));
 }
 
 function render() {
@@ -448,11 +447,9 @@ function render() {
       </div>`);
   });
 
-  const online = allServers.filter(d => d.status === "online" || d.status === "OK").length;
+  const online = allServers.filter(d => d.status === "OK").length;
   document.getElementById('s-online').textContent = online;
   document.getElementById('s-total').textContent = allServers.length;
-  const top = getFiltered()[0];
-  document.getElementById('s-block').textContent = top ? fmt(top.last_block) : '—';
 }
 
 async function fetchData() {
@@ -460,10 +457,14 @@ async function fetchData() {
   const params = new URLSearchParams({ page: 0, limit: 100 });
   if (!withTor) params.append("onion", "no");
   try {
-    const response = await fetch(`/data/${chain}?${params}`);
+    // NOTE: /data/{chain} returns a HashMap, whose JSON key order is not
+    // guaranteed (it can change on every backend restart). /datalist/{chain}
+    // returns an ordered array (Vec) that preserves the server-side sort
+    // (donation DESC, balance DESC, base_fee ASC, wetime_points DESC) — see terms.html §3.
+    const response = await fetch(`/datalist/${chain}?${params}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const obj = await response.json();
-    allServers = Object.entries(obj).map(([key, s]) => ({ id: key, ...s }));
+    const list = await response.json();
+    allServers = list;
     render();
   } catch (err) {
     console.error('Fetch error:', err);
@@ -521,17 +522,44 @@ document.getElementById('submit').addEventListener('click', async () => {
   document.getElementById('iv-chain').textContent = '—';
   document.getElementById('iv-addr').textContent = '—';
   document.getElementById('iv-balance').textContent = '—';
+  document.getElementById('iv-donations').textContent = '—';
   document.getElementById('iv-url').textContent = '—';
   document.getElementById('iv-contact').textContent = '—';
   document.getElementById('iv-weinfo').href = '#';
   document.getElementById('iv-weinfo').textContent = '—';
+  document.getElementById('iv-nextdep-row').style.display = 'none';
+  document.getElementById('iv-nextdep').textContent = '—';
+  document.getElementById('iv-min').parentElement.style.display = '';
+  document.getElementById('iv-addr').parentElement.style.display = '';
+  document.getElementById('qrcode').style.display = '';
+  document.getElementById('share-btn').style.display = '';
   document.getElementById('qrcode').innerHTML = '';
   document.getElementById('qrcode').style.cursor = '';
   document.getElementById('qr-overlay').classList.remove('show');
   document.getElementById('share-btn').textContent = 'Share invoice';
   document.getElementById('terms-box').classList.remove('show');
+  document.getElementById('terms-box').style.display = '';
   document.getElementById('terms-check').checked = false;
   document.getElementById('terms-accept').disabled = true;
+  const chain = getChain();
+  const infoUrl = url + '/' + chain + '/info';
+  document.getElementById('terms-url').href = infoUrl;
+  document.getElementById('terms-url').textContent = url;
+  document.getElementById('terms-box').classList.add('show');
+  document.getElementById('terms-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+
+document.getElementById('terms-check').addEventListener('change', function () {
+  document.getElementById('terms-accept').disabled = !this.checked;
+});
+
+document.getElementById('terms-accept').addEventListener('click', async function () {
+  document.getElementById('terms-box').classList.remove('show');
+  const urlInput = document.getElementById('url');
+  let url = urlInput.value.trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
   const chain = getChain();
   try {
     const response = await fetch('/data', {
@@ -548,10 +576,10 @@ document.getElementById('submit').addEventListener('click', async () => {
     document.getElementById('iv-min').textContent = fmt(result.min_amount != null ? result.min_amount : minAmount) + ' sats';
     document.getElementById('iv-chain').textContent = result.chain || chain;
     document.getElementById('iv-addr').textContent = result.address || '—';
-    document.getElementById('iv-balance').textContent = result.balance != null ? fmt(result.balance) : '—';
-    const statusVal = result.status || '—';
-    const st = (statusVal||'').split(':')[0];
-    document.getElementById('iv-status').textContent = statusMap[st] || '—';
+    const balStr = result.balance != null ? fmt(result.balance) : null;
+    const uncStr = result.unconfirmed_balance != null ? fmt(result.unconfirmed_balance) : null;
+    document.getElementById('iv-balance').textContent = balStr ? (uncStr ? balStr + ' (' + uncStr + ')' : balStr) : '—';
+    document.getElementById('iv-donations').textContent = result.donation != null ? fmt(result.donation) : '—';
     document.getElementById('iv-contact').textContent = document.getElementById('contact').value.trim() || '—';
     const weLink = result.id ? `/weinfo/${result.chain || chain}/${result.id}` : null;
     const weinfoEl = document.getElementById('iv-weinfo');
@@ -562,7 +590,23 @@ document.getElementById('submit').addEventListener('click', async () => {
       weinfoEl.href = '#';
       weinfoEl.textContent = '—';
     }
-    const amountSats = result.amount != null ? result.amount : minAmount;
+    const serverUrl = result.url || url;
+    document.getElementById('iv-url').textContent = serverUrl;
+    if (result.payment_needed === false) {
+      document.getElementById('iv-min').parentElement.style.display = 'none';
+      document.getElementById('iv-addr').parentElement.style.display = 'none';
+      document.getElementById('qrcode').style.display = 'none';
+      document.getElementById('share-btn').style.display = 'none';
+      document.getElementById('iv-nextdep').textContent = result.next_deposit_date || '—';
+      document.getElementById('iv-nextdep-row').style.display = 'flex';
+      document.getElementById('iv-status').className = 'ok-line';
+      document.getElementById('iv-status').textContent = 'Server is already listed. Next renewal: ' + (result.next_deposit_date || '—');
+      const inv = document.getElementById('invoice');
+      inv.classList.add('show');
+      inv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
+    const amountSats = result.min_amount != null ? result.min_amount : minAmount;
     const amountBtc = (amountSats / 1e8).toFixed(8).replace(/\.?0+$/, '');
     const invoiceuri = `bitcoin:${result.address}?amount=${amountBtc}&label=BAL&message=Order+For+url+%26+${encodeURIComponent(url)}`;
     const qrEl = document.getElementById('qrcode');
@@ -591,41 +635,25 @@ document.getElementById('submit').addEventListener('click', async () => {
         });
       }
     };
-    const serverUrl = result.url || url;
-    const infoUrl = serverUrl + '/' + (result.chain || chain) + '/info';
-    document.getElementById('iv-url').textContent = serverUrl;
-    document.getElementById('terms-url').href = infoUrl;
-    document.getElementById('terms-url').textContent = serverUrl;
-    document.getElementById('terms-box').classList.add('show');
-    document.getElementById('terms-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('iv-status').className = 'ok-line';
+    document.getElementById('iv-status').textContent = '✓ Server verified: ' + serverUrl + '. Pay the invoice — it will be listed after 3 confirmations.';
+    const inv = document.getElementById('invoice');
+    inv.classList.add('show');
+    inv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (err) {
     document.getElementById('iv-status').className = 'err-line';
     document.getElementById('iv-status').textContent = 'Network error. Please try again.';
   }
 });
 
-document.getElementById('terms-check').addEventListener('change', function () {
-  document.getElementById('terms-accept').disabled = !this.checked;
-});
-
-document.getElementById('terms-accept').addEventListener('click', function () {
-  document.getElementById('terms-box').classList.remove('show');
-  const inv = document.getElementById('invoice');
-  document.getElementById('iv-status').className = 'ok-line';
-  document.getElementById('iv-status').textContent = '✓ Server added: ' + document.getElementById('iv-url').textContent + '. Pay the invoice to complete.';
-  inv.classList.add('show');
-  inv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-});
-
 document.getElementById('url').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('submit').click();
 });
 
-(function init() {
+(async function init() {
+  await Promise.all([fetchData(), fetchMinAmount()]);
   const blob = new Blob([JSON.stringify(allServers, null, 2)], { type: 'application/json' });
   document.getElementById('download').href = URL.createObjectURL(blob);
-  fetchData();
-  fetchMinAmount();
 })();
 </script>
 <div id="qr-overlay"><div id="qr-big"></div></div>
