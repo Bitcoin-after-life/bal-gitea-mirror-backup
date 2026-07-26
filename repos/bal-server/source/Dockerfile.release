@@ -1,0 +1,100 @@
+# =============================================================================
+# Dockerfile.release — Downloads the latest pre-built release from Gitea
+# No Rust toolchain needed. Fast builds, minimal image.
+# =============================================================================
+
+FROM debian:bookworm-slim AS runtime
+
+ARG GITEA_API="https://bitcoin-after.life/gitea/api/v1/repos/bitcoinafterlife/bal-server"
+ARG BAL_VERSION=""
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libssl3 \
+    libzmq5 \
+    libsqlite3-0 \
+    ca-certificates \
+    curl \
+    jq \
+    tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+WORKDIR /tmp/bal-install
+
+# Download and verify release
+# If BAL_VERSION is set, fetch that specific tag; otherwise fetch latest
+RUN set -eux; \
+    if [ -n "$BAL_VERSION" ]; then \
+        URL="${GITEA_API}/releases/tags/${BAL_VERSION}"; \
+    else \
+        URL="${GITEA_API}/releases/latest"; \
+    fi; \
+    echo "==> Fetching release metadata from $URL"; \
+    RELEASE_JSON=$(curl -sfL "$URL") || { echo "ERROR: Failed to fetch release metadata"; exit 1; }; \
+    TAG=$(echo "$RELEASE_JSON" | jq -r '.tag_name // empty'); \
+    if [ -z "$TAG" ]; then echo "ERROR: Could not determine release tag"; exit 1; fi; \
+    echo "==> Release tag: $TAG"; \
+    TARBALL_URL=$(echo "$RELEASE_JSON" | jq -r \
+      '.assets[] | select(.name | test("\\.tar\\.gz$")) | .browser_download_url' | head -1); \
+    if [ -z "$TARBALL_URL" ]; then echo "ERROR: No .tar.gz asset found"; exit 1; fi; \
+    ASSET_NAME=$(basename "$TARBALL_URL"); \
+    echo "==> Downloading $ASSET_NAME"; \
+    curl -sfL -o "$ASSET_NAME" "$TARBALL_URL" || { echo "ERROR: Download failed"; exit 1; }; \
+    echo "==> Downloading checksum"; \
+    curl -sfL -o "${ASSET_NAME}.sha256" "${TARBALL_URL}.sha256" 2>/dev/null || true; \
+    if [ -f "${ASSET_NAME}.sha256" ]; then \
+        echo "==> Verifying SHA-256 checksum"; \
+        sha256sum -c "${ASSET_NAME}.sha256" || { echo "ERROR: SHA-256 verification failed"; exit 1; }; \
+        echo "==> Checksum OK"; \
+    else \
+        echo "WARNING: No .sha256 file available — skipping checksum verification"; \
+    fi; \
+    echo "==> Extracting tarball"; \
+    tar -xzf "$ASSET_NAME"; \
+    EXTRACTED="$(basename "$ASSET_NAME" .tar.gz)"; \
+    for bin in bal-server bal-pusher; do \
+        if [ ! -f "$EXTRACTED/$bin" ]; then \
+            echo "ERROR: Binary '$bin' not found in archive"; \
+            exit 1; \
+        fi; \
+        echo "==> Installing $bin"; \
+        install -m 0755 -o root -g root "$EXTRACTED/$bin" /usr/local/bin/; \
+    done; \
+    echo "==> Cleanup"; \
+    rm -rf /tmp/bal-install
+
+# Create dedicated non-root user
+RUN groupadd -g 1000 bal && \
+    useradd -u 1000 -g bal -s /usr/sbin/nologin -M bal && \
+    mkdir -p /var/bal /var/bal/.bitcoin && \
+    chown -R bal:bal /var/bal && \
+    chmod 700 /var/bal
+
+# Copy entrypoint
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Use tini as PID 1 for proper signal handling
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["/usr/local/bin/entrypoint.sh"]
+
+# Data directory (mount as volume)
+VOLUME ["/var/bal"]
+
+# bal-server port
+EXPOSE 9137
+
+# Default environment (override at runtime)
+ENV RUST_LOG=info \
+    BAL_SERVER_BIND_ADDRESS=127.0.0.1 \
+    BAL_SERVER_BIND_PORT=9137 \
+    BAL_SERVER_DB_FILE=/var/bal/bal.db \
+    BAL_PUSHER_DB_FILE=/var/bal/bal.db \
+    BAL_SERVER_URL=http://127.0.0.1:9137 \
+    BAL_SERVER_PUB_KEY_PATH=/var/bal/public_key.pem \
+    SSL_KEY_PATH=/var/bal/private_key.pem
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -sf http://127.0.0.1:9137/ || exit 1

@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use std::str::FromStr;
 
 // Mainnet (BIP44/BIP49/BIP84)
+#[allow(dead_code)]
 enum BS58Prefix {
     Xpub,
     Ypub,
@@ -102,44 +103,29 @@ fn calc_checksum(desc: &str) -> Result<String, String> {
     Ok(checksum)
 }
 
-pub fn get_bitcoincore_descriptor(xpub: &String) -> String {
+pub fn get_bitcoincore_descriptor(xpub: &str) -> String {
     let fingerprint = match calculate_fingerprint(xpub) {
         Ok(f) => f,
         Err(_) => return String::new(), // Invalid xpub, return empty descriptor
     };
 
-    let mut bip = 84;
-    let cpub = xpub.to_string();
-    match &xpub[0..4] {
-        "vpub" => {
-            bip = 84;
-        }
-        "zpub" => {
-            bip = 84;
-        }
-        &_ => {
-            bip = 84;
-        }
-    };
     let xpub_converted = match convert_xpub(xpub) {
         Ok(c) => c,
         Err(_) => return String::new(), // Invalid xpub, return empty descriptor
     };
     let descriptor = format!("wpkh([{}/84h/0h/0h]{}/0/*)", fingerprint, xpub_converted);
-    let descriptor = match calc_checksum(&descriptor) {
+    match calc_checksum(&descriptor) {
         Ok(checksum) => {
             let clean_descriptor = descriptor.split('#').next().unwrap_or(&descriptor);
             format!("{}#{}", clean_descriptor, checksum)
         }
         Err(err) => {
             eprintln!("Error: {}", err);
-            "".to_string()
+            String::new()
         }
-    };
-    descriptor
-    //format!("{}#{}",descriptor,checksum)
+    }
 }
-fn convert_xpub(xpub: &String) -> Result<String, String> {
+fn convert_xpub(xpub: &str) -> Result<String, String> {
     if xpub.len() >= 4 && (&xpub[0..4] == "xpub" || &xpub[0..4] == "ypub" || &xpub[0..4] == "zpub")
     {
         convert_to(xpub, BS58Prefix::Xpub)
@@ -165,7 +151,7 @@ fn base58check_decode(s: &str) -> Result<Vec<u8>, String> {
         return Err("Data troppo corta".to_string());
     }
     let (payload, checksum) = data.split_at(data.len() - 4);
-    let hash = Sha256::digest(&Sha256::digest(payload));
+    let hash = Sha256::digest(Sha256::digest(payload));
     if hash[0..4] != checksum[..] {
         return Err("Checksum invalido".to_string());
     }
@@ -173,7 +159,7 @@ fn base58check_decode(s: &str) -> Result<Vec<u8>, String> {
 }
 
 fn base58check_encode(data: &[u8]) -> String {
-    let checksum = &Sha256::digest(&Sha256::digest(data))[0..4];
+    let checksum = &Sha256::digest(Sha256::digest(data))[0..4];
     let full = [data, checksum].concat();
     bs58::encode(full).into_string()
 }
@@ -205,7 +191,7 @@ pub fn new_address_from_xpub(
 ) -> Result<(String, String), Box<dyn std::error::Error>> {
     let xpub = Xpub::from_str(&convert_to(zpub, BS58Prefix::Xpub)?)?;
     let path = format!("m/0/{}", index);
-    let derivation_path = DerivationPath::from_str(&path.as_str())?;
+    let derivation_path = DerivationPath::from_str(path.as_str())?;
     let secp = Secp256k1::new();
     let derived_xpub = xpub.derive_pub(&secp, &derivation_path)?;
     let public_key = derived_xpub.public_key;

@@ -1,0 +1,24 @@
+name: Build and deploy docs
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: docs-runner        # must match the label of your registered act_runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: pip install --break-system-packages mkdocs-material mkdocs-macros-plugin pyyaml
+
+      - name: Generate placeholders for missing screenshots
+        run: python3 tools/make_placeholders.py
+
+      - name: Build site (strict — fails on broken links)
+        run: mkdocs build --strict
+
+      - name: Publish
+        run: rsync -a --delete site/ /var/www/bal-docs/

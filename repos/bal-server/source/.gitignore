@@ -8,9 +8,6 @@
 .env.production
 .env.secret
 
-# Shell scripts that load env vars (contain secrets, local only)
-bal-pusher.sh
-bal-server.sh
 
 # Private keys - NEVER commit to git
 # Only public_key.pem should be tracked (if needed)
@@ -39,3 +36,4 @@ Cargo.lock
 !lib/
 !contrib/
 !src/
+make_release.sh

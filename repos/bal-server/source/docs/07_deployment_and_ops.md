@@ -1,57 +1,143 @@
 # Deployment and Operations
 
 ## Quick Reference
-- **What this file contains:** environment variables, systemd service files, deployment scripts, nginx/Tor configuration, and installation procedures.
+- **What this file contains:** environment variables, systemd service files, deployment scripts, nginx/Tor configuration, Docker support, and installation procedures.
 - **See also:** [01_project_overview.md](01_project_overview.md), [03_architecture_and_data_flow.md](03_architecture_and_data_flow.md), [05_api_reference.md](05_api_reference.md), [08_security_audit.md](08_security_audit.md)
 
 ---
 
 ## Environment Variables
 
-### `bal-server` (`bal-server.env`)
-The `bal-server.env` file is a production environment file that sets the configuration for the `bal-server` binary. The `bal-server.sh` script sources it before executing `cargo run --bin=bal-server`.
+### `bal-server` (all prefixed `BAL_SERVER_`)
 
-```env
-RUST_LOG=info
-BAL_DB_FILE=/var/bal/bal.db
-BAL_BIND_ADDRESS=0.0.0.0:3031
-BAL_EXPOSE_STATS=true
-BAL_REGTEST_XPUB=tpub... (example for regtest testing)
-BAL_PUB_KEY_PATH=public_key.pem
+#### Core Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BAL_SERVER_DB_FILE` | `"bal.db"` | Path to the SQLite database file |
+| `BAL_SERVER_BIND_ADDRESS` | `"127.0.0.1"` | TCP address to bind to (**never use `0.0.0.0` in production**) |
+| `BAL_SERVER_BIND_PORT` | `9137` | TCP port to listen on |
+| `BAL_SERVER_EXPOSE_STATS` | `false` | Enable/disable the `GET /:network/stats` endpoint |
+| `BAL_SERVER_PUB_KEY_PATH` | `"public_key.pem"` | Path to the Ed25519 public key PEM file |
+| `BAL_SERVER_INFO` | `"Will Executor Server"` | String returned by `GET /` |
+
+#### Per-Network Settings
+
+For each network (`regtest`, `testnet`, `testnet4`, `signet`, `bitcoin`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BAL_SERVER_{NETWORK}_ADDRESS` | (empty) | The xpub/zpub/ypub or fixed address for fee collection |
+| `BAL_SERVER_{NETWORK}_FIXED_FEE` | `50000` | Minimum fee in satoshis required for transaction acceptance |
+
+Example: `BAL_SERVER_REGTEST_ADDRESS=tpub...`, `BAL_SERVER_BITCOIN_FIXED_FEE=50000`.
+
+#### Actix-Web Tuning
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BAL_SERVER_ACTIX_MAX_BODY_SIZE` | `1048576` (1 MiB) | Maximum HTTP request body size |
+| `BAL_SERVER_ACTIX_TIMEOUT_SECS` | `5` | Request timeout in seconds |
+| `BAL_SERVER_ACTIX_WORKERS` | `4` | Number of actix-web worker threads |
+| `BAL_SERVER_ACTIX_MAX_CONNECTIONS` | `100` | Maximum concurrent connections |
+| `BAL_SERVER_ACTIX_PUSHTXS_PER_SEC` | `1` | Rate limit: pushtxs requests per second |
+| `BAL_SERVER_ACTIX_PUSHTXS_BURST` | `3` | Rate limit: pushtxs burst size |
+| `BAL_SERVER_ACTIX_SEARCHTX_PER_SEC` | `5` | Rate limit: searchtx requests per second |
+| `BAL_SERVER_ACTIX_SEARCHTX_BURST` | `10` | Rate limit: searchtx burst size |
+| `BAL_SERVER_ACTIX_INFO_PER_SEC` | `20` | Rate limit: info requests per second |
+| `BAL_SERVER_ACTIX_INFO_BURST` | `30` | Rate limit: info burst size |
+| `BAL_SERVER_ACTIX_DEFAULT_PER_SEC` | `50` | Rate limit: default requests per second |
+| `BAL_SERVER_ACTIX_DEFAULT_BURST` | `100` | Rate limit: default burst size |
+
+### `bal-pusher` (prefixed `BAL_PUSHER_`)
+
+#### Core Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BAL_PUSHER_DB_FILE` | `"bal.db"` | Path to the SQLite database file |
+| `BAL_PUSHER_BITCOIN_DIR` | `""` | Bitcoin data directory (for cookie file path resolution) |
+| `BAL_PUSHER_SEND_STATS` | `false` | Enable/disable remote stats reporting |
+| `BAL_SERVER_URL` | `"http://localhost/"` | URL of the bal-server for internal communication |
+| `SSL_KEY_PATH` | `"privkey.pem"` | Path to Ed25519 private key for signing stats |
+| `BAL_PUSHER_PREFER_IPV6` | `false` | Pin HTTP connection to first IPv6 address (for broken IPv4 routes) |
+| `WELIST_SERVER_URL` | `"https://welist.bitcoin-after.life"` | URL to POST signed stats to (validated against SSRF) |
+| `WELIST_SKIP_URL_VALIDATION` | `false` | Bypass SSRF URL validation (for testing only) |
+
+#### Per-Network Settings
+
+For each network (`regtest`, `testnet`, `testnet4`, `signet`, `bitcoin`):
+
+| Variable | Default (regtest) | Description |
+|----------|-------------------|-------------|
+| `BAL_PUSHER_{NETWORK}_HOST` | `"127.0.0.1"` | Bitcoin Core RPC host |
+| `BAL_PUSHER_{NETWORK}_PORT` | `18443` | Bitcoin Core RPC port |
+| `BAL_PUSHER_{NETWORK}_DIR_PATH` | `".bitcoin"` | Relative directory under `$HOME` for cookie file |
+| `BAL_PUSHER_{NETWORK}_DB_FIELD` | (empty) | Database field name for this network |
+| `BAL_PUSHER_{NETWORK}_COOKIE_FILE` | (empty) | Absolute path to cookie file (overrides `DIR_PATH`) |
+| `BAL_PUSHER_{NETWORK}_RPC_USER` | (empty) | RPC username (if using user/pass auth) |
+| `BAL_PUSHER_{NETWORK}_RPC_PASSWORD` | (empty) | RPC password (if using user/pass auth) |
+| `BAL_PUSHER_{NETWORK}_ZMQ_HASHBLOCK` | `"tcp://127.0.0.1:21332"` | ZMQ hashblock endpoint |
+
+Default ports per network:
+
+| Network | RPC Port | ZMQ Port |
+|---------|----------|----------|
+| bitcoin | 8332 | 28332 |
+| regtest | 18443 | 21332 |
+| testnet | 18332 | 23332 |
+| testnet4 | 48332 | 24332 |
+| signet | 18332 | 22332 |
+
+---
+
+## Docker
+
+The project provides two Dockerfiles:
+
+### `Dockerfile.release` — Download pre-built release (recommended for production)
+
+Downloads the latest release from the Gitea server. No Rust toolchain needed. Fast builds.
+
+```bash
+# Latest release
+docker build -f Dockerfile.release -t bal-server .
+
+# Specific version
+docker build -f Dockerfile.release --build-arg BAL_VERSION=v0.3.2 -t bal-server:0.3.2 .
 ```
-- `RUST_LOG`: Log level (e.g., `info`, `debug`, `error`). The `env_logger` crate uses this.
-- `BAL_DB_FILE`: Path to the `sqlite` database file. If not specified, it defaults to `bal.db` in the working directory.
-- `BAL_BIND_ADDRESS`: The TCP address and port to listen on. For example, `0.0.0.0:3031` means it will listen on any interface, port `3031`. For local development, you may want `127.0.0.1:3031`.
-- `BAL_EXPOSE_STATS`: Boolean flag (`true` or `false`) to enable the `GET /:network/stats` endpoint. Set to `false` if you do not want to expose statistics to the public internet.
-- `BAL_NETWORK_XPUB`: The `XPUB` or `ZPUB` for each network. For example, `BAL_REGTEST_XPUB`, `BAL_BITCOIN_XPUB`, etc. These are used to derive the receiving and fee collection addresses.
-- `BAL_PUB_KEY_PATH`: The file path to the `public_key.pem` file that is served via the `GET /.pub_key.pem` endpoint. This is used for signature verification by the `welist` server or other clients.
 
-### `bal-pusher` (`bal-pusher.env`)
-The `bal-pusher.env` file is used for the `bal-pusher` binary. It contains sensitive information and is sourced by the `bal-pusher.sh` script.
+- Fetches `.tar.gz` from `https://bitcoin-after.life/gitea/api/v1/repos/bitcoinafterlife/bal-server/releases/latest`.
+- Verifies SHA-256 checksum if available.
+- Single-stage image (`debian:bookworm-slim`), minimal size.
+- `BAL_VERSION` build arg: set to a tag (e.g., `v0.3.2`) to pin a specific release.
 
-```env
-ZMQ_ENDPOINT=tcp://127.0.0.1:21332
-BAL_SERVER_URL=http://127.0.0.1:3031
-BAL_PUSHER_RPC_URL=http://127.0.0.1:18443
-BAL_PUSHER_RPC_COOKIE_PATH=/home/bal/.bitcoin/.cookie
-BAL_SSL_KEY_PATH=private_key.pem
-SEND_STATS=true
-WELIST_URL=https://welist.example.com/api/stats
+### `Dockerfile` — Build from source
+
+Multi-stage build with the Rust toolchain. Use for development or custom builds.
+
+- **Builder stage:** `rust:1.95-bookworm` with full build. Each binary is compiled with only its required features (`--no-default-features --features server` / `--features pusher`).
+- **Runtime stage:** `debian:bookworm-slim` with minimal runtime.
+- **User:** Non-root `bal` user (uid 1000).
+- **PID 1:** `tini` for proper signal handling.
+- **Healthcheck:** `curl -f http://localhost:9137/ || exit 1`.
+
+### Run (both Dockerfiles)
+
+```bash
+docker run -d \
+  --name bal-server \
+  -v /var/bal:/var/bal \
+  --env-file bal-server.env \
+  -p 127.0.0.1:9137:9137 \
+  bal-server
 ```
-- `ZMQ_ENDPOINT`: The ZMQ endpoint for the `hashblock` or `rawblock` topic. For `regtest`, use `tcp://127.0.0.1:21332`. For mainnet, use `tcp://127.0.0.1:28332`.
-- `BAL_SERVER_URL`: The URL of the `bal-server` that the pusher can use to query statistics or for other internal communication.
-- `BAL_PUSHER_RPC_URL`: The URL for the Bitcoin Core JSON-RPC endpoint. For `regtest`, the default is `http://127.0.0.1:18443`.
-- `BAL_PUSHER_RPC_COOKIE_PATH`: The path to the `.cookie` file for RPC authentication. If not set, the pusher must use `user_pass` authentication. The cookie file is created by `bitcoind` when it starts with `rpccookieauth`.
-- `BAL_SSL_KEY_PATH`: The path to the Ed25519 private key (`private_key.pem`) used to sign the statistics payload before sending it to the `welist` server. This is a critical secret.
-- `SEND_STATS`: A boolean flag to enable the reporting of statistics to the remote `welist` server.
-- `WELIST_URL`: The URL to which the statistics are sent. If `SEND_STATS` is `true`, this URL must be reachable. If the server is unreachable, the pusher will log an error but might not crash (see `08_security_audit.md` for DoS analysis).
 
 ---
 
 ## System Services
 
 ### `bal-server.service` (Systemd Unit)
-This file is the systemd unit for the `bal-server` binary. It runs the server as a dedicated `bal` user with hardening options.
 
 ```ini
 [Unit]
@@ -73,12 +159,10 @@ MemoryDenyWriteExecute=true
 [Install]
 WantedBy=multi-user
 ```
-- **User:** The service runs as a dedicated, non-privileged user (`bal` user) to ensure the server doesn't run as root.
-- **Hardening:** `ProtectSystem=full` prevents writing to most of the filesystem. `NoNewPrivileges=true` prevents privilege escalation. `MemoryDenyWriteExecute=true` prevents executable memory allocations (W^X). `PrivateDevices=true` limits the exposure to the physical hardware.
-- **Security:** The `bal-server` does not need root access, and the database should be in a directory owned by the `bal` user.
+- Runs as a dedicated non-privileged `bal` user.
+- Hardened with `ProtectSystem=full`, `NoNewPrivileges=true`, `PrivateDevices=true`, `MemoryDenyWriteExecute=true`.
 
-### `bitcoind.service` (Systemd Unit for Mainnet)
-The `bitcoind.service` file is the systemd unit to run the Bitcoin Core daemon. It must be configured with the appropriate ZMQ and RPC flags. For example, `bitcoind` must be started with `zmqpubhashblock=tcp://127.0.0.1:28332` to send `new block` notifications to the pusher.
+### `bitcoind.service` (Bitcoin Core Daemon)
 
 ```ini
 [Unit]
@@ -93,147 +177,126 @@ RestartSec=30
 [Install]
 WantedBy=multi-user
 ```
-- **Note:** The full `bitcoind` configuration is in `bitcoin.conf` (or the `contrib/download_and_install_bitcoincore.sh` script). The script sets `zmqpubhashblock` (not `zmqpubrawblock`) for the pusher's new-block notifications. The `zmqpubhashblock` and `zmqpubrawtx` ports must be bound to `127.0.0.1` (never `0.0.0.0`) and match the pusher's `ZMQ_ENDPOINT`.
+- Must be started with `zmqpubhashblock` (not `zmqpubrawblock`).
+- ZMQ ports must be bound to `127.0.0.1` only.
 
-### `tbitcoind.service` (Systemd Unit for Testnet)
-This is the same as `bitcoind.service` but for the `testnet` network. It uses a different data directory (`~/.bitcoin/testnet/` by default) and a different ZMQ port (e.g., `tcp://127.0.0.1:23332`).
+### `tbitcoind.service` (Testnet Bitcoind)
+Same as `bitcoind.service` but for testnet with a different data directory and ZMQ port (e.g., `tcp://127.0.0.1:23332`).
 
 ---
 
 ## Bash Scripts
 
 ### `bal-server.sh` (Development Server Startup)
-This script sources the `bal-server.env` file and then runs the development server with Cargo for easy development and reloading.
-
+Sources `bal-server.env` and runs the development server:
 ```bash
 export $(grep -v '^#' bal-server.env | xargs)
 RUST_LOG=info cargo run --bin=bal-server 2>&1
 ```
-- It is intended for development use only. It is not suitable for production because it compiles and runs in a single step, which is slow and insecure.
 
 ### `bal-pusher.sh` (Development Pusher Startup)
-This script sources the `bal-pusher.env` and runs the pusher in development mode. It also accepts the `network` name as an argument (e.g., `sh bal-pusher.sh regtest`).
-
+Sources `bal-pusher.env` and runs the pusher with a network argument:
 ```bash
 export $(grep -v '^#' bal-pusher.env | xargs)
 RUST_LOG=info cargo run --bin=bal-pusher $1
 ```
 
-### `sendtx.sh` (One-liner Transaction Sender)
-This script is a one-liner helper that sends a raw transaction to a local node using a sequence of `bitcoin-cli` calls. It is not part of the main system but is used for testing purposes.
-
-```bash
-bitcoin-cli -regtest gettransaction ... | bitcoin-cli -regtest sendrawtransaction ... | bitcoin-cli -regtest sendtoaddress ...
-```
-- It is a helper script that wraps `bitcoin-cli` to send a pre-created transaction, get the raw bytes, and send them to a new address. It is only useful for manual testing and integration checks.
+### `sendtx.sh` (Test Transaction Sender)
+A helper script that wraps `bitcoin-cli` for manual testing.
 
 ### `make_release.sh` (Release Builder)
-This script builds a release binary, creates a Git tag, and uploads the release to a Git server (Gitea). It also hardcodes a Gitea API token (`TOKEN="5cfa8c33e337ebaadb355c0ffa2d053d521ee43b"`), which is a major security risk.
-
-```bash
-# WARNING: This script contains a hardcoded secret token. Do not use it as-is for production.
-```
-- **Release Assets:** It generates a `.tar.gz` archive with the binaries, a `.sha256` checksum file, and both a `.sig` GPG detached binary signature and a `.asc` ASCII-armored version.
-- **Signature:** The release tarball is signed with the GPG key `Svātantrya <svatantrya@bitcoin-after.life>`. The script verifies that `gpg`, `sha256sum`, and `jq` are installed before proceeding.
-- **Verification:** The release body includes instructions for verifying the checksum and signature (binary or ASCII-armored):
-  ```bash
-  sha256sum -c <release>.tar.gz.sha256
-  gpg --verify <release>.tar.gz.sig <release>.tar.gz
-  gpg --verify <release>.tar.gz.asc <release>.tar.gz
-  ```
-- **Security:** It also builds and uploads the binaries. The binaries should be built and signed on a separate, clean build machine, not on the production server.
+Builds release binaries, creates Git tags, and uploads to Gitea. Signs the release tarball with GPG. Release assets include `.tar.gz`, `.sha256`, `.sig`, and `.asc` files. Token is loaded from `.env` (not hardcoded).
 
 ### `download_bal_db.sh` (Database Pull Script)
-This script uses `scp` to pull the production `bal.db` from a remote server (`debian@bitcoin-after.life`). It requires passwordless or key-based SSH access to the remote server.
-
-```bash
-scp debian@bitcoin-after.life:/var/bal/bal.db ./bal.db
-```
-- **Security:** It requires the remote server to be accessible. The remote server's IP address is hardcoded. This is a maintenance script, not part of the core system.
+Uses `scp` to pull the production `bal.db` from a remote server.
 
 ---
 
 ## Nginx and SSL Configuration
 
-The `bal-server` is a plain HTTP server. To expose it to the internet, a production environment should put a reverse proxy like `Nginx` in front of it. The `nginx` configuration (from `contrib/download_and_install_bal.sh`) is used to terminate TLS and provide SSL certificates. Nginx also handles rate limiting, request filtering, and static file serving for `public_key.pem`.
+The `bal-server` is a plain HTTP server. A reverse proxy (Nginx) with TLS termination is required for production.
 
-### Example Nginx Configuration (from `contrib`)
+### Template: `contrib/nginx/bal-server.conf`
 
 ```nginx
 server {
     listen 80;
-    server_name bal.example.com;
+    server_name BAL_DOMAIN;
     return 301 https://$server_name$request_uri;
 }
 server {
     listen 443 ssl http2;
-    server_name bal.example.com;
-    ssl_certificate /etc/letsencrypt/live/bal.example.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/bal.example.com/privkey.pem;
+    server_name BAL_DOMAIN;
+    ssl_certificate /etc/letsencrypt/live/BAL_DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/BAL_DOMAIN/privkey.pem;
+
+    client_max_body_size 1m;
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+    add_header Referrer-Policy no-referrer;
 
     location / {
-        proxy_pass http://127.0.0.1:3031;
+        proxy_pass http://127.0.0.1:9137;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
-    # Rate limiting can be added here
+    # Uncomment for rate limiting:
+    # limit_req zone=pal limit=10 nodelay;
 }
 ```
-- **Certbot:** The `contrib` script installs `certbot` and automatically generates the certificate. This configuration is used to ensure the `bal-server` is served over HTTPS with valid TLS.
-- **Rate limiting:** It is recommended to add `limit_req` or `limit_conn` to the Nginx configuration to prevent the server from being overwhelmed by too many concurrent requests (e.g., `pushtxs` spam, or DoS attacks). The `bal-server` has no built-in rate limiting on the HTTP level.
+
+Key points:
+- `client_max_body_size` must match `BAL_SERVER_ACTIX_MAX_BODY_SIZE`.
+- `certbot --nginx` obtains the certificate automatically.
+- Security headers: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`.
 
 ---
 
 ## Production Deployment Checklist
 
-Before exposing `bal` to the internet, verify the following steps. The `bal-server` is a plain HTTP application and must **never** be bound directly to a public IP or `0.0.0.0`.
-
 ### 1. `bal-server` Bind Address
-- [ ] `bal-server.env` (or `.env`) sets `BAL_SERVER_BIND_ADDRESS=127.0.0.1` (not `0.0.0.0`).
-- [ ] `BAL_SERVER_BIND_PORT` is the port used by Nginx `proxy_pass` (default `9137`).
-- [ ] Firewall blocks inbound connections to `BAL_SERVER_BIND_PORT` from external interfaces (e.g., `iptables -A INPUT -p tcp --dport 9137 -s 127.0.0.1 -j ACCEPT` and `DROP` for others).
+- [ ] `BAL_SERVER_BIND_ADDRESS=127.0.0.1` (never `0.0.0.0`).
+- [ ] `BAL_SERVER_BIND_PORT` matches Nginx `proxy_pass` (default `9137`).
+- [ ] Firewall blocks inbound connections to `BAL_SERVER_BIND_PORT` from external interfaces.
 
 ### 2. Reverse Proxy (Nginx + TLS)
-- [ ] Nginx is installed (`contrib/download_and_install_bal.sh` handles this).
-- [ ] The template `contrib/nginx/bal-server.conf` is copied to `/etc/nginx/sites-available/` and symlinked to `sites-enabled` (the `contrib/download_and_install_bal.sh` script does this automatically).
-- [ ] The file has a real domain name replacing `BAL_DOMAIN`.
-- [ ] `listen 443 ssl http2;` is active.
-- [ ] `certbot --nginx` has obtained a valid certificate (the script runs `certbot --nginx` which avoids the port 80 conflict of `--standalone`). For manual installs, use `sudo certbot --nginx -d $domain`.
-- [ ] `proxy_pass` points to `http://127.0.0.1:9137` (or whatever `BAL_SERVER_BIND_PORT` is).
-- [ ] `client_max_body_size` in Nginx matches `BAL_SERVER_ACTIX_MAX_BODY_SIZE` (default `1m`).
-- [ ] HTTP port 80 redirects to HTTPS (`return 301 https://...`).
-- [ ] Nginx `limit_req` zone is configured if desired (backup to `actix-governor`).
+- [ ] Nginx installed (`contrib/download_and_install_bal.sh` handles this).
+- [ ] `contrib/nginx/bal-server.conf` template copied to `/etc/nginx/sites-available/`.
+- [ ] Real domain name replacing `BAL_DOMAIN`.
+- [ ] `listen 443 ssl http2` active.
+- [ ] `certbot --nginx` has obtained a valid certificate.
+- [ ] `proxy_pass` points to `http://127.0.0.1:9137`.
+- [ ] `client_max_body_size` matches `BAL_SERVER_ACTIX_MAX_BODY_SIZE`.
+- [ ] HTTP port 80 redirects to HTTPS.
+- [ ] Security headers configured.
 
 ### 3. Database and Secrets
-- [ ] Database file is owned by the `bal` user (`chown bal:bal /var/bal/bal.db`).
-- [ ] Database file permissions are `600` (`chmod 600 /var/bal/bal.db`).
-- [ ] `.env` file is in `.gitignore` and not committed.
-- [ ] `private_key.pem` and `privkey.pem` are not in the repository (use `git ls-files` to verify).
-- [ ] `public_key.pem` is readable by Nginx if served directly (otherwise let the actix endpoint handle it).
+- [ ] Database file owned by `bal` user (`chown bal:bal /var/bal/bal.db`).
+- [ ] Database file permissions `600` (`chmod 600 /var/bal/bal.db`).
+- [ ] `.env` files in `.gitignore` and not committed.
+- [ ] `private_key.pem` / `privkey.pem` not in the repository.
+- [ ] `public_key.pem` readable by Nginx if served directly.
 
 ### 4. Pusher and ZMQ
-- [ ] ZMQ endpoints are configured for `127.0.0.1` only (e.g., `tcp://127.0.0.1:28332`).
-- [ ] `BAL_PUSHER_SEND_STATS` is set to `false` unless the `welist` endpoint is actually needed.
-- [ ] If stats are enabled, `WELIST_SERVER_URL` is a valid external HTTPS domain (not IP, not local).
-- [ ] Firewall blocks inbound TCP port `28332` (or your custom `bitcoin`, `regtest`, etc. ZMQ ports) from external interfaces.
+- [ ] ZMQ endpoints configured for `127.0.0.1` only.
+- [ ] `BAL_PUSHER_SEND_STATS=false` unless `welist` endpoint is needed.
+- [ ] If stats enabled, `WELIST_SERVER_URL` is a valid external HTTPS domain.
+- [ ] Firewall blocks inbound ZMQ ports from external interfaces.
 
 ### 5. Logging and Monitoring
-- [ ] `RUST_LOG` is set to `info` or `warn` in production (not `debug` or `trace`).
-- [ ] Log files are rotated (e.g., via `logrotate`) and stored only under `/var/log/bal/` or systemd journal.
-- [ ] Log files are not in the same directory as the database or the private key.
+- [ ] `RUST_LOG=info` or `warn` in production (not `debug`/`trace`).
+- [ ] Log files rotated and stored under `/var/log/bal/` or systemd journal.
+- [ ] Log files not in the same directory as the database or private key.
 
 ---
 
 ## Tor and Privacy
 
-The `contrib/install_tor.sh` script installs Tor for use as an onion-routed proxy. It can be used to:
-1. Allow the `bal-server` to be reachable via a `.onion` address for privacy and censorship resistance.
-2. Allow the `bal-pusher` to connect to the Bitcoin RPC or the `welist` server through Tor to hide its origin IP.
-3. Allow the server to run behind NAT without exposing the real IP to the public internet.
+The `contrib/install_tor.sh` script installs Tor for onion-routed proxy use:
+1. `bal-server` can be reachable via a `.onion` address.
+2. `bal-pusher` can connect to Bitcoin RPC or `welist` through Tor.
+3. The server can run behind NAT without exposing the real IP.
 
-The script uses `ControlPort 9051` and enables `CookieAuthentication`. If `SEND_STATS` is true, the `welist` URL can be configured to be a `.onion` address to hide the origin. For example, the `bal-pusher` could use `reqwest` with SOCKS5 proxy settings to connect to the `welist` server via Tor.
-- `reqwest` feature `socks` (enabled in `Cargo.toml`) supports proxy settings.
-- For a production privacy setup, it is recommended to run the server and the pusher behind a Tor or VPN proxy.
-- **Security:** The Tor service itself (`tor.service`) should be hardened and run as a separate user. The `ControlPort` `9051` should be bound to `127.0.0.1` and should not be exposed to the public without authentication.
-
----
+The script uses `ControlPort 9051` with `CookieAuthentication`. The `bal-pusher` supports SOCKS5 proxy via the `reqwest` `socks` feature for `.onion` connectivity.

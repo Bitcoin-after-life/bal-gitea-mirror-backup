@@ -1,0 +1,94 @@
+# Screenshot manifest — single source of truth for the images used in the manual.
+#
+# HOW TO UPDATE AN IMAGE
+#   1. Take the screenshot.
+#   2. Save it as docs/img/<file> using EXACTLY the filename below.
+#   3. Done. No Markdown edit needed — pages already point at these filenames.
+#
+# Anything still missing is auto-filled with a visible placeholder by:
+#   python3 tools/make_placeholders.py
+#
+# Recommended capture settings (keep identical across all shots):
+#   - Electrum window only (not the whole desktop), ~1280x800, 100% system zoom
+#   - Same Electrum theme for every shot (do not mix light/dark)
+#   - Dummy data only: fake heir names, round amounts, no real address or balance
+
+screenshots:
+  - file: install-electrum-plugins-menu.png
+    page: getting-started/installation.md
+    shows: "Electrum menu Tools -> Plugins, before installing BAL"
+  - file: install-from-file.png
+    page: getting-started/installation.md
+    shows: "The 'install from file' dialog with the BAL zip selected"
+  - file: install-plugin-enabled.png
+    page: getting-started/installation.md
+    shows: "Plugin list with Bitcoin After Life enabled (checkbox ticked)"
+  - file: overview-tabs.png
+    page: getting-started/installation.md
+    shows: "Electrum main window with the new HEIRS and WILL tabs visible"
+
+  - file: wizard-01-start.png
+    page: getting-started/quick-start.md
+    shows: "First screen of the guided will wizard"
+  - file: wizard-02-heirs.png
+    page: getting-started/quick-start.md
+    shows: "Wizard step: entering heir address and share"
+  - file: wizard-03-delivery-time.png
+    page: getting-started/quick-start.md
+    shows: "Wizard step: choosing the delivery date (calendar)"
+  - file: wizard-04-willexecutors.png
+    page: getting-started/quick-start.md
+    shows: "Wizard step: selecting Will-Executors, with fees visible"
+  - file: wizard-05-summary.png
+    page: getting-started/quick-start.md
+    shows: "Wizard final summary before signing"
+
+  - file: heirs-tab.png
+    page: user-guide/heirs.md
+    shows: "HEIRS tab with two heirs configured"
+  - file: heirs-new-heir.png
+    page: user-guide/heirs.md
+    shows: "New Heir dialog: name, address, amount/percentage"
+  - file: heirs-export.png
+    page: user-guide/wallet-backup.md
+    shows: "Exporting the heirs list to a printable file"
+
+  - file: settings-advanced-mode.png
+    page: user-guide/check-alive.md
+    shows: "Plugin settings with Advanced mode toggle"
+  - file: settings-check-alive.png
+    page: user-guide/check-alive.md
+    shows: "Check Alive parameter in advanced settings"
+  - file: settings-backup-transaction.png
+    page: user-guide/backup-transaction.md
+    shows: "Backup Transaction option in the plugin parameters"
+
+  - file: will-tab.png
+    page: user-guide/will-tab.md
+    shows: "WILL tab listing inheritance transactions"
+  - file: will-server-column.png
+    page: user-guide/will-tab.md
+    shows: "Close-up of the Server column with different labels"
+  - file: will-context-menu.png
+    page: user-guide/will-tab.md
+    shows: "Right-click context menu on a will transaction"
+  - file: will-details.png
+    page: user-guide/will-tab.md
+    shows: "Will-Details window with locktime, fee, heirs, executor"
+  - file: backup-transaction-save.png
+    page: user-guide/backup-transaction.md
+    shows: "Saving the offline backup transaction to a file"
+
+  - file: willexecutors-window.png
+    page: will-executors/choosing.md
+    shows: "Will-Executor service list window inside Electrum"
+  - file: willexecutors-context-menu.png
+    page: will-executors/choosing.md
+    shows: "Right-click menu on a Will-Executor row (select/edit/ping/delete)"
+  - file: welist-website.png
+    page: will-executors/welist.md
+    shows: "The public WeList leaderboard at welist.bitcoin-after.life"
+
+  - file: hardware-wallet-signing.png
+    page: user-guide/hardware-wallets.md
+    shows: "Hardware wallet confirmation prompt while signing the will"

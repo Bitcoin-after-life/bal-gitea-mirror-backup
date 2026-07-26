@@ -1,0 +1,117 @@
+site_name: Bitcoin After Life — Manual
+site_description: Manual for the Bitcoin After Life (BAL) Electrum plugin and the Will-Executor network
+site_url: https://bitcoin-after.life/docs/
+use_directory_urls: false
+repo_url: https://bitcoin-after.life/gitea/bitcoinafterlife/bal-docs
+repo_name: Gitea
+edit_uri: _edit/main/docs/
+
+theme:
+  name: material
+  # Brand assets — see internal/brand-assets.md for where the official files live.
+  logo: assets/logo.svg
+  favicon: assets/favicon.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-night, name: Switch to dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-sunny, name: Switch to light mode }
+  font:
+    text: Inter
+    code: Roboto Mono
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - content.action.edit
+    - content.code.copy
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Installation: getting-started/installation.md
+      - Create your first will: getting-started/quick-start.md
+  - User guide:
+      - Heirs and shares: user-guide/heirs.md
+      - Delivery time: user-guide/delivery-time.md
+      - Check Alive: user-guide/check-alive.md
+      - The WILL tab: user-guide/will-tab.md
+      - Keeping the will up to date: user-guide/updating.md
+      - Offline backup transaction: user-guide/backup-transaction.md
+      - Wallet recovery use case: user-guide/wallet-recovery.md
+      - Backing up wallet and will: user-guide/wallet-backup.md
+      - Hardware wallets: user-guide/hardware-wallets.md
+      - Compatibility: user-guide/compatibility.md
+  - Will-Executors:
+      - What they are: will-executors/what-they-are.md
+      - Choosing them in the plugin: will-executors/choosing.md
+      - The WeList directory: will-executors/welist.md
+      - Running a Will-Executor: will-executors/running-a-server.md
+  - Protocol:
+      - How it works: protocol/how-it-works.md
+  - Security & Privacy: security-privacy.md
+  - FAQ: faq.md
+
+plugins:
+  - search
+  - macros:
+      on_error_fail: true             # a typo in a variable breaks the build, not the page
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed: { alternate_style: true }
+  - toc: { permalink: true }
+
+# --- Italian translation (not enabled yet) ------------------------------------
+# To add Italian:  pip install mkdocs-static-i18n   then uncomment:
+# plugins:
+#   - search
+#   - i18n:
+#       docs_structure: suffix          # index.md (EN) + index.it.md (IT)
+#       languages:
+#         - locale: en
+#           default: true
+#           name: English
+#         - locale: it
+#           name: Italiano
+# Create it.md siblings only for the pages you have translated; untranslated
+# pages automatically fall back to English.
+# ------------------------------------------------------------------------------
+
+# =============================================================================
+# SINGLE SOURCE OF TRUTH FOR VERSIONS
+# Change a value here and it updates everywhere in the manual.
+# Used in pages as {{ bal.plugin_version }} etc.
+# =============================================================================
+extra:
+  bal:
+    plugin_version: "0.2.6"           # latest plugin release
+    electrum_tested: "4.7.1"          # Electrum version that release was tested against
+    electrum_latest: "4.7.2"          # latest stable Electrum the manual assumes
+    welist_fee_sats: "50,000"         # WeList yearly listing fee
+    welist_period_days: "365"
+    last_reviewed: "2026-07"          # bump when you do a full pass over the manual
+  social:
+    - icon: material/web
+      link: https://bitcoin-after.life
+    - icon: material/source-repository
+      link: https://bitcoin-after.life/gitea/bitcoinafterlife
+
+copyright: Bitcoin After Life Protocol — open source, Bitcoin-only, no FIAT used.

@@ -36,11 +36,8 @@ fn test_db_null_unwrap_or() {
 
     let mut found_value = None;
     let _ = db.iterate("SELECT * FROM test_stats;", |pairs| {
-        let row: HashMap<_, _> = pairs
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v.map(|s| s)))
-            .collect();
-        let totals = row["totals"].clone().unwrap_or("0").to_string();
+        let row: HashMap<_, _> = pairs.iter().map(|(k, v)| (k.to_string(), *v)).collect();
+        let totals = row["totals"].unwrap_or("0").to_string();
         found_value = Some(totals);
         true
     });

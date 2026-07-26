@@ -7,7 +7,6 @@ use chrono::Utc;
 use hex_conservative::FromHex;
 use log::{debug, error, info, trace};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use sqlite::State;
 use sqlite::{Connection, Value};
 use std::collections::{HashMap, HashSet};
@@ -119,6 +118,7 @@ pub struct StatsResponse {
 }
 
 #[derive(Debug, Clone)]
+#[expect(dead_code)]
 struct ActixConfig {
     max_body_size: usize,
     timeout_secs: u64,
@@ -208,13 +208,45 @@ async fn echo_pub_key(data: web::Data<AppState>) -> impl Responder {
                 "Failed to read public key file {}: {}",
                 data.cfg.pub_key_path, e
             );
-            HttpResponse::InternalServerError().body("Failed to read public key file")
+            HttpResponse::InternalServerError().body("error")
         }
     }
 }
 
 async fn echo_version() -> impl Responder {
     HttpResponse::Ok().body(VERSION)
+}
+
+fn is_valid_ip(ip: &str) -> bool {
+    ip.parse::<std::net::IpAddr>().is_ok()
+}
+
+fn extract_client_ip(req: &actix_web::HttpRequest) -> String {
+    if let Some(val) = req.headers().get("X-Real-IP")
+        && let Ok(s) = val.to_str()
+    {
+        let ip = s.split(',').next().unwrap_or(s).trim();
+        if is_valid_ip(ip) {
+            debug!("client IP from X-Real-IP: {}", ip);
+            return ip.to_string();
+        }
+    }
+    if let Some(val) = req.headers().get("X-Forwarded-For")
+        && let Ok(s) = val.to_str()
+    {
+        let ip = s.split(',').next().unwrap_or(s).trim();
+        if is_valid_ip(ip) {
+            debug!("client IP from X-Forwarded-For: {}", ip);
+            return ip.to_string();
+        }
+    }
+    let fallback = req
+        .connection_info()
+        .peer_addr()
+        .unwrap_or("unknown")
+        .to_string();
+    debug!("client IP from peer_addr fallback: {}", fallback);
+    fallback
 }
 
 async fn echo_info(
@@ -224,26 +256,15 @@ async fn echo_info(
 ) -> impl Responder {
     let param = path.into_inner();
     if !NETWORKS.contains(&param.as_str()) {
-        return HttpResponse::NotFound().body("Unknown network");
+        return HttpResponse::NotFound().body("error");
     }
     info!("echo info!!!{}", param);
     let netconfig = data.cfg.get_net_config(&param);
     if !netconfig.enabled {
         debug!("network disabled {}", param);
-        return HttpResponse::BadRequest().body("network disabled");
+        return HttpResponse::BadRequest().body("error");
     }
-    let remote_addr = req
-        .headers()
-        .get("X-Real-IP")
-        .and_then(|value| value.to_str().ok())
-        .and_then(|xff| xff.split(',').next())
-        .map(|ip| ip.trim().to_string())
-        .unwrap_or_else(|| {
-            req.connection_info()
-                .peer_addr()
-                .unwrap_or("unknown")
-                .to_string()
-        });
+    let remote_addr = extract_client_ip(&req);
     let address = match netconfig.xpub {
         false => {
             let address = netconfig.address.to_string();
@@ -257,7 +278,7 @@ async fn echo_info(
                     Ok(g) => g,
                     Err(_p) => {
                         error!("DB mutex poisoned in echo_info (lookup phase)");
-                        return HttpResponse::InternalServerError().body("DB mutex poisoned");
+                        return HttpResponse::InternalServerError().body("error");
                     }
                 };
                 match get_last_used_address_by_ip(
@@ -275,10 +296,7 @@ async fn echo_info(
                             version: VERSION.to_string(),
                         });
                     }
-                    None => {
-                        let next = get_next_address_index(&db, &netconfig.name, &netconfig.address);
-                        next
-                    }
+                    None => get_next_address_index(&db, &netconfig.name, &netconfig.address),
                 }
             }; // lock released
 
@@ -288,8 +306,7 @@ async fn echo_info(
                     Ok(address) => address,
                     Err(e) => {
                         error!("Failed to derive address from xpub: {}", e);
-                        return HttpResponse::BadRequest()
-                            .body(format!("Failed to derive address: {}", e));
+                        return HttpResponse::BadRequest().body("error");
                     }
                 };
 
@@ -299,7 +316,7 @@ async fn echo_info(
                     Ok(g) => g,
                     Err(_p) => {
                         error!("DB mutex poisoned in echo_info (save phase)");
-                        return HttpResponse::InternalServerError().body("DB mutex poisoned");
+                        return HttpResponse::InternalServerError().body("error");
                     }
                 };
                 save_new_address(&db, next_idx.0, &derived.0, &derived.1, &remote_addr);
@@ -322,30 +339,30 @@ async fn echo_info(
             debug!("echo info reply: {}", json_data);
             HttpResponse::Ok().json(info)
         }
-        Err(err) => HttpResponse::InternalServerError().body(format!("error:{}", err)),
+        Err(_err) => HttpResponse::InternalServerError().body("error"),
     }
 }
 
 async fn echo_stats(path: web::Path<String>, data: web::Data<AppState>) -> impl Responder {
     let param = path.into_inner();
     if !NETWORKS.contains(&param.as_str()) {
-        return HttpResponse::NotFound().body("Unknown network");
+        return HttpResponse::NotFound().body("error");
     }
     info!("echo stats!!! {}", data.cfg.expose_stats);
     let netconfig = data.cfg.get_net_config(&param);
     if !netconfig.enabled {
         debug!("network disabled {}", param);
-        return HttpResponse::BadRequest().body("network disabled");
+        return HttpResponse::BadRequest().body("error");
     }
     if !data.cfg.expose_stats {
-        return HttpResponse::Forbidden().body("Stats not exposed");
+        return HttpResponse::Forbidden().body("error");
     }
     let mut stats: Vec<StatsResponse> = vec![];
     let db = match data.db.lock() {
         Ok(g) => g,
         Err(_p) => {
             error!("DB mutex poisoned in echo_stats");
-            return HttpResponse::InternalServerError().body("DB mutex poisoned");
+            return HttpResponse::InternalServerError().body("error");
         }
     };
     let mut stmt = match db.prepare(
@@ -354,12 +371,12 @@ async fn echo_stats(path: web::Path<String>, data: web::Data<AppState>) -> impl 
         Ok(s) => s,
         Err(e) => {
             error!("Failed to prepare stats query: {}", e);
-            return HttpResponse::InternalServerError().body("Database error");
+            return HttpResponse::InternalServerError().body("error");
         }
     };
     if let Err(e) = stmt.bind((1, Value::String(netconfig.name.clone()))) {
         error!("Failed to bind chain in stats query: {}", e);
-        return HttpResponse::InternalServerError().body("Database error");
+        return HttpResponse::InternalServerError().body("error");
     }
     while let Ok(State::Row) = stmt.next() {
         let report_date = stmt.read("report_date").unwrap_or("0".to_string());
@@ -417,13 +434,8 @@ async fn echo_stats(path: web::Path<String>, data: web::Data<AppState>) -> impl 
             unique_inputs,
         });
     }
-    match serde_json::to_string(&stats) {
-        Ok(json_data) => {
-            debug!("echo info reply: {}", json_data);
-            HttpResponse::Ok().json(stats)
-        }
-        Err(err) => HttpResponse::InternalServerError().body(format!("error:{}", err)),
-    }
+    debug!("echo stats reply for chain: {}", netconfig.name);
+    HttpResponse::Ok().json(stats)
 }
 
 async fn echo_search(body: Bytes, data: web::Data<AppState>) -> impl Responder {
@@ -431,33 +443,33 @@ async fn echo_search(body: Bytes, data: web::Data<AppState>) -> impl Responder {
     let strbody = match std::str::from_utf8(&body) {
         Ok(s) => s,
         Err(_) => {
-            return HttpResponse::BadRequest().body("Invalid UTF-8 body");
+            return HttpResponse::BadRequest().body("error");
         }
     };
     info!("{}", strbody);
 
     if strbody.is_empty() || strbody.len() != 64 || !strbody.chars().all(|c| c.is_ascii_hexdigit())
     {
-        return HttpResponse::BadRequest().body("Invalid txid");
+        return HttpResponse::BadRequest().body("error");
     }
 
     let db = match data.db.lock() {
         Ok(g) => g,
         Err(_p) => {
             error!("DB mutex poisoned in echo_search");
-            return HttpResponse::InternalServerError().body("DB mutex poisoned");
+            return HttpResponse::InternalServerError().body("error");
         }
     };
     let mut statement = match db.prepare("SELECT * FROM tbl_tx WHERE txid = ? LIMIT 1") {
         Ok(s) => s,
         Err(e) => {
             error!("Failed to prepare statement: {}", e);
-            return HttpResponse::InternalServerError().body("Database error");
+            return HttpResponse::InternalServerError().body("error");
         }
     };
     if let Err(e) = statement.bind((1, strbody)) {
         error!("Failed to bind parameter: {}", e);
-        return HttpResponse::InternalServerError().body("Database error");
+        return HttpResponse::InternalServerError().body("error");
     }
 
     if let Ok(State::Row) = statement.next() {
@@ -503,11 +515,14 @@ async fn echo_search(body: Bytes, data: web::Data<AppState>) -> impl Responder {
             }
         }
         match serde_json::to_string(&response_data) {
-            Ok(json_data) => HttpResponse::Ok().json(json_data),
-            Err(_) => HttpResponse::BadRequest().body("Bad data received"),
+            Ok(json_data) => {
+                debug!("echo search reply: {}", json_data);
+                HttpResponse::Ok().json(&response_data)
+            }
+            Err(_) => HttpResponse::BadRequest().body("error"),
         }
     } else {
-        HttpResponse::BadRequest().body("Bad data received")
+        HttpResponse::BadRequest().body("error")
     }
 }
 
@@ -524,15 +539,14 @@ struct ParsedTx {
 }
 
 /// Parse all transactions from the request body **without** needing the DB lock.
-/// Returns `Ok(parsed_txs)` if at least one tx was valid, or `Err(HttpResponse)` for early failure.
+/// Skips transactions that don't have a valid willexecutor output.
 fn parse_request_transactions(
     strbody: &str,
     _req_time: i64,
     netconfig: &NetConfig,
     known_addresses: &HashSet<String>,
-) -> Result<Vec<(ParsedTx, String, u64)>, HttpResponse> {
+) -> Vec<(ParsedTx, String, u64)> {
     let mut result: Vec<(ParsedTx, String, u64)> = Vec::new();
-    let mut union_tx = true;
 
     for line in strbody.split('\n') {
         if line.is_empty() {
@@ -613,13 +627,8 @@ fn parse_request_transactions(
         }
 
         if !found {
-            error!("willexecutor output not found for tx {}", txid);
-            return Err(HttpResponse::BadRequest().body("Bad data received"));
-        }
-        if !union_tx {
-            // This is only used for SQL building later; we track it in the caller
-        } else {
-            union_tx = false;
+            trace!("willexecutor output not found for tx {}, skipping", txid);
+            continue;
         }
         result.push((
             ParsedTx {
@@ -636,7 +645,7 @@ fn parse_request_transactions(
         ));
     }
 
-    Ok(result)
+    result
 }
 
 async fn echo_push(
@@ -648,24 +657,24 @@ async fn echo_push(
     let strbody = match std::str::from_utf8(&body) {
         Ok(s) => s,
         Err(_) => {
-            return HttpResponse::BadRequest().body("Invalid UTF-8 body");
+            return HttpResponse::BadRequest().body("error");
         }
     };
 
     let param = path.into_inner();
     if !NETWORKS.contains(&param.as_str()) {
-        return HttpResponse::NotFound().body("Unknown network");
+        return HttpResponse::NotFound().body("error");
     }
     let netconfig = data.cfg.get_net_config(&param);
     if !netconfig.enabled {
         trace!("network not enabled {}", &netconfig.name);
-        return HttpResponse::BadRequest().body("Network not enabled");
+        return HttpResponse::BadRequest().body("error");
     }
     let req_time = match Utc::now().timestamp_nanos_opt() {
         Some(t) => t,
         None => {
             error!("Invalid timestamp");
-            return HttpResponse::BadRequest().body("Invalid timestamp");
+            return HttpResponse::BadRequest().body("error");
         }
     };
 
@@ -675,7 +684,7 @@ async fn echo_push(
             Ok(g) => g,
             Err(_p) => {
                 error!("DB mutex poisoned acquiring addresses in echo_push");
-                return HttpResponse::InternalServerError().body("DB mutex poisoned");
+                return HttpResponse::InternalServerError().body("error");
             }
         };
         if netconfig.xpub {
@@ -683,7 +692,7 @@ async fn echo_push(
                 Ok(addrs) => addrs,
                 Err(e) => {
                     error!("Failed to load addresses from xpub: {}", e);
-                    return HttpResponse::InternalServerError().body("Database error");
+                    return HttpResponse::InternalServerError().body("error");
                 }
             }
         } else {
@@ -692,12 +701,9 @@ async fn echo_push(
     }; // lock released here
 
     // Parse all transactions (CPU-bound, no DB needed)
-    let parsed = match parse_request_transactions(strbody, req_time, netconfig, &known_addresses) {
-        Ok(v) => v,
-        Err(resp) => return resp,
-    };
+    let parsed = parse_request_transactions(strbody, req_time, netconfig, &known_addresses);
     if parsed.is_empty() {
-        return HttpResponse::Ok().body("thx");
+        return HttpResponse::BadRequest().body("error");
     }
 
     let all_txids: Vec<String> = parsed.iter().map(|(p, _, _)| p.txid.clone()).collect();
@@ -708,14 +714,14 @@ async fn echo_push(
             Ok(g) => g,
             Err(_p) => {
                 error!("DB mutex poisoned in echo_push duplicate check");
-                return HttpResponse::InternalServerError().body("DB mutex poisoned");
+                return HttpResponse::InternalServerError().body("error");
             }
         };
         match check_duplicate_txids(&db, &all_txids) {
             Ok(dups) => dups,
             Err(e) => {
                 error!("Duplicate check failed: {}", e);
-                return HttpResponse::InternalServerError().body("Database error");
+                return HttpResponse::InternalServerError().body("error");
             }
         }
     }; // lock released here
@@ -731,7 +737,7 @@ async fn echo_push(
             Ok(g) => g,
             Err(_p) => {
                 error!("DB mutex poisoned in echo_push insert phase");
-                return HttpResponse::InternalServerError().body("DB mutex poisoned");
+                return HttpResponse::InternalServerError().body("error");
             }
         };
 
@@ -818,7 +824,7 @@ async fn echo_push(
 
         if let Err(err) = execute_insert(&db, sqltxs, ptx, sqlinps, pinps, sqlouts, pouts) {
             error!("execute_insert failed: {}", err);
-            return HttpResponse::BadRequest().body("Bad data received");
+            return HttpResponse::BadRequest().body("error");
         }
     } // lock released
 
@@ -900,7 +906,7 @@ async fn main() -> std::io::Result<()> {
     let db = match open_db(&cfg.db_file) {
         Ok(c) => c,
         Err(e) => {
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+            return Err(std::io::Error::other(e));
         }
     };
 
@@ -914,15 +920,6 @@ async fn main() -> std::io::Result<()> {
         db: Mutex::new(db),
         cfg: cfg.clone(),
     });
-
-    // Initialize networks
-    {
-        let db = data.db.lock().unwrap();
-        for network in NETWORKS {
-            let netconfig = data.cfg.get_net_config(network);
-            insert_xpub(&db, &netconfig.name.to_string(), &netconfig.address);
-        }
-    }
 
     let bind_address = data.cfg.bind_address.clone();
     let bind_port = data.cfg.bind_port;

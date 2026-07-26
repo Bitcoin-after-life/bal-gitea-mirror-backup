@@ -11,9 +11,8 @@ FROM rust:1.95-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
-    libsodium-dev \
     libzmq5-dev \
-    cmake \
+    libsqlite3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -27,12 +26,14 @@ RUN mkdir -p src/bin && \
     echo '' > src/db.rs && \
     echo '' > src/xpub.rs && \
     echo '' > src/validation.rs && \
-    cargo build --release --bin bal-server --bin bal-pusher 2>/dev/null || true && \
+    cargo build --release --bin bal-server --no-default-features --features server 2>/dev/null || true && \
+    cargo build --release --bin bal-pusher --no-default-features --features pusher 2>/dev/null || true && \
     rm -rf src target/release/.fingerprint target/release/deps/*bal_server*
 
-# Copy real source and build
+# Copy real source and build each binary with only its required features
 COPY src/ src/
-RUN cargo build --release --bin bal-server --bin bal-pusher && \
+RUN cargo build --release --bin bal-server --no-default-features --features server && \
+    cargo build --release --bin bal-pusher --no-default-features --features pusher && \
     strip target/release/bal-server target/release/bal-pusher
 
 # ---------------------------------------------------------------------------
@@ -43,7 +44,6 @@ FROM debian:bookworm-slim AS runtime
 # Install runtime dependencies + tini for PID 1
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
-    libsodium23 \
     libzmq5 \
     libsqlite3-0 \
     ca-certificates \

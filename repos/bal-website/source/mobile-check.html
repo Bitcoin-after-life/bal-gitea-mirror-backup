@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile diagnostics</title>
+<style>
+  body{font-family:system-ui,sans-serif;margin:0;padding:20px;background:#eef1f4;color:#1a2027}
+  h1{font-size:20px;margin:0 0 4px}
+  .hint{color:#5b6672;font-size:14px;margin:0 0 18px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dfe4ea;border-radius:10px;overflow:hidden}
+  td{padding:11px 13px;border-bottom:1px solid #dfe4ea;font-size:15px;vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.k{color:#5b6672;width:52%}
+  td.v{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600}
+  .verdict{margin-top:18px;padding:16px;border-radius:10px;font-size:16px;line-height:1.55}
+  .ok{background:#e3f4ea;border:1px solid #b6e0c6}
+  .bad{background:#fbf0df;border:1px solid #eed8b4}
+  /* These probes report whether the mobile breakpoints are actually active. */
+  .probe900,.probe700,.probe560{display:none}
+  @media (max-width:900px){.probe900{display:inline}}
+  @media (max-width:700px){.probe700{display:inline}}
+  @media (max-width:560px){.probe560{display:inline}}
+</style>
+</head>
+<body>
+<h1>Mobile diagnostics</h1>
+<p class="hint">Open this page on the phone and read out the values.</p>
+
+<table>
+  <tr><td class="k">Layout viewport width (CSS px)</td><td class="v" id="vw">—</td></tr>
+  <tr><td class="k">Screen width reported</td><td class="v" id="sw">—</td></tr>
+  <tr><td class="k">Device pixel ratio</td><td class="v" id="dpr">—</td></tr>
+  <tr><td class="k">Breakpoint &le;900px active</td><td class="v"><span class="probe900">YES</span><span id="n900">NO</span></td></tr>
+  <tr><td class="k">Breakpoint &le;700px active</td><td class="v"><span class="probe700">YES</span><span id="n700">NO</span></td></tr>
+  <tr><td class="k">Breakpoint &le;560px active</td><td class="v"><span class="probe560">YES</span><span id="n560">NO</span></td></tr>
+  <tr><td class="k">JavaScript enabled</td><td class="v" id="js">NO</td></tr>
+  <tr><td class="k">Browser identification</td><td class="v" id="ua" style="font-size:11px;word-break:break-all">—</td></tr>
+</table>
+
+<div class="verdict" id="verdict">
+  If "JavaScript enabled" says NO, this box will not update — that alone is a useful result.
+</div>
+
+<script>
+/* Hide the "NO" markers whose matching media query fired, so each row shows
+   a single unambiguous value. */
+[[900, 'n900'], [700, 'n700'], [560, 'n560']].forEach(function (pair) {
+  if (window.matchMedia('(max-width:' + pair[0] + 'px)').matches) {
+    document.getElementById(pair[1]).style.display = 'none';
+  }
+});
+
+var vw = document.documentElement.clientWidth;
+document.getElementById('vw').textContent = vw + ' px';
+document.getElementById('sw').textContent = window.screen.width + ' px';
+document.getElementById('dpr').textContent = window.devicePixelRatio;
+document.getElementById('js').textContent = 'YES';
+document.getElementById('ua').textContent = navigator.userAgent;
+
+var v = document.getElementById('verdict');
+if (vw > 900) {
+  v.className = 'verdict bad';
+  v.innerHTML = '<b>Found it.</b> The layout viewport is ' + vw + ' CSS pixels, ' +
+    'so the phone is rendering the page as a desktop window and none of the ' +
+    'mobile rules apply. This is a browser setting, not a problem in the page: ' +
+    'look for "Request desktop site" (or "Desktop site") in the browser menu ' +
+    'and turn it off for this site.';
+} else {
+  v.className = 'verdict ok';
+  v.innerHTML = '<b>The viewport is correct</b> (' + vw + ' CSS pixels) and the ' +
+    'mobile rules are active. If the page still looks wrong, the cause is ' +
+    'elsewhere — most likely a cached copy of the old page. Reload with the ' +
+    'cache cleared.';
+}
+</script>
+</body>
+</html>

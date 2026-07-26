@@ -13,7 +13,15 @@ sudo cp target/release/bal-server target/release/bal-pusher /usr/local/bin
 
 ## Docker
 
-### Build
+### Quick Start (release download)
+
+Download the latest pre-built release — no Rust toolchain needed:
+
+```bash
+docker build -f Dockerfile.release -t bal-server .
+```
+
+### Build from source
 
 ```bash
 docker build -t bal-server .
@@ -37,6 +45,12 @@ docker run -d \
   bal-server
 ```
 
+### Pin a specific version
+
+```bash
+docker build -f Dockerfile.release --build-arg BAL_VERSION=v0.3.2 -t bal-server:0.3.2 .
+```
+
 ### Docker environment variables
 
 | Variable | Description | Default |
@@ -48,6 +62,7 @@ docker run -d \
 > **Note:** The container runs as a non-root `bal` user (uid 1000) with `tini` as PID 1.
 > The `/var/bal` volume stores the database. Mount Bitcoin Core's cookie file as read-only.
 > When using `--network host`, ensure only `127.0.0.1` is used for internal services.
+> `Dockerfile.release` fetches the latest release from the Gitea server and verifies its SHA-256 checksum.
 
 ## Configuration (bal-server)
 
@@ -111,7 +126,7 @@ The `bal-server` application can be configured using environment variables.
   zmqpubhashblock=tcp://127.0.0.1:28332
   ```
 - **Rust and Cargo**: [Rust Installation](https://www.rust-lang.org/tools/install)
-- **Libraries**: `libssl-dev`, `libsodium-dev`, `libzmq5-dev`, `libsqlite3-dev`
+- **Libraries**: `libssl-dev`, `libzmq5-dev`, `libsqlite3-dev`
 
 ## Running
 

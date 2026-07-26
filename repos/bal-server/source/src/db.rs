@@ -164,7 +164,7 @@ pub fn create_database(db: &Connection) {
     let _ = db.execute("DROP INDEX IF EXISTS idx_stats_chain;");
     let _ = db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_stats_chain ON tbl_stats(chain);");
 
-    let _ = db.execute("UPDATE tbl_tx set network='bitcoin' where network='mainnet');");
+    let _ = db.execute("UPDATE tbl_tx set network='bitcoin' where network='mainnet';");
 }
 /*
  pub fn get_xpub_id(db: &Connection, network: &String, xpub: &String) -> Option<i64>{
@@ -178,16 +178,17 @@ pub fn create_database(db: &Connection) {
     }
 }
 */
-pub fn insert_xpub(db: &Connection, network: &String, xpub: &String) {
-    if xpub != "" {
+pub fn insert_xpub(db: &Connection, network: &str, xpub: &str) {
+    if !xpub.is_empty() {
         trace!("going to insert: {} xpub:{}", network, xpub);
-        let mut stmt = match db.prepare("INSERT INTO tbl_xpub(network,xpub) VALUES(?, ?);") {
-            Ok(s) => s,
-            Err(e) => {
-                error!("Failed to prepare xpub insert statement: {}", e);
-                return;
-            }
-        };
+        let mut stmt =
+            match db.prepare("INSERT OR IGNORE INTO tbl_xpub(network,xpub) VALUES(?, ?);") {
+                Ok(s) => s,
+                Err(e) => {
+                    error!("Failed to prepare xpub insert statement: {}", e);
+                    return;
+                }
+            };
         if let Err(e) = stmt.bind((1, Value::String(network.to_string()))) {
             error!("Failed to bind network parameter for xpub insert: {}", e);
             return;

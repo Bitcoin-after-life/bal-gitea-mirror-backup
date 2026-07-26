@@ -1,7 +1,6 @@
 use bal_server::db::open_db;
 use sqlite::State;
 use std::fs;
-use std::path::Path;
 
 #[test]
 fn test_open_db_blocks_traversal() {
@@ -74,7 +73,7 @@ fn test_open_db_rejects_symlink() {
     let _ = fs::remove_file(real);
     let _ = fs::remove_file(link);
     fs::File::create(real).unwrap();
-    fs::soft_link(real, link).unwrap();
+    std::os::unix::fs::symlink(real, link).unwrap();
 
     let res = open_db(link);
     assert!(res.is_err(), "Symlink DB path should be rejected");

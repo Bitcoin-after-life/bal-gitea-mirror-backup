@@ -16,7 +16,6 @@ target/
 *.pem
 *.key
 !public_key.pem
-!data/public_key.pem
 
 # Database files
 *.db
@@ -51,7 +50,6 @@ update_codebase.txt
 .idea/
 
 # Misc
-Cargo.lock
 generate_random_ascii.sh
 test/
 invalid_txs/

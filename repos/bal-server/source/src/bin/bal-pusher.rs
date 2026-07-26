@@ -5,8 +5,7 @@ use bitcoin::Network;
 use bitcoincore_rpc::{Auth, Client, Error, RpcApi, bitcoin};
 use bitcoincore_rpc_json::GetBlockchainInfoResult;
 
-use byteorder::{LittleEndian, ReadBytesExt};
-use hex;
+use ed25519_dalek::{Signer as _, SigningKey, pkcs8::DecodePrivateKey};
 use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use serde::Serialize;
@@ -15,24 +14,19 @@ use sqlite::{Connection, Value};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error as StdError;
-use std::io::Cursor;
 use std::str;
 use std::{thread, time::Duration};
-use zmq::{Context, DEALER, DONTWAIT, Socket};
+use zmq::{Context, Socket};
 
 use bal_server::db::open_db;
 use bal_server::validation::is_valid_welist_url;
 use base64::{Engine as _, engine::general_purpose};
-use openssl::hash::MessageDigest;
-use openssl::pkey::PKey;
-use openssl::sign::Signer;
-use openssl::sign::Verifier;
 use reqwest::Client as rClient;
-use std::fs;
-use std::time::Instant;
+use std::net::SocketAddr;
+use url::Url;
 
 const LOCKTIME_THRESHOLD: i64 = 5000000;
-const VERSION: &str = "0.0.2";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MyConfig {
     db_file: String,
@@ -90,7 +84,7 @@ fn get_network_params(cfg: &MyConfig, network: Network) -> &NetworkParams {
 fn get_network_params_default(network: Network) -> NetworkParams {
     match network {
         Network::Testnet => NetworkParams {
-            host: "http://i27.0.0.1".to_string(),
+            host: "http://127.0.0.1".to_string(),
             port: 18332,
             dir_path: "testnet3/".to_string(),
             db_field: "testnet".to_string(),
@@ -100,7 +94,7 @@ fn get_network_params_default(network: Network) -> NetworkParams {
             zmq_listener: "tcp://127.0.0.1:23332".to_string(),
         },
         Network::Testnet4 => NetworkParams {
-            host: "http://i27.0.0.1".to_string(),
+            host: "http://127.0.0.1".to_string(),
             port: 48332,
             dir_path: "testnet4/".to_string(),
             db_field: "testnet4".to_string(),
@@ -143,7 +137,7 @@ fn get_network_params_default(network: Network) -> NetworkParams {
 }
 
 fn get_cookie_filename(network: &NetworkParams) -> Result<String, Box<dyn StdError>> {
-    if network.cookie_file != "" {
+    if !network.cookie_file.is_empty() {
         Ok(network.cookie_file.clone())
     } else {
         match env::var_os("HOME") {
@@ -161,12 +155,12 @@ fn get_cookie_filename(network: &NetworkParams) -> Result<String, Box<dyn StdErr
     }
 }
 fn get_client_from_username(
-    url: &String,
+    url: &str,
     network: &NetworkParams,
 ) -> Result<(Client, GetBlockchainInfoResult), Box<dyn StdError>> {
-    if network.rpc_user != "" {
+    if !network.rpc_user.is_empty() {
         match Client::new(
-            &url[..],
+            url,
             Auth::UserPass(network.rpc_user.to_string(), network.rpc_pass.to_string()),
         ) {
             Ok(client) => match client.get_blockchain_info() {
@@ -180,57 +174,37 @@ fn get_client_from_username(
     }
 }
 fn get_client_from_cookie(
-    url: &String,
+    url: &str,
     network: &NetworkParams,
 ) -> Result<(Client, GetBlockchainInfoResult), Box<dyn StdError>> {
     match get_cookie_filename(network) {
-        Ok(cookie) => match Client::new(&url[..], Auth::CookieFile(cookie.into())) {
+        Ok(cookie) => match Client::new(url, Auth::CookieFile(cookie.into())) {
             Ok(client) => match client.get_blockchain_info() {
                 Ok(bcinfo) => Ok((client, bcinfo)),
                 Err(err) => Err(err.into()),
             },
             Err(err) => Err(err.into()),
         },
-        Err(err) => Err(err.into()),
+        Err(err) => Err(err),
     }
 }
 fn get_client(
     network: &NetworkParams,
 ) -> Result<(Client, GetBlockchainInfoResult), Box<dyn StdError>> {
-    let url = format!("{}:{}/", network.host, &network.port);
+    let url = format!("{}:{}/", network.host, network.port);
     debug!("trying to connect to bitcoin daemon:{url}");
     match get_client_from_username(&url, network) {
         Ok(client) => Ok(client),
-        Err(_) => match get_client_from_cookie(&url, &network) {
+        Err(_) => match get_client_from_cookie(&url, network) {
             Ok(client) => Ok(client),
-            Err(err) => Err(err.into()),
+            Err(err) => Err(err),
         },
     }
 }
 async fn main_result(cfg: &MyConfig, network_params: &NetworkParams) -> Result<(), Error> {
-    /*let url = args.next().expect("Usage: <rpc_url> <username> <password>");
-    let user = args.next().expect("no user given");
-    let pass = args.next().expect("no pass given");
-    */
-    //let network = Network::Regtest
     match get_client(network_params) {
         Ok((rpc, bcinfo)) => {
             info!("connected");
-            //let best_block_hash = rpc.get_best_block_hash()?;
-            //info!("best block hash: {}", best_block_hash);
-            //let bestblockcount = rpc.get_block_count()?;
-            //info!("best block height: {}", bestblockcount);
-            //let best_block_hash_by_height = rpc.get_block_hash(bestblockcount)?;
-            //info!("best block hash by height: {}", best_block_hash_by_height);
-            //assert_eq!(best_block_hash_by_height, best_block_hash);
-            //let from_block= std::cmp::max(0, bestblockcount - 11);
-            //let mut time_sum:u64=0;
-            //for i in from_block..bestblockcount{
-            //    let hash = rpc.get_block_hash(i).unwrap();
-            //    let block: bitcoin::Block = rpc.get_by_id(&hash).unwrap();
-            //    time_sum += <u32 as Into<u64>>::into(block.header.time);
-            //}
-            //let average_time = time_sum/11;
             info!("median time: {}", bcinfo.median_time);
             //info!("height time: {}",bcinfo.median_time);
             info!("blocks: {}", bcinfo.blocks);
@@ -265,7 +239,7 @@ async fn main_result(cfg: &MyConfig, network_params: &NetworkParams) -> Result<(
             let mut invalid_txs: std::collections::HashMap<String, String> = HashMap::new();
             for row_result in match query_tx.bind::<&[(_, Value)]>(
                 &[
-                    (":locktime_threshold", (LOCKTIME_THRESHOLD as i64).into()),
+                    (":locktime_threshold", LOCKTIME_THRESHOLD.into()),
                     (":bestblock_time", (average_time as i64).into()),
                     (":bestblock_height", (bcinfo.blocks as i64).into()),
                     (":network", network_params.db_field.clone().into()),
@@ -291,26 +265,10 @@ async fn main_result(cfg: &MyConfig, network_params: &NetworkParams) -> Result<(
                 info!("to be pushed: {}: {}", txid, locktime);
                 match rpc.send_raw_transaction(tx) {
                     Ok(o) => {
-                        /*let mut file = OpenOptions::new()
-                            .append(true) // Set the append option
-                            .create(true) // Create the file if it doesn't exist
-                            .open("valid_txs")?;
-                        let data = format!("{}\t:\t{}\t:\t{}\n",txid,average_time,locktime);
-                        file.write_all(data.as_bytes())?;
-                        drop(file);
-                        */
                         info!("tx: {} pusshata PUSHED\n{}", txid, o);
                         pushed_txs.push(txid.to_string());
                     }
                     Err(err) => {
-                        /*let mut file = OpenOptions::new()
-                            .append(true) // Set the append option
-                            .create(true) // Create the file if it doesn't exist
-                            .open("/home/bal/invalid_txs")?;
-                        let data = format!("{}:\t{}\t:\t{}\t:\t{}\n",txid,err,average_time,locktime);
-                        file.write_all(data.as_bytes())?;
-                        drop(file);
-                        */
                         warn!("Error: {}\n{}", err, txid);
                         //store err in invalid_txs
                         invalid_txs.insert(txid.to_string(), err.to_string());
@@ -320,19 +278,44 @@ async fn main_result(cfg: &MyConfig, network_params: &NetworkParams) -> Result<(
 
             for txid in &pushed_txs {
                 let sql = "UPDATE tbl_tx SET status = 1 WHERE txid = ?";
-                let mut stmt = db.prepare(sql).unwrap();
-                stmt.bind((1, Value::String(txid.clone()))).unwrap();
-                let _ = stmt.next();
+                match db.prepare(sql) {
+                    Ok(mut stmt) => {
+                        if let Err(e) = stmt.bind((1, Value::String(txid.clone()))) {
+                            error!("Failed to bind txid for status update: {}", e);
+                            continue;
+                        }
+                        let _ = stmt.next();
+                    }
+                    Err(e) => {
+                        error!("Failed to prepare status update: {}", e);
+                    }
+                }
             }
             for (txid, txerr) in &invalid_txs {
                 let sql = "UPDATE tbl_tx SET status = 2, push_err = ? WHERE txid = ?";
-                let mut stmt = db.prepare(sql).unwrap();
-                stmt.bind((1, Value::String(txerr.clone()))).unwrap();
-                stmt.bind((2, Value::String(txid.clone()))).unwrap();
-                let _ = stmt.next();
+                match db.prepare(sql) {
+                    Ok(mut stmt) => {
+                        if let Err(e) = stmt.bind((1, Value::String(txerr.clone()))) {
+                            error!("Failed to bind txerr for error update: {}", e);
+                            continue;
+                        }
+                        if let Err(e) = stmt.bind((2, Value::String(txid.clone()))) {
+                            error!("Failed to bind txid for error update: {}", e);
+                            continue;
+                        }
+                        let _ = stmt.next();
+                    }
+                    Err(e) => {
+                        error!("Failed to prepare error update: {}", e);
+                    }
+                }
             }
-            let _ = send_stats_report(cfg, bcinfo).await;
-            let _ = calculate_stats(&db, network_params.db_field.clone()).await;
+            if let Err(e) = send_stats_report(cfg, bcinfo).await {
+                error!("send_stats_report failed: {}", e);
+            }
+            if let Err(e) = calculate_stats(&db, network_params.db_field.clone()).await {
+                warn!("calculate_stats failed: {e}");
+            }
         }
         Err(erx) => {
             error!("impossible to get client: {}, retrying on next block", erx);
@@ -390,31 +373,6 @@ ON CONFLICT(chain) DO UPDATE SET
   "
     );
 
-    /*
-    let sql = format!("CREATE TABLE tbl_stats AS
-	SELECT
-		CURRENT_TIMESTAMP AS report_date,
-        '{chain}' as chain,
-		(SELECT COUNT(*) FROM tbl_tx WHERE network ='{chain}') AS totals,
-		(SELECT COUNT(*) FROM tbl_tx WHERE status = 0 AND network ='{chain}') AS waiting,
-		(SELECT COUNT(*) FROM tbl_tx WHERE status = 1 AND network ='{chain}') AS sent,
-		(SELECT COUNT(*) FROM tbl_tx WHERE status = 2 AND network ='{chain}') AS failed,
-		(SELECT SUM(our_fees) FROM tbl_tx WHERE status = 0 AND network ='{chain}') AS waiting_profit,
-		(SELECT SUM(our_fees) OR 0 FROM tbl_tx WHERE status = 1 AND network ='{chain}') AS sent_profit,
-		(SELECT SUM(our_fees) FROM tbl_tx WHERE status = 2 AND network ='{chain}') AS missed_profit,
-		(SELECT COUNT(*) FROM tbl_inp JOIN tbl_tx ON(tbl_inp.txid = tbl_tx.txid) WHERE tbl_tx.status=0 AND tbl_tx.network ='{chain}') AS unique_inputs;
-    ");
-    let sql = "UPDATE tbl_stats set
-        totals = (SELECT COUNT(*) FROM tbl_tx WHERE network ='{chain}'),
-        waiting = (SELECT COUNT(*) FROM tbl_tx WHERE status = 0 AND network ='{chain}'),
-        sent = (SELECT COUNT(*) FROM tbl_tx WHERE status = 1 AND network ='{chain}'),
-        failed = (SELECT COUNT(*) FROM tbl_tx WHERE status = 1 AND network ='{chain}'),
-        waiting_profit = (SELECT SUM(our_fees) FROM tbl_tx WHERE status = 0 AND network ='{chain}'),
-        sent_profit = (SELECT SUM(our_fees) FROM tbl_tx WHERE status = 0 AND network ='{chain}'),
-        missed_profit = (SELECT SUM(our_fees) FROM tbl_tx WHERE status = 0 AND network ='{chain}')
-        unique_inputs = (SELECT COUNT(*) FROM tbl_inp JOIN tbl_tx ON(tbl_inp.txid = tbl_tx.txid) WHERE tbl_tx.status=0 AND tbl_tx.network ='{chain}')
-        WHERE chain = '{chain}'
-    */
     if let Err(err) = db.execute(&sql) {
         error!("error inserting creating stats table {err}");
     } else {
@@ -422,6 +380,84 @@ ON CONFLICT(chain) DO UPDATE SET
     }
     Ok(())
 }
+/// Parse the `(host, port)` pair from a base URL like `https://host[:port]`.
+///
+/// Falls back to the scheme's well-known default port (443 for `https`,
+/// 80 for plain `http`), or to 443 when the scheme is unknown.
+fn parse_host_port(base_url: &str) -> Option<(String, u16)> {
+    let url = Url::parse(base_url).ok()?;
+    let host = url
+        .host_str()?
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .to_string();
+    let port = url.port_or_known_default().unwrap_or(443);
+    Some((host, port))
+}
+
+/// Resolve `host:port` and return the first IPv6 (AAAA) address, if any.
+///
+/// Returns `None` when the host has no IPv6 address.
+async fn resolve_first_ipv6(host: &str, port: u16) -> Option<SocketAddr> {
+    use std::net::ToSocketAddrs;
+    let host = host.to_string();
+    tokio::task::spawn_blocking(move || {
+        format!("{}:{}", host, port)
+            .to_socket_addrs()
+            .ok()
+            .and_then(|mut addrs| addrs.find(|a| a.is_ipv6()))
+    })
+    .await
+    .ok()
+    .flatten()
+}
+
+/// Build the HTTP client used for welist reports.
+///
+/// When `BAL_PUSHER_PREFER_IPV6` is truthy, the welist host is resolved and
+/// the client is pinned to its first IPv6 address (the original hostname is
+/// still used for the `Host` header and TLS SNI). This works around networks
+/// where the IPv4 route to the welist host is broken while IPv6 works: the
+/// default connector may otherwise pick the broken family and the request
+/// stalls. When the variable is unset (the default), behavior is unchanged.
+async fn welist_http_client(welist_url: &str) -> rClient {
+    let prefer_ipv6 = env::var("BAL_PUSHER_PREFER_IPV6")
+        .unwrap_or("false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
+    if !prefer_ipv6 {
+        return new_welist_client();
+    }
+    let (host, port) = match parse_host_port(welist_url) {
+        Some(hp) => hp,
+        None => {
+            warn!("BAL_PUSHER_PREFER_IPV6: cannot parse '{welist_url}', using default resolver");
+            return new_welist_client();
+        }
+    };
+    match resolve_first_ipv6(&host, port).await {
+        Some(addr) => {
+            debug!("BAL_PUSHER_PREFER_IPV6: pinning {host} to {addr}");
+            rClient::builder()
+                .timeout(Duration::from_secs(10))
+                .resolve(&host, addr)
+                .build()
+                .unwrap_or_else(|_| new_welist_client())
+        }
+        None => {
+            debug!("BAL_PUSHER_PREFER_IPV6: no IPv6 address for {host}, using default resolver");
+            new_welist_client()
+        }
+    }
+}
+
+fn new_welist_client() -> rClient {
+    rClient::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .unwrap_or_else(|_| rClient::new())
+}
+
 async fn send_stats_report(
     cfg: &MyConfig,
     bcinfo: GetBlockchainInfoResult,
@@ -430,14 +466,18 @@ async fn send_stats_report(
         debug!("sending report to welist");
         let welist_url = env::var("WELIST_SERVER_URL")
             .unwrap_or("https://welist.bitcoin-after.life".to_string());
-        if !is_valid_welist_url(&welist_url) {
+        let skip_validation = env::var("WELIST_SKIP_URL_VALIDATION")
+            .unwrap_or("false".to_string())
+            .parse::<bool>()
+            .unwrap_or(false);
+        if !skip_validation && !is_valid_welist_url(&welist_url) {
             warn!(
                 "Invalid or unsafe WELIST_SERVER_URL: {}. Skipping stats report.",
                 welist_url
             );
             return Ok(());
         }
-        let client = rClient::new();
+        let client = welist_http_client(&welist_url).await;
         let url = format!("{}/ping", welist_url);
         debug!("welist url: {}", url);
         let chain = bcinfo.chain.to_string().to_lowercase();
@@ -446,7 +486,7 @@ async fn send_stats_report(
             cfg.url, chain, bcinfo.blocks, bcinfo.median_time, bcinfo.best_block_hash
         );
         trace!("message to be sent: {}", message);
-        let sign = sign_message(cfg.ssl_key_path.as_str(), &message.as_str());
+        let sign = sign_message(cfg.ssl_key_path.as_str(), message.as_str());
         let response = client
             .post(url)
             .header("User-Agent", format!("bal-pusher/{}", VERSION))
@@ -461,32 +501,23 @@ async fn send_stats_report(
             }))
             .send()
             .await?;
-        if !response.status().is_success() {
-            warn!(
-                "Non-success response: {} {}",
-                response.status(),
-                response.status().canonical_reason().unwrap_or("")
-            );
-        }
-
-        let body = &(response.text().await?);
-        info!("Report to welist({})\tSent: {}", welist_url, body);
+        let status = response.status();
+        let body = response.text().await?;
+        info!(
+            "Report to welist({}) status={} body={}",
+            welist_url, status, body
+        );
     } else {
         debug!("Not sending stats");
     }
     Ok(())
 }
 fn sign_message(private_key_path: &str, message: &str) -> String {
-    let key_data = fs::read(private_key_path).unwrap();
+    let signing_key =
+        SigningKey::read_pkcs8_pem_file(private_key_path).expect("failed to parse private key PEM");
+    let signature = signing_key.sign(message.as_bytes());
 
-    let private_key = PKey::private_key_from_pem(&key_data).unwrap();
-    let mut signer = Signer::new_without_digest(&private_key).unwrap();
-
-    let signature = signer.sign_oneshot_to_vec(message.as_bytes()).unwrap();
-
-    let signature_b64 = general_purpose::STANDARD.encode(&signature);
-
-    signature_b64
+    general_purpose::STANDARD.encode(signature.to_bytes())
 }
 
 fn parse_env(cfg: &mut MyConfig) {
@@ -505,136 +536,40 @@ fn parse_env_netconfig(cfg_lock: &mut MyConfig, chain: &str) -> NetworkParams {
         "testnet4" => &mut cfg_lock.testnet4,
         &_ => &mut cfg_lock.mainnet,
     };
-    match env::var(format!("BAL_PUSHER_{}_HOST", chain.to_uppercase())) {
-        Ok(value) => {
-            cfg.host = value;
-        }
-        Err(_) => {}
+    if let Ok(value) = env::var(format!("BAL_PUSHER_{}_HOST", chain.to_uppercase())) {
+        cfg.host = value;
     }
-    match env::var(format!("BAL_PUSHER_{}_PORT", chain.to_uppercase())) {
-        Ok(value) => match value.parse::<u64>() {
-            Ok(value) => match u16::try_from(value) {
-                Ok(port) => cfg.port = port,
-                Err(e) => {
-                    error!(
-                        "Port value {} exceeds u16 range for chain {}: {}",
-                        value, chain, e
-                    );
-                }
-            },
-            Err(_) => {}
-        },
-        Err(_) => {}
-    }
-    match env::var(format!("BAL_PUSHER_{}_DIR_PATH", chain.to_uppercase())) {
-        Ok(value) => {
-            cfg.dir_path = value;
+    if let Ok(value) = env::var(format!("BAL_PUSHER_{}_PORT", chain.to_uppercase()))
+        && let Ok(port_num) = value.parse::<u64>()
+    {
+        if let Ok(port) = u16::try_from(port_num) {
+            cfg.port = port;
+        } else {
+            error!(
+                "Port value {} exceeds u16 range for chain {}",
+                port_num, chain
+            );
         }
-        Err(_) => {}
     }
-    match env::var(format!("BAL_PUSHER_{}_DB_FIELD", chain.to_uppercase())) {
-        Ok(value) => {
-            cfg.db_field = value;
-        }
-        Err(_) => {}
+    if let Ok(value) = env::var(format!("BAL_PUSHER_{}_DIR_PATH", chain.to_uppercase())) {
+        cfg.dir_path = value;
     }
-    match env::var(format!("BAL_PUSHER_{}_COOKIE_FILE", chain.to_uppercase())) {
-        Ok(value) => {
-            cfg.cookie_file = value;
-        }
-        Err(_) => {}
+    if let Ok(value) = env::var(format!("BAL_PUSHER_{}_DB_FIELD", chain.to_uppercase())) {
+        cfg.db_field = value;
     }
-    match env::var(format!("BAL_PUSHER_{}_RPC_USER", chain.to_uppercase())) {
-        Ok(value) => {
-            cfg.rpc_user = value;
-        }
-        Err(_) => {}
+    if let Ok(value) = env::var(format!("BAL_PUSHER_{}_COOKIE_FILE", chain.to_uppercase())) {
+        cfg.cookie_file = value;
     }
-    match env::var(format!("BAL_PUSHER_{}_RPC_PASSWORD", chain.to_uppercase())) {
-        Ok(value) => {
-            cfg.rpc_pass = value;
-        }
-        Err(_) => {}
+    if let Ok(value) = env::var(format!("BAL_PUSHER_{}_RPC_USER", chain.to_uppercase())) {
+        cfg.rpc_user = value;
     }
-    println!(
-        "{}",
-        format!("BAL_PUSHER_{}_ZMQ_HASHBLOCK", chain.to_uppercase())
-    );
-    match env::var(format!("BAL_PUSHER_{}_ZMQ_HASHBLOCK", chain.to_uppercase())) {
-        Ok(value) => {
-            println!("value:{}", value);
-            cfg.zmq_listener = value;
-        }
-        Err(_) => {}
+    if let Ok(value) = env::var(format!("BAL_PUSHER_{}_RPC_PASSWORD", chain.to_uppercase())) {
+        cfg.rpc_pass = value;
+    }
+    if let Ok(value) = env::var(format!("BAL_PUSHER_{}_ZMQ_HASHBLOCK", chain.to_uppercase())) {
+        cfg.zmq_listener = value;
     }
     cfg.clone()
-}
-
-fn check_zmq_connection(endpoint: &str) -> bool {
-    trace!("check zmq connection");
-    let context = Context::new();
-    let socket = match context.socket(DEALER) {
-        Ok(sock) => sock,
-        Err(_) => return false,
-    };
-
-    if socket.connect(endpoint).is_err() {
-        return false;
-    }
-
-    // Try to send an empty message non-blocking
-    socket.send("", DONTWAIT).is_ok()
-}
-
-// Add this struct to monitor connection health
-struct ConnectionMonitor {
-    last_message_time: Instant,
-    timeout: Duration,
-    consecutive_timeouts: u32,
-    max_consecutive_timeouts: u32,
-}
-
-impl ConnectionMonitor {
-    fn new(timeout_secs: u64, max_timeouts: u32) -> Self {
-        Self {
-            last_message_time: Instant::now(),
-            timeout: Duration::from_secs(timeout_secs),
-            consecutive_timeouts: 0,
-            max_consecutive_timeouts: max_timeouts,
-        }
-    }
-
-    fn update(&mut self) {
-        self.last_message_time = Instant::now();
-        self.consecutive_timeouts = 0;
-    }
-
-    fn check_connection(&mut self) -> ConnectionStatus {
-        let elapsed = self.last_message_time.elapsed();
-
-        if elapsed > self.timeout {
-            self.consecutive_timeouts += 1;
-
-            if self.consecutive_timeouts >= self.max_consecutive_timeouts {
-                ConnectionStatus::Lost(elapsed)
-            } else {
-                ConnectionStatus::Warning(elapsed)
-            }
-        } else {
-            ConnectionStatus::Healthy
-        }
-    }
-
-    fn reset(&mut self) {
-        self.consecutive_timeouts = 0;
-        self.last_message_time = Instant::now();
-    }
-}
-
-enum ConnectionStatus {
-    Healthy,
-    Warning(Duration),
-    Lost(Duration),
 }
 
 #[tokio::main]
@@ -642,7 +577,6 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     let mut cfg = MyConfig::default();
 
-    let dbfile = env::var("BAL_PUSHER_DB_FILE").unwrap();
     parse_env(&mut cfg);
     let mut args = std::env::args();
     let _exe_name = args.next().unwrap();
@@ -677,31 +611,48 @@ async fn main() -> std::io::Result<()> {
     }
 
     match socket.set_subscribe(b"") {
-        Ok(_) => {}
+        Ok(_) => {
+            info!("ZMQ subscribed to all topics on {}", zmq_address);
+        }
         Err(e) => {
             error!("ZMQ subscribe failed: {}, exiting", e);
             return Ok(());
         }
     }
 
-    let _ = main_result(&cfg, network_params).await;
+    if let Err(e) = main_result(&cfg, network_params).await {
+        error!("main_result failed on startup: {}", e);
+    }
     info!("waiting new blocks..");
-    let mut last_seq: Vec<u8> = [0; 4].to_vec();
-    let mut counter = 0;
-    let max = 100;
     socket.set_rcvtimeo(5000).unwrap(); // 5 seconds timeout
+    let mut consecutive_timeouts: u32 = 0;
     loop {
         let message = match socket.recv_multipart(0) {
             Ok(m) => m,
             Err(e) => {
-                warn!("ZMQ recv timeout or error: {}, retrying...", e);
+                consecutive_timeouts += 1;
+                if consecutive_timeouts.is_multiple_of(720) {
+                    error!(
+                        "No ZMQ messages for {}s ({} consecutive timeouts), is bitcoind ZMQ active on {}?",
+                        consecutive_timeouts * 5,
+                        consecutive_timeouts,
+                        zmq_address
+                    );
+                } else {
+                    trace!("ZMQ recv timeout or error: {}, retrying...", e);
+                }
                 continue;
             }
         };
+        if consecutive_timeouts > 0 {
+            info!(
+                "ZMQ connection restored after {} consecutive timeouts",
+                consecutive_timeouts
+            );
+        }
+        consecutive_timeouts = 0;
         let topic = message[0].clone();
         let body = message[1].clone();
-        let seq = message[2].clone();
-        last_seq = seq;
         debug!(
             "ZMQ:GET TOPIC: {}",
             String::from_utf8(topic.clone()).expect("invalid topic")
@@ -709,18 +660,52 @@ async fn main() -> std::io::Result<()> {
         trace!("ZMQ:GET BODY: {}", hex::encode(&body));
         if topic == b"hashblock" {
             info!("NEW BLOCK: {}", hex::encode(&body));
-            let _ = main_result(&cfg, network_params).await;
+            if let Err(e) = main_result(&cfg, network_params).await {
+                error!("main_result failed on new block: {}", e);
+            }
         }
         thread::sleep(Duration::from_millis(100)); // Sleep for 100ms
     }
 }
-fn seq_to_str(seq: &Vec<u8>) -> String {
-    if seq.len() == 4 {
-        let mut rdr = Cursor::new(seq);
-        let sequence = rdr
-            .read_u32::<LittleEndian>()
-            .expect("Failed to read integer");
-        return sequence.to_string();
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_host_port_https_default_port() {
+        assert_eq!(
+            parse_host_port("https://welist.bitcoin-after.life"),
+            Some(("welist.bitcoin-after.life".to_string(), 443))
+        );
     }
-    "Unknown".to_string()
+
+    #[test]
+    fn parse_host_port_explicit_port_and_path() {
+        assert_eq!(
+            parse_host_port("https://example.com:8443/ping"),
+            Some(("example.com".to_string(), 8443))
+        );
+    }
+
+    #[test]
+    fn parse_host_port_http_default_port() {
+        assert_eq!(
+            parse_host_port("http://example.com"),
+            Some(("example.com".to_string(), 80))
+        );
+    }
+
+    #[test]
+    fn parse_host_port_ipv6_literal_brackets_stripped() {
+        assert_eq!(
+            parse_host_port("https://[2a13:2c0::1]:443"),
+            Some(("2a13:2c0::1".to_string(), 443))
+        );
+    }
+
+    #[test]
+    fn parse_host_port_invalid_url() {
+        assert_eq!(parse_host_port("not a url"), None);
+    }
 }
