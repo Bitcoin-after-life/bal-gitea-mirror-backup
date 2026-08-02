@@ -1,4 +1,4 @@
-# Create your first will
+# :material-auto-fix: Create your first will
 
 The plugin ships with a **guided wizard** that walks you through the whole setup. You only need two decisions: *who inherits* and *when*.
 
@@ -24,18 +24,19 @@ The plugin always distributes **100%** of the wallet. If your shares don't add u
 This is the date on which the Will-Executors broadcast the inheritance to the Bitcoin network.
 
 ![Wizard: delivery date](../img/wizard-03-delivery-time.png){ .screenshot }
-*You can pick a date from the calendar or express it as a relative delay.*
+*You can pick a date from the calendar (BASIC mode) or express it as a relative delay (ADVANCED mode).*
 
 See [Delivery time](../user-guide/delivery-time.md) for how relative values and execution tolerance work.
 
 ## Step 4 — Select the Will-Executors
+Select- Automatically download and select willexecutor
 
 The plugin downloads the [WeList](../will-executors/welist.md) directory and shows the available servers with their fees.
 
 ![Wizard: selecting Will-Executors](../img/wizard-04-willexecutors.png){ .screenshot }
 *Select as many as you can: one transaction is created per Will-Executor.*
 
-!!! info "Pick many, not few"
+!!! info "Pick many Will-Executors, not few"
     Each selected Will-Executor gets its own copy of the inheritance, with its own fee output. For the inheritance to succeed, **only one of them** has to still be operating on the delivery date. More servers means more redundancy.
 
 ## Step 5 — Review and sign
@@ -47,8 +48,17 @@ Electrum then asks for your wallet password — or confirmation on your hardware
 
 Once signed, the wills are sent to the selected Will-Executors and appear in the [WILL tab](../user-guide/will-tab.md), where you can verify that each server has actually stored its copy.
 
+![WILL tab after signing, with the selected Will-Executors listed](../img/wizard-06-will-list.png){ .screenshot }
+*Each row is one Will-Executor holding a copy of your inheritance.*
+
 ## What happens from now on
 
 - Keep using Electrum normally. The plugin watches your balance and asks you to refresh the will when it changes — see [Keeping the will up to date](../user-guide/updating.md).
 - If you enabled [Check Alive](../user-guide/check-alive.md) (advanced mode), opening your wallet after the threshold prompts you to postpone the delivery date.
 - If you stop opening Electrum, the Will-Executors broadcast the inheritance on the date you set.
+
+---
+
+!!! question "Still have a question?"
+    The [FAQ](../faq.md) answers the most common ones — costs, hardware wallets,
+    privacy, and what happens if a Will-Executor disappears.

@@ -9,10 +9,11 @@ to "check in" before the locktime expires.  This module turns the event data
 into an RFC-5545 .ics file and opens it with the OS default application.
 """
 
-from .common import *
-from .common import _, _logger  # underscore names are not re-exported by "import *"
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QToolButton
+
+from .common import *
+from .common import _, _logger  # underscore names are not re-exported by "import *"
 
 
 class BalCalendarButton(QToolButton):
@@ -79,7 +80,8 @@ class BalCalendarButton(QToolButton):
         path = self._ensure_ics()
         if not path:
             return
-        import shlex, subprocess
+        import shlex
+        import subprocess
         if self._bal_window.bal_plugin.is_basic_mode():
             app = self._bal_window.bal_plugin.CALENDAR_APP.default
         else:
@@ -192,30 +194,15 @@ class BalCalendar:
     @staticmethod
     def ical_escape(text: str) -> str:
         # escape per RFC5545: backslash, ; , newlines
-        text = text.encode("utf-8")
         text = (
-            text.replace(b"\\", b"\\\\")
-            .replace(b";", b"\\;")
-            .replace(b",", b"\\,")
+            text.replace("\\", "\\\\")
+            .replace(";", "\\;")
+            .replace(",", "\\,")
         )
-        out =""
-        temp=text.split(b"\r\n")
-        for s in temp:
-            encoded= s
-            cut =0
-            while len(encoded) >75:
-                cut+=5
-                encoded=f"{s[:len(s)-cut]}"
-                if encoded[-1]==b"\\" and encoded[-2]!=b"\\\\":
-                    cut += 1
-                encoded=f"{s[:len(s)-cut]}"
-                encoded=f"{encoded}...\r\n".encode("utf-8")
-            if cut>0:
-                out+=str(f"{s[:len(s)-cut].decode()}...\r\n")
-            else:
-                out+=str(f"{s.decode()}\r\n")
-
-        return out[:-2]
+        return "\r\n".join(
+            BalCalendar.fold_ical_line(line)
+            for line in text.split("\r\n")
+        )
 
     @staticmethod
     def fold_ical_line(line: str, limit: int = 75) -> str:

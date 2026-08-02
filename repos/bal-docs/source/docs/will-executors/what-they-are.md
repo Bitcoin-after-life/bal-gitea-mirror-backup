@@ -1,4 +1,4 @@
-# What Will-Executors are
+# :material-server: What Will-Executors are
 
 A Will-Executor is a server with one narrow job: **it stores pre-signed inheritance transactions and broadcasts them to the Bitcoin network on the date the user chose.** Nothing else.
 
@@ -10,6 +10,10 @@ A Will-Executor is a server with one narrow job: **it stores pre-signed inherita
 - **It does not coordinate with other Will-Executors.** Every node is independent. There is no central point to attack or compromise.
 
 What it *does* require is longevity: being still there, still working, years from now.
+
+!!! info "See the whole flow"
+    The [architecture diagram](../protocol/how-it-works.md#architecture-at-a-glance) shows how a
+    will travels from the Electrum plugin, through a Will-Executor, to the Bitcoin network.
 
 ## Why competition makes it work
 
@@ -42,3 +46,9 @@ This is why renewing your will periodically is useful: it brings newer Will-Exec
 The Will-Executors you select receive pre-signed transactions that reflect the state of your wallet. That is why the choice of which servers receive them stays entirely in your hands, and why privacy — alongside reliability — is the real ground of competition between Will-Executors.
 
 Transactions stored on the servers are **not publicly accessible**. From the plugin you can verify at any time that yours is still there: see the [Server column](../user-guide/will-tab.md#the-server-column).
+
+---
+
+!!! question "Still have a question?"
+    The [FAQ](../faq.md) answers the most common ones — costs, hardware wallets,
+    privacy, and what happens if a Will-Executor disappears.

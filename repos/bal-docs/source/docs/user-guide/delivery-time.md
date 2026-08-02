@@ -1,4 +1,4 @@
-# Delivery time
+# :material-calendar-clock: Delivery time
 
 The **delivery time** (technically the transaction's `nLockTime`) is the date on which the Will-Executors broadcast your inheritance to the Bitcoin network.
 

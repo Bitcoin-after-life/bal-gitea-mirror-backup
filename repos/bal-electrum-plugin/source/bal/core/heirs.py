@@ -21,6 +21,8 @@ Will-executor "heirs" are synthetic entries whose key starts with the
 ``w!ll3x3c"`` marker; they are skipped by most heir comparisons.
 """
 
+import asyncio
+import inspect
 import math
 import random
 import re
@@ -31,6 +33,7 @@ from typing import (
     Dict,
     Optional,
     Tuple,
+    cast,
 )
 
 import dns
@@ -65,6 +68,19 @@ if TYPE_CHECKING:
 
 _logger = get_logger(__name__)
 
+
+def _query_txt_records(url: str) -> Tuple[Any, bool]:
+    """Resolve TXT records with DNSSEC validation.
+
+    ``electrum.dnssec.query`` became an ``async`` function in Electrum 4.7.2,
+    so adapt the call for this synchronous context while staying compatible
+    with older synchronous implementations.
+    """
+    query = dnssec.query
+    if inspect.iscoroutinefunction(query):
+        return asyncio.run(query(url, dns.rdatatype.TXT))
+    return cast(Tuple[Any, bool], query(url, dns.rdatatype.TXT))
+
 # Column layout of a stored heir list.  These indices are part of the on-disk
 # wallet format and are relied upon all over the codebase, so they must NEVER
 # be reordered.
@@ -75,6 +91,8 @@ HEIR_REAL_AMOUNT = 3   # resolved amount once percentages are computed
 HEIR_DUST_AMOUNT = 4   # amount when below dust threshold (marked "DUST: ...")
 TRANSACTION_LABEL = "inheritance transaction"
 
+OP_RETURN_PREFIX = "OP_RETURN:"
+
 
 class AliasNotFoundException(Exception):
     pass
@@ -84,6 +102,27 @@ def reduce_outputs(in_amount, out_amount, fee, outputs):
     if in_amount < out_amount:
         for output in outputs:
             output.value = math.floor((in_amount - fee) / out_amount * output.value)
+
+
+def is_op_return_address(address: str) -> bool:
+    return str(address).startswith(OP_RETURN_PREFIX)
+
+
+def get_op_return_hex(address: str) -> Optional[str]:
+    if is_op_return_address(address):
+        return address[len(OP_RETURN_PREFIX):]
+    return None
+
+
+def validate_op_return_hex(data_hex: str) -> None:
+    try:
+        data = bytes.fromhex(data_hex)
+    except ValueError:
+        raise NotAnAddress(f"OP_RETURN data is not valid hex: {data_hex}") from None
+    if len(data) > 80:
+        raise NotAnAddress(
+            f"OP_RETURN data too long ({len(data)} bytes, max 80)"
+        )
 
 
 def create_op_return_script(data_hex: str) -> bytes:
@@ -132,14 +171,22 @@ def prepare_transactions(locktimes, available_utxos, fees, wallet):
                 heir[HEIR_REAL_AMOUNT]
             ):
                 try:
-                    real_amount = heir[HEIR_REAL_AMOUNT]
-                    outputs.append(
-                        PartialTxOutput.from_address_and_value(
-                            heir[HEIR_ADDRESS], real_amount
+                    if is_op_return_address(heir[HEIR_ADDRESS]):
+                        data_hex = heir[HEIR_ADDRESS][len(OP_RETURN_PREFIX):]
+                        op_return_script = create_op_return_script(data_hex)
+                        outputs.append(
+                            PartialTxOutput(value=0, scriptpubkey=op_return_script)
                         )
-                    )
-                    out_amount += real_amount
-                    description += f"{name}\n"
+                        description += f"{name}\n"
+                    else:
+                        real_amount = heir[HEIR_REAL_AMOUNT]
+                        outputs.append(
+                            PartialTxOutput.from_address_and_value(
+                                heir[HEIR_ADDRESS], real_amount
+                            )
+                        )
+                        out_amount += real_amount
+                        description += f"{name}\n"
                 except BitcoinException as e:
                     _logger.info("exception decoding output {} - {}".format(type(e), e))
                     heir[HEIR_REAL_AMOUNT] = e
@@ -174,7 +221,7 @@ def prepare_transactions(locktimes, available_utxos, fees, wallet):
         change = get_change_output(wallet, in_amount, out_amount, fee)
         if change:
             outputs.append(change)
-        for i in range(0, 100):
+        for _ in range(0, 100):
             random.shuffle(outputs)
 
         #op_return_text = "Hello Bal!"
@@ -230,6 +277,7 @@ def get_utxos_from_inputs(tx_inputs, tx, utxos):
 
 # TODO calculate de minimum inputs to be invalidated
 def invalidate_inheritance_transactions(wallet):
+    _logger.debug("invalidate tx in heir method")
     # listids = []
     utxos = {}
     dtxs = {}
@@ -249,7 +297,7 @@ def invalidate_inheritance_transactions(wallet):
                 del dtxs[txid]
 
     utxos = {}
-    for txid, tx in dtxs.items():
+    for _, tx in dtxs.items():
         get_utxos_from_inputs(tx.inputs(), tx, utxos)
 
     utxos = sorted(utxos.items(), key=lambda item: len(item[1]))
@@ -262,39 +310,6 @@ def invalidate_inheritance_transactions(wallet):
             if txid not in invalidated:
                 invalidated.append(tx.txid())
                 remaining[key] = value
-
-
-def print_transaction(heirs, tx, locktimes, tx_fees):
-    jtx = tx.to_json()
-    print(f"TX: {tx.txid()}\t-\tLocktime: {jtx['locktime']}")
-    print("---")
-    for inp in jtx["inputs"]:
-        print(f"{inp['address']}: {inp['value_sats']}")
-    print("---")
-    for out in jtx["outputs"]:
-        heirname = ""
-        for key in heirs.keys():
-            heir = heirs[key]
-            if heir[HEIR_ADDRESS] == out["address"] and str(heir[HEIR_LOCKTIME]) == str(
-                jtx["locktime"]
-            ):
-                heirname = key
-        print(f"{heirname}\t{out['address']}: {out['value_sats']}")
-
-    print()
-    size = tx.estimated_size()
-    print(
-        "fee: {}\texpected: {}\tsize: {}".format(
-            tx.input_value() - tx.output_value(), size * tx_fees, size
-        )
-    )
-
-    print()
-    try:
-        print(tx.serialize_to_network())
-    except Exception:
-        print("impossible to serialize")
-    print()
 
 
 def get_change_output(wallet, in_amount, out_amount, fee):
@@ -400,6 +415,9 @@ class Heirs(dict, Logger):
         amount = 0
         for key, v in heir_list.items():
             try:
+                if is_op_return_address(v[HEIR_ADDRESS]):
+                    heir_list[key].insert(HEIR_REAL_AMOUNT, 0)
+                    continue
                 column = HEIR_AMOUNT
                 if real:
                     column = HEIR_REAL_AMOUNT
@@ -451,6 +469,12 @@ class Heirs(dict, Logger):
                         )
                     )
                     continue
+                if is_op_return_address(self[key][HEIR_ADDRESS]):
+                    heir = list(self[key])
+                    heir.insert(HEIR_REAL_AMOUNT, 0)
+                    fixed_heirs[key] = heir
+                    _logger.debug(f"OP_RETURN heir {key} excluded from amount calculation")
+                    continue
                 if Util.is_perc(self[key][HEIR_AMOUNT]):
                     percent_amount += float(self[key][HEIR_AMOUNT][:-1])
                     percent_heirs[key] = list(self[key])
@@ -478,7 +502,8 @@ class Heirs(dict, Logger):
         )
 
     def prepare_lists(
-        self, balance, total_fees, wallet, willexecutor=False, from_locktime=0
+        self, balance, total_fees, wallet, willexecutor: Optional[dict] = None,
+        from_locktime=0, max_fee=None,
     ):
         if balance<total_fees or balance < wallet.dust_threshold():
             raise BalanceTooLowException(balance,wallet.dust_threshold(),total_fees)
@@ -493,8 +518,12 @@ class Heirs(dict, Logger):
                 if int(Util.int_locktime(locktime)) > int(from_locktime):
                     try:
                         base_fee = int(willexecutor["base_fee"])
+                        if max_fee is not None and base_fee > max_fee:
+                            raise WillExecutorFeeTooHighException(
+                                willexecutor, max_fee
+                            )
                         willexecutors_amount += base_fee
-                        h = [None] * 4
+                        h: list = [None] * 4
                         h[HEIR_AMOUNT] = base_fee
                         h[HEIR_REAL_AMOUNT] = base_fee
                         h[HEIR_LOCKTIME] = locktime
@@ -586,6 +615,8 @@ class Heirs(dict, Logger):
                     heir[HEIR_REAL_AMOUNT]
                 ):
                     valid_real_heirs += 1
+                elif len(heir) > HEIR_REAL_AMOUNT and is_op_return_address(heir[HEIR_ADDRESS]):
+                    valid_real_heirs += 1
         if real_heirs > 0 and valid_real_heirs == 0:
             raise HeirAmountIsDustException(
                 "All heirs' shares are below the dust limit"
@@ -612,7 +643,7 @@ class Heirs(dict, Logger):
         self.decimal_point = bal_plugin.get_decimal_point()
         no_willexecutors = bal_plugin.NO_WILLEXECUTOR.get()
         for utxo in utxos:
-            if utxo.value_sats() > 0 * tx_fees:
+            if utxo.value_sats() > 0:
                 balance += utxo.value_sats()
                 len_utxo_set += 1
                 available_utxos.append(utxo)
@@ -629,18 +660,19 @@ class Heirs(dict, Logger):
                 break
             elif 0 <= j:
                 url, willexecutor = willexecutorsitems[j]
-                if not Willexecutors.is_selected(willexecutor) or willexecutor["base_fee"] < wallet.dust_threshold():
+                if not (Willexecutors.is_selected(willexecutor) and Willexecutors.is_valid(willexecutor, max_fee=bal_plugin.MAX_WILLEXECUTOR_FEE.get(), dust=wallet.dust_threshold())):
                     continue
                 else:
                     willexecutor["url"] = url
             elif j == -1:
                 if not no_willexecutors:
                     continue
-                url = willexecutor = False
+                url = willexecutor = None
             else:
                 break
             fees = {}
             i = 0
+            txs = {}
             while i < 10:
                 txs = {}
                 redo = False
@@ -651,9 +683,13 @@ class Heirs(dict, Logger):
                 # newbalance = balance
                 try:
                     locktimes, onlyfixed = self.prepare_lists(
-                        balance, total_fees, wallet, willexecutor, from_locktime
+                        balance, total_fees, wallet, willexecutor, from_locktime,
+                        max_fee=bal_plugin.MAX_WILLEXECUTOR_FEE.get(),
                     )
                 except WillExecutorFeeException:
+                    i = 10
+                    continue
+                except WillExecutorFeeTooHighException:
                     i = 10
                     continue
                 if locktimes:
@@ -674,7 +710,7 @@ class Heirs(dict, Logger):
                                 )
                                 break
                         except Exception:
-                            raise e
+                            raise
                     total_fees = 0
                     total_fees_real = 0
                     total_in = 0
@@ -776,7 +812,7 @@ class Heirs(dict, Logger):
         # support email-style addresses, per the OA standard
         url = url.replace("@", ".")
         try:
-            records, validated = dnssec.query(url, dns.rdatatype.TXT)
+            records, validated = _query_txt_records(url)
         except DNSException as e:
             _logger.info(f"Error resolving openalias: {repr(e)}")
             return None
@@ -785,50 +821,62 @@ class Heirs(dict, Logger):
             string = to_string(record.strings[0], "utf8")
             if string.startswith("oa1:" + prefix):
                 address = cls.find_regex(string, r"recipient_address=([A-Za-z0-9]+)")
+                if not address:
+                    continue
                 name = cls.find_regex(string, r"recipient_name=([^;]+)")
                 if not name:
                     name = address
-                if not address:
-                    continue
                 return address, name, validated
 
     @staticmethod
-    def find_regex(haystack, needle):
+    def find_regex(haystack, needle) -> Optional[str]:
         regex = re.compile(needle)
         try:
             return regex.search(haystack).groups()[0]
         except AttributeError:
             return None
 
+    @staticmethod
     def validate_address(address):
+        if is_op_return_address(address):
+            data_hex = address[len(OP_RETURN_PREFIX):]
+            validate_op_return_hex(data_hex)
+            return address
         if not bitcoin.is_address(address, net=constants.net):
             raise NotAnAddress(f"not an address,{address}")
         return address
 
+    @staticmethod
     def validate_amount(amount):
         try:
             famount = float(amount[:-1]) if Util.is_perc(amount) else float(amount)
             if famount <= 0.00000001:
                 raise AmountNotValid(f"amount have to be positive {famount} < 0")
         except Exception as e:
-            raise AmountNotValid(f"amount not properly formatted, {e}")
+            raise AmountNotValid(f"amount not properly formatted, {e}") from e
         return amount
 
+    @staticmethod
     def validate_locktime(locktime, timestamp_to_check=False):
         try:
             if timestamp_to_check:
                 if Util.parse_locktime_string(locktime, None) < timestamp_to_check:
                     raise HeirExpiredException()
         except Exception as e:
-            raise LocktimeNotValid(f"locktime string not properly formatted, {e}")
+            raise LocktimeNotValid(f"locktime string not properly formatted, {e}") from e
         return locktime
 
+    @staticmethod
     def validate_heir(k, v, timestamp_to_check=False):
         address = Heirs.validate_address(v[HEIR_ADDRESS])
-        amount = Heirs.validate_amount(v[HEIR_AMOUNT])
+        if is_op_return_address(v[HEIR_ADDRESS]):
+            amount = "0"
+        else:
+            amount = Heirs.validate_amount(v[HEIR_AMOUNT])
         locktime = Heirs.validate_locktime(v[HEIR_LOCKTIME], timestamp_to_check)
         return (address, amount, locktime)
 
+    @staticmethod
     def _validate(data, timestamp_to_check=False):
 
         for k, v in list(data.items()):
@@ -874,6 +922,19 @@ class WillExecutorFeeException(Exception):
         return "WillExecutorFeeException: {} fee:{}".format(
             self.willexecutor["url"], self.willexecutor["base_fee"]
         )
+
+class WillExecutorFeeTooHighException(Exception):
+    def __init__(self, willexecutor, max_fee):
+        self.willexecutor = willexecutor
+        self.max_fee = max_fee
+
+    def __str__(self):
+        return "WillExecutorFeeTooHighException: {} fee:{} > max:{}".format(
+            self.willexecutor["url"],
+            self.willexecutor["base_fee"],
+            self.max_fee,
+        )
+
 class BalanceTooLowException(Exception):
     def __init__(self,balance, dust_threshold, fees):
         self.balance=balance

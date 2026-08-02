@@ -1,4 +1,4 @@
-# Choosing Will-Executors in the plugin
+# :material-checkbox-marked-circle-outline: Choosing Will-Executors in the plugin
 
 The plugin downloads the [WeList](welist.md) directory by default and tries to use as many Will-Executors as possible. You can also add servers manually, or draw from alternative lists — the WeList makes discovery easier, it does not control access to the network.
 

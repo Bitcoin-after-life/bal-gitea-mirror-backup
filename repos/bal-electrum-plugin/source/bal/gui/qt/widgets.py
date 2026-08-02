@@ -18,9 +18,14 @@ Contents:
     * WillWidget                                            - single will-tx box
 """
 
+from typing import TYPE_CHECKING
+
+from .calendar import BalCalendar, BalCalendarButton
 from .common import *
 from .common import _, _logger  # underscore names are not re-exported by "import *"
-from .calendar import BalCalendar, BalCalendarButton
+
+if TYPE_CHECKING:
+    from .window import BalWindow
 
 
 def compute_reminder_offsets(days, count):
@@ -690,7 +695,7 @@ class LockTimeDateEdit(QDateTimeEdit, _LockTimeEditor):
             return
         try:
             x = int(x)
-        except Exception as e:
+        except Exception:
             x = QDateTime.currentDateTime().timestamp()
         finally:
             # Use the overflow-safe converter: on Windows datetime.fromtimestamp
@@ -1395,15 +1400,15 @@ class PercAmountEdit(BTCAmountEdit):
         if self.base_unit:
             panel = QStyleOptionFrame()
             self.initStyleOption(panel)
-            textRect = self.style().subElementRect(
+            text_rect = self.style().subElementRect(
                 QStyle.SubElement.SE_LineEditContents, panel, self
             )
-            textRect.adjust(2, 0, -10, 0)
+            text_rect.adjust(2, 0, -10, 0)
             painter = QPainter(self)
             painter.setPen(ColorScheme.GRAY.as_color())
             if len(self.text()) == 0:
                 painter.drawText(
-                    textRect,
+                    text_rect,
                     int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
                     self.base_unit() + " or perc value",
                 )
@@ -1482,11 +1487,11 @@ class BalSpinBox(QSpinBox):
 
 
 class WillWidget(QWidget):
-    def __init__(self, father=None, parent=None):
+    def __init__(self, father=None, parent=None, will=None):
         super().__init__()
         vlayout = QVBoxLayout()
         self.setLayout(vlayout)
-        self.will = parent.bal_window.willitems
+        self.will = will if will is not None else parent.bal_window.willitems
         self._bal_parent = parent
         for w in self.will:
             if (
@@ -1513,7 +1518,10 @@ class WillWidget(QWidget):
                 willpushbutton = QPushButton(w)
 
                 willpushbutton.clicked.connect(
-                    partial(self._bal_parent.bal_window.show_transaction, txid=w)
+                    partial(
+                        self._bal_parent.bal_window.show_transaction,
+                        tx=self.will[w].tx,
+                    )
                 )
                 detaillayout.addWidget(willpushbutton)
                 locktime = str(BalTimestamp(self.will[w].tx.locktime))
@@ -1535,7 +1543,9 @@ class WillWidget(QWidget):
                 fee_per_byte = round(total_fees / self.will[w].tx.estimated_size(), 3)
                 fees_str = str(decoded_fees) + " (" + str(fee_per_byte) + " sats/vbyte)"
                 detaillayout.addWidget(qlabel("Transaction fees:", fees_str))
-                detaillayout.addWidget(qlabel("Status:", self.will[w].status))
+                detaillayout.addWidget(
+                    qlabel("Status:", self.will[w].status + signature_suffix(self.will[w]))
+                )
                 detaillayout.addWidget(QLabel(""))
                 detaillayout.addWidget(QLabel("<b>Heirs:</b>"))
                 for heir in self.will[w].heirs:
@@ -1570,6 +1580,6 @@ class WillWidget(QWidget):
                 detailw.setPalette(pal)
 
                 hlayout.addWidget(detailw)
-                hlayout.addWidget(WillWidget(w, parent=parent))
+                hlayout.addWidget(WillWidget(w, parent=parent, will=self.will))
 
 

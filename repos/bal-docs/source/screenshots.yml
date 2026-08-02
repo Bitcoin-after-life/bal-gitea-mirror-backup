@@ -42,6 +42,9 @@ screenshots:
   - file: wizard-05-summary.png
     page: getting-started/quick-start.md
     shows: "Wizard final summary before signing"
+  - file: wizard-06-will-list.png
+    page: getting-started/quick-start.md
+    shows: "WILL tab right after signing, listing the selected Will-Executors and their stored status"
 
   - file: heirs-tab.png
     page: user-guide/heirs.md

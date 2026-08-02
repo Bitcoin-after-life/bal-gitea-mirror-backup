@@ -15,14 +15,17 @@ and cached in ``self.bal_windows``.
 """
 
 from electrum.gui.qt.main_window import StatusBarButton
+from PyQt6.QtWidgets import QLayout
 
 from .common import *
-from .common import _, _logger  # underscore names are not re-exported by "import *"
-from .common import read_QIcon_from_bytes
+from .common import (  # underscore names are not re-exported by "import *"
+    _,
+    _logger,
+    read_QIcon_from_bytes,
+)
+from .dialogs import BalDialog
 from .widgets import BalCheckBox, BalLineEdit, BalSpinBox, BalTextEdit
 from .window import BalWindow
-from .dialogs import BalDialog
-from PyQt6.QtWidgets import QLayout
 
 
 def _window_key(window):
@@ -88,9 +91,11 @@ class Plugin(BalPlugin):
         except Exception:
             return []
         try:
-            from electrum.gui.qt.plugins_dialog import PluginsDialog
+            from electrum.gui.qt.plugins_dialog import (
+                PluginsDialog as plugins_dialog,  # noqa: N813
+            )
         except Exception:
-            PluginsDialog = None
+            plugins_dialog = None
         app = QApplication.instance()
         if app is None:
             return []
@@ -106,7 +111,7 @@ class Plugin(BalPlugin):
         for w in app.topLevelWidgets():
             try:
                 is_match = False
-                if PluginsDialog is not None and isinstance(w, PluginsDialog):
+                if plugins_dialog is not None and isinstance(w, plugins_dialog):
                     is_match = True
                 elif type(w).__name__ == "PluginsDialog":
                     is_match = True
@@ -142,17 +147,17 @@ class Plugin(BalPlugin):
         each is guarded independently.
         """
         try:
-            from PyQt6.QtWidgets import QDialog
+            from PyQt6.QtWidgets import QDialog as qdialog  # noqa: N813
         except Exception:
-            QDialog = None
+            qdialog = None
         # 1) reject() / done(): the reliable way to end an exec() modal loop.
-        if QDialog is not None and isinstance(d, QDialog):
+        if qdialog is not None and isinstance(d, qdialog):
             try:
                 d.reject()
             except Exception as e:
                 _logger.debug("reject() failed: {}".format(e))
             try:
-                d.done(QDialog.DialogCode.Rejected)
+                d.done(qdialog.DialogCode.Rejected)
             except Exception as e:
                 _logger.debug("done() failed: {}".format(e))
         # 2) close(): covers non-QDialog top-levels and is a harmless extra.
@@ -172,9 +177,9 @@ class Plugin(BalPlugin):
         it and closes it themselves (it must not linger in the background).
         """
         try:
-            from PyQt6.QtCore import QTimer
+            from PyQt6.QtCore import QTimer as qtimer  # noqa: N813
         except Exception:
-            QTimer = None
+            qtimer = None
         # Schedule of retry delays (ms) measured from each call.
         retry_delays = [400, 800, 1500]
         dialogs = Plugin._find_plugins_manager_dialogs()
@@ -190,8 +195,8 @@ class Plugin(BalPlugin):
         if not still_open:
             _logger.info("plugins dialog closed successfully")
             return
-        if attempt < len(retry_delays) and QTimer is not None:
-            QTimer.singleShot(
+        if attempt < len(retry_delays) and qtimer is not None:
+            qtimer.singleShot(
                 retry_delays[attempt],
                 lambda: Plugin._handle_plugins_manager_dialog(attempt + 1),
             )
@@ -436,6 +441,13 @@ class Plugin(BalPlugin):
         # persisted NUM_REMINDERS config (default 3), with a range of 1..5.
         heir_num_reminders = BalSpinBox(self.NUM_REMINDERS, minimum=1, maximum=5)
 
+        # Max willexecutor fee spin box. Maximum fee (in satoshi) allowed for
+        # a single will-executor. If a will-executor charges more, the will
+        # will not be built. Default 500,000 satoshi (0.005 BTC).
+        heir_max_willexecutor_fee = BalSpinBox(
+            self.MAX_WILLEXECUTOR_FEE, minimum=0, maximum=10000000
+        )
+
         # "No will-executor TX" checkbox. Bound to the persisted NO_WILLEXECUTOR
         # config (default ON, see plugin_base.py), the SAME config used by the
         # checkbox inside the "Build your will" wizard's will-executor download
@@ -498,8 +510,10 @@ class Plugin(BalPlugin):
                       lbl_event_description, edit_event_description, help_event_description,
                       lbl_calendar_app, edit_calendar_app, help_calendar_app,
                       lbl_auto_sign, heir_auto_sign, help_auto_sign,
+                      lbl_save_history, heir_save_history, help_save_history,
+                      lbl_history_label, edit_history_label, help_history_label,
                       reset_btn_6, reset_btn_7, reset_btn_8, reset_btn_9, reset_btn_10,
-                      reset_btn_auto_sign):
+                      reset_btn_11, reset_btn_12, reset_btn_auto_sign):
                 w.setVisible(not basic)
             # Opzione 2: apply the per-mode Raw/Date editor default ONLY here, on
             # a real USER TYPE change (not inside update_all/CHECK), so pressing
@@ -524,6 +538,20 @@ class Plugin(BalPlugin):
 
         edit_calendar_app = BalLineEdit(self.CALENDAR_APP)
         edit_calendar_app.setMinimumWidth(360)
+
+        # "Save inheritance transactions in wallet history" checkbox + label
+        # field (History persistence). When the checkbox is ON, the valid will
+        # transactions are saved into the wallet's LOCAL history (the History
+        # tab) after each check, each tagged with the label below. The label
+        # field is disabled while the checkbox is off, so the user cannot set a
+        # label for a feature that is not active.
+        def on_save_history_change():
+            edit_history_label.setEnabled(bool(self.SAVE_HISTORY.get()))
+
+        heir_save_history = BalCheckBox(self.SAVE_HISTORY, on_click=on_save_history_change)
+        edit_history_label = BalLineEdit(self.HISTORY_LABEL)
+        edit_history_label.setMinimumWidth(360)
+        edit_history_label.setEnabled(bool(self.SAVE_HISTORY.get()))
 
         def _make_reset_btn(cfg, widget, kind):
             """Return a small ``↺`` button that resets a single setting."""
@@ -636,13 +664,28 @@ class Plugin(BalPlugin):
             ),
         )
         grid.addWidget(_make_reset_btn(self.NO_WILLEXECUTOR, heir_no_willexecutor, "check"), 4, 3)
+        # Max willexecutor fee: maximum fee (in satoshi) allowed for a single
+        # will-executor. Visible to all users (BASIC and ADVANCED).
+        add_widget(
+            grid,
+            "Max Will-Executor Fee (satoshi)",
+            heir_max_willexecutor_fee,
+            5,
+            (
+                "Maximum fee (in satoshi) allowed to be paid to a single "
+                "will-executor. If a will-executor charges more than this, "
+                "the will will not be built.\n"
+                "Default: 500,000 satoshi (0.005 BTC)."
+            ),
+        )
+        grid.addWidget(_make_reset_btn(self.MAX_WILLEXECUTOR_FEE, heir_max_willexecutor_fee, "spin"), 5, 3)
         # User Type selector placed BEFORE the advanced-only settings so the
         # user chooses basic/advanced first, then sees the relevant options.
         add_widget(
             grid,
             "User Type",
             user_type_combo,
-            5,
+            6,
             (
                 "Choose how much detail the plugin shows.\n\n"
                 "BASIC: simplified interface, safe configuration for most "
@@ -653,7 +696,7 @@ class Plugin(BalPlugin):
                 "editable."
             ),
         )
-        grid.addWidget(_make_reset_btn(self.USER_TYPE, user_type_combo, "user_type"), 5, 3)
+        grid.addWidget(_make_reset_btn(self.USER_TYPE, user_type_combo, "user_type"), 6, 3)
         # Number of reminders, event summary and event description are visible
         # only in ADVANCED mode.  In BASIC mode the factory defaults are always
         # used and these settings are hidden.
@@ -662,11 +705,11 @@ class Plugin(BalPlugin):
             "How many reminder alarms the exported calendar (.ics) event "
             "contains.  Range: 1 to 5 (default 3).  Only used in ADVANCED mode."
         )
-        grid.addWidget(_hide_if_basic(lbl_num_reminders), 6, 0)
-        grid.addWidget(_hide_if_basic(heir_num_reminders), 6, 1)
-        grid.addWidget(_hide_if_basic(help_num_reminders), 6, 2)
+        grid.addWidget(_hide_if_basic(lbl_num_reminders), 7, 0)
+        grid.addWidget(_hide_if_basic(heir_num_reminders), 7, 1)
+        grid.addWidget(_hide_if_basic(help_num_reminders), 7, 2)
         reset_btn_6 = _make_reset_btn(self.NUM_REMINDERS, heir_num_reminders, "spin")
-        grid.addWidget(_hide_if_basic(reset_btn_6), 6, 3)
+        grid.addWidget(_hide_if_basic(reset_btn_6), 7, 3)
 
         lbl_event_summary = QLabel(_("Event summary"))
         help_event_summary = HelpButton(
@@ -676,11 +719,11 @@ class Plugin(BalPlugin):
             "  $heirs_complete: list of heirs name,address,amount\n"
             "Only used in ADVANCED mode."
         )
-        grid.addWidget(_hide_if_basic(lbl_event_summary), 7, 0)
-        grid.addWidget(_hide_if_basic(edit_event_summary), 7, 1)
-        grid.addWidget(_hide_if_basic(help_event_summary), 7, 2)
+        grid.addWidget(_hide_if_basic(lbl_event_summary), 8, 0)
+        grid.addWidget(_hide_if_basic(edit_event_summary), 8, 1)
+        grid.addWidget(_hide_if_basic(help_event_summary), 8, 2)
         reset_btn_7 = _make_reset_btn(self.EVENT_SUMMARY, edit_event_summary, "line")
-        grid.addWidget(_hide_if_basic(reset_btn_7), 7, 3)
+        grid.addWidget(_hide_if_basic(reset_btn_7), 8, 3)
 
         lbl_event_description = QLabel(_("Event description"))
         help_event_description = HelpButton(
@@ -690,11 +733,11 @@ class Plugin(BalPlugin):
             "  $heirs_complete: list of heirs name,address,amount\n"
             "Only used in ADVANCED mode."
         )
-        grid.addWidget(_hide_if_basic(lbl_event_description), 8, 0)
-        grid.addWidget(_hide_if_basic(edit_event_description), 8, 1)
-        grid.addWidget(_hide_if_basic(help_event_description), 8, 2)
+        grid.addWidget(_hide_if_basic(lbl_event_description), 9, 0)
+        grid.addWidget(_hide_if_basic(edit_event_description), 9, 1)
+        grid.addWidget(_hide_if_basic(help_event_description), 9, 2)
         reset_btn_8 = _make_reset_btn(self.EVENT_DESCRIPTION, edit_event_description, "text")
-        grid.addWidget(_hide_if_basic(reset_btn_8), 8, 3)
+        grid.addWidget(_hide_if_basic(reset_btn_8), 9, 3)
         # Welist server URL: shown only in ADVANCED mode.  In BASIC mode the
         # factory default is always used and the setting is hidden.
         lbl_welist_server = QLabel(_("Welist Server URL"))
@@ -702,11 +745,11 @@ class Plugin(BalPlugin):
             "URL of the server that provides the will-executor list.  "
             "Only available in ADVANCED mode."
         )
-        grid.addWidget(_hide_if_basic(lbl_welist_server), 9, 0)
-        grid.addWidget(_hide_if_basic(edit_welist_server), 9, 1)
-        grid.addWidget(_hide_if_basic(help_welist_server), 9, 2)
+        grid.addWidget(_hide_if_basic(lbl_welist_server), 10, 0)
+        grid.addWidget(_hide_if_basic(edit_welist_server), 10, 1)
+        grid.addWidget(_hide_if_basic(help_welist_server), 10, 2)
         reset_btn_9 = _make_reset_btn(self.WELIST_SERVER, edit_welist_server, "line")
-        grid.addWidget(_hide_if_basic(reset_btn_9), 9, 3)
+        grid.addWidget(_hide_if_basic(reset_btn_9), 10, 3)
 
         lbl_calendar_app = QLabel(_("Calendar app command"))
         help_calendar_app = HelpButton(
@@ -714,11 +757,42 @@ class Plugin(BalPlugin):
             "Leave empty to use the system default (xdg-open/open/start).\n"
             "Only used in ADVANCED mode."
         )
-        grid.addWidget(_hide_if_basic(lbl_calendar_app), 10, 0)
-        grid.addWidget(_hide_if_basic(edit_calendar_app), 10, 1)
-        grid.addWidget(_hide_if_basic(help_calendar_app), 10, 2)
+        grid.addWidget(_hide_if_basic(lbl_calendar_app), 11, 0)
+        grid.addWidget(_hide_if_basic(edit_calendar_app), 11, 1)
+        grid.addWidget(_hide_if_basic(help_calendar_app), 11, 2)
         reset_btn_10 = _make_reset_btn(self.CALENDAR_APP, edit_calendar_app, "line")
-        grid.addWidget(_hide_if_basic(reset_btn_10), 10, 3)
+        grid.addWidget(_hide_if_basic(reset_btn_10), 11, 3)
+
+        # Save-in-history toggle and history label: advanced-only rows. The
+        # label field is disabled while the checkbox is off (see
+        # on_save_history_change above).
+        lbl_save_history = QLabel(_("Save inheritance transactions in history"))
+        help_save_history = HelpButton(
+            "After each check, save the valid will transactions into the "
+            "wallet's local history (the History tab), each with a label.\n"
+            "The label may contain the variable:\n"
+            "  {willexecutor}: replaced with the will-executor URL of the item\n"
+            "Only used in ADVANCED mode."
+        )
+        grid.addWidget(_hide_if_basic(lbl_save_history), 12, 0)
+        grid.addWidget(_hide_if_basic(heir_save_history), 12, 1)
+        grid.addWidget(_hide_if_basic(help_save_history), 12, 2)
+        reset_btn_11 = _make_reset_btn(self.SAVE_HISTORY, heir_save_history, "check")
+        grid.addWidget(_hide_if_basic(reset_btn_11), 12, 3)
+
+        lbl_history_label = QLabel(_("History label"))
+        help_history_label = HelpButton(
+            "Label applied to the will transactions saved into the wallet's "
+            "local history.\n"
+            "Variables:\n"
+            "  {willexecutor}: replaced with the will-executor URL of the item\n"
+            "Only used in ADVANCED mode."
+        )
+        grid.addWidget(_hide_if_basic(lbl_history_label), 13, 0)
+        grid.addWidget(_hide_if_basic(edit_history_label), 13, 1)
+        grid.addWidget(_hide_if_basic(help_history_label), 13, 2)
+        reset_btn_12 = _make_reset_btn(self.HISTORY_LABEL, edit_history_label, "line")
+        grid.addWidget(_hide_if_basic(reset_btn_12), 13, 3)
 
         # NOTE: the ADVANCED-only widgets above have ALREADY been given their
         # correct initial visibility inline (via _hide_if_basic) BEFORE being
@@ -727,12 +801,12 @@ class Plugin(BalPlugin):
         # the Windows relayout flicker. Do NOT reintroduce a post-hoc
         # setVisible() loop here.
 
-        grid.addWidget(heir_repush, 11, 0)
+        grid.addWidget(heir_repush, 14, 0)
         grid.addWidget(
             HelpButton(
                 "Broadcast all transactions to willexecutors including those already pushed"
             ),
-            11,
+            14,
             2,
         )
 
@@ -761,10 +835,13 @@ class Plugin(BalPlugin):
                 (self.EDITABLE_DATES, heir_editable_dates, "check"),
                 (self.NUM_REMINDERS, heir_num_reminders, "spin"),
                 (self.NO_WILLEXECUTOR, heir_no_willexecutor, "check"),
+                (self.MAX_WILLEXECUTOR_FEE, heir_max_willexecutor_fee, "spin"),
                 (self.EVENT_SUMMARY, edit_event_summary, "line"),
                 (self.EVENT_DESCRIPTION, edit_event_description, "text"),
                 (self.WELIST_SERVER, edit_welist_server, "line"),
                 (self.CALENDAR_APP, edit_calendar_app, "line"),
+                (self.SAVE_HISTORY, heir_save_history, "check"),
+                (self.HISTORY_LABEL, edit_history_label, "line"),
             ]
             for cfg, widget, kind in resets:
                 # Persist the default value back into the Electrum config.
@@ -785,6 +862,10 @@ class Plugin(BalPlugin):
                     widget.setCurrentIndex(
                         1 if str(cfg.default).lower() == "advanced" else 0
                     )
+            # Re-sync the history-label field's enabled state after a reset: the
+            # reset restores SAVE_HISTORY to its default, so the field must
+            # follow the (default) checkbox state again.
+            edit_history_label.setEnabled(bool(self.SAVE_HISTORY.get()))
             # Refresh the open BAL windows so any dependent view (e.g. the
             # editable-dates state is not in this list, but hide filters are)
             # reflects the reset values.

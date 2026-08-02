@@ -14,7 +14,7 @@ Either one installs the dependencies and opens a live preview at
 Manually:
 
 ```bash
-pip install mkdocs-material mkdocs-macros-plugin pyyaml
+pip install mkdocs-material mkdocs-macros-plugin mkdocs-glightbox pyyaml
 python3 tools/make_placeholders.py     # fill missing screenshots with placeholders
 mkdocs serve                           # preview at http://127.0.0.1:8000
 mkdocs build --strict                  # static site into site/

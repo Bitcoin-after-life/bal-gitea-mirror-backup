@@ -8,11 +8,16 @@ jobs:
   deploy:
     runs-on: docs-runner        # must match the label of your registered act_runner
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - name: Load environment
+        run: |
+          echo "PATH=$HOME/venv/bin:$PATH" >> $GITHUB_ENV
+        
+      - name: Checkout repository
+        run: |
+          git clone --depth 1 https://oauth2:${GITHUB_TOKEN}@${GITHUB_SERVER_URL#https://}/${GITHUB_REPOSITORY} .
+          
       - name: Install dependencies
-        run: pip install --break-system-packages mkdocs-material mkdocs-macros-plugin pyyaml
+        run: pip install mkdocs-material mkdocs-macros-plugin pyyaml pillow mkdocs-glightbox
 
       - name: Generate placeholders for missing screenshots
         run: python3 tools/make_placeholders.py
@@ -21,4 +26,4 @@ jobs:
         run: mkdocs build --strict
 
       - name: Publish
-        run: rsync -a --delete site/ /var/www/bal-docs/
+        run: rsync -a --delete site/ $BAL_DOCS_DEPLOY_DIR

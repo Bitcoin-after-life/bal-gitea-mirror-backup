@@ -1,11 +1,11 @@
 <div class="bal-hero">
-  <img class="logo-light" src="assets/logo-mark-black.svg" alt="Bitcoin After Life">
-  <img class="logo-dark"  src="assets/logo-mark-white.svg" alt="Bitcoin After Life">
-  <span class="name">Bitcoin After Life</span>
+  <img class="logo-light no-lightbox" src="assets/logo-mark-black.svg" alt="Bitcoin After Life">
+  <img class="logo-dark no-lightbox"  src="assets/logo-mark-white.svg" alt="Bitcoin After Life">
+  <span class="name" translate="no">Bitcoin After Life</span>
   <span class="tagline">BAL Protocol — decentralized Bitcoin inheritance</span>
 </div>
 
-# Bitcoin After Life
+# Bitcoin After Life {: translate="no" }
 
 **Bitcoin After Life (BAL)** is an open-source plugin for [Electrum](https://electrum.org) that makes **decentralized Bitcoin inheritance** possible: no notary, no lawyer, no custodian.
 
@@ -26,12 +26,15 @@ You set your heirs and a delivery date. The plugin builds a time-locked transact
 
 <div class="grid cards" markdown>
 
-- **New here?** → [Installation](getting-started/installation.md), then [create your first will](getting-started/quick-start.md).
-- **Want the details?** → [Heirs and shares](user-guide/heirs.md), [Delivery time](user-guide/delivery-time.md), [The WILL tab](user-guide/will-tab.md).
-- **Curious about the servers?** → [What Will-Executors are](will-executors/what-they-are.md).
-- **Want to run one?** → [Running a Will-Executor](will-executors/running-a-server.md).
+- :material-rocket-launch:{ .card-ico } **New here?** → [Installation](getting-started/installation.md), then [create your first will](getting-started/quick-start.md).
+- :material-book-open-variant:{ .card-ico } **Want the details?** → [Heirs and shares](user-guide/heirs.md), [Delivery time](user-guide/delivery-time.md), [The WILL tab](user-guide/will-tab.md).
+- :material-server-network:{ .card-ico } **Curious about the servers?** → [What Will-Executors are](will-executors/what-they-are.md).
+- :material-server:{ .card-ico } **Want to run one?** → [Running a Will-Executor](will-executors/running-a-server.md).
+- :material-help-circle:{ .card-ico } **Just have a question?** → [**FAQ**](faq.md) — costs, hardware wallets, what happens if a server disappears, and more.
 
 </div>
+
+[Read the FAQ](faq.md){ .md-button .md-button--primary }
 
 !!! warning "Test before you trust it with real funds"
     BAL builds **real** Bitcoin inheritance transactions with time-locks. Try it on **testnet**, or with a small-amount wallet, before setting up an inheritance that matters. You can always review the generated transactions before broadcasting.

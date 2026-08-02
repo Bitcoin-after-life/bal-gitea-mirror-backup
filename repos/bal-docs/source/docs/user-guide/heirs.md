@@ -1,4 +1,4 @@
-# Heirs and shares
+# :material-account-group: Heirs and shares
 
 The **HEIRS** tab is where you define who receives your bitcoin.
 
@@ -41,4 +41,10 @@ The rule to remember: **if your shares don't add up to 100%, the plugin scales t
 In the current version the delivery date is **unique per wallet**. If you need different dates for different heirs — for example two children reaching 18 in different years — prepare **one wallet per date**. Electrum makes creating and managing multiple wallets straightforward.
 
 !!! info "Planned for BAL 2.0"
-    Staggered inheritance — distributing gradually over time, for example 10% per year — is in development for version 2 of the protocol.
+    Staggered inheritance — distributing gradually over time, for example 10% per year — is in development for version 2 of the protocol. You'll be able to update your inheritance later with these new features as they become available.
+
+---
+
+!!! question "Still have a question?"
+    The [FAQ](../faq.md) answers the most common ones — costs, hardware wallets,
+    privacy, and what happens if a Will-Executor disappears.

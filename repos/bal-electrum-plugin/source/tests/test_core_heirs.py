@@ -9,22 +9,33 @@ Run:
     python3 tests/test_core_heirs.py
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir))
 
 from bal.core.heirs import (
-    HEIR_ADDRESS, HEIR_AMOUNT, HEIR_LOCKTIME, HEIR_REAL_AMOUNT,
-    HEIR_DUST_AMOUNT, TRANSACTION_LABEL,
-    create_op_return_script,
+    HEIR_ADDRESS,
+    HEIR_AMOUNT,
+    HEIR_DUST_AMOUNT,
+    HEIR_LOCKTIME,
+    HEIR_REAL_AMOUNT,
+    OP_RETURN_PREFIX,
+    TRANSACTION_LABEL,
     AliasNotFoundException,
-    NotAnAddress, AmountNotValid, LocktimeNotValid,
-    HeirExpiredException, HeirAmountIsDustException,
-    NoHeirsException, WillExecutorFeeException,
+    AmountNotValid,
     BalanceTooLowException,
+    HeirAmountIsDustException,
     Heirs,
+    LocktimeNotValid,
+    NoHeirsException,
+    NotAnAddress,
+    WillExecutorFeeException,
+    create_op_return_script,
+    get_op_return_hex,
+    is_op_return_address,
+    validate_op_return_hex,
 )
-
 
 # ------------------------------------------------------------------ #
 # Constants
@@ -68,7 +79,7 @@ def test_op_return_empty():
 def test_op_return_too_big():
     try:
         create_op_return_script("ab" * 81)  # 81 bytes > max 80
-        assert False, "expected ValueError"
+        raise AssertionError("expected ValueError")
     except ValueError:
         pass
 
@@ -177,13 +188,13 @@ def test_validate_amount():
     # Invalid
     try:
         Heirs.validate_amount("0.000000001")
-        assert False, "expected AmountNotValid"
+        raise AssertionError("expected AmountNotValid")
     except AmountNotValid:
         pass
 
     try:
         Heirs.validate_amount("-1")
-        assert False, "expected AmountNotValid"
+        raise AssertionError("expected AmountNotValid")
     except AmountNotValid:
         pass
 
@@ -207,7 +218,7 @@ def test_validate_locktime_expired():
     past = int(time.time()) - 86400  # yesterday
     try:
         Heirs.validate_locktime(str(past), timestamp_to_check=past + 1)
-        assert False, "expected LocktimeNotValid"
+        raise AssertionError("expected LocktimeNotValid")
     except LocktimeNotValid:
         pass
 
@@ -258,9 +269,99 @@ def test_validate_removes_invalid():
     assert "alice" in result or True  # may or may not pass address check
 
 
+# ------------------------------------------------------------------ #
+# OP_RETURN helpers
+# ------------------------------------------------------------------ #
+
+def test_op_return_prefix_constant():
+    assert OP_RETURN_PREFIX == "OP_RETURN:"
+
+
+def test_is_op_return_address():
+    assert is_op_return_address("OP_RETURN:48656c6c6f")
+    assert not is_op_return_address("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq")
+    assert not is_op_return_address("")
+    assert not is_op_return_address("OP_RETURN")
+    assert not is_op_return_address("OP_RETURNX:")
+
+
+def test_get_op_return_hex():
+    assert get_op_return_hex("OP_RETURN:48656c6c6f") == "48656c6c6f"
+    assert get_op_return_hex("bc1q...") is None
+    assert get_op_return_hex("") is None
+
+
+def test_validate_op_return_hex_valid():
+    validate_op_return_hex("48656c6c6f")
+
+
+def test_validate_op_return_hex_invalid():
+    try:
+        validate_op_return_hex("nothex!!")
+        raise AssertionError("expected NotAnAddress")
+    except NotAnAddress:
+        pass
+
+
+def test_validate_op_return_hex_too_long():
+    try:
+        validate_op_return_hex("ab" * 81)
+        raise AssertionError("expected NotAnAddress")
+    except NotAnAddress:
+        pass
+
+
+def test_validate_op_return_hex_empty():
+    validate_op_return_hex("")
+
+
+def test_validate_address_op_return():
+    addr = "OP_RETURN:48656c6c6f"
+    result = Heirs.validate_address(addr)
+    assert result == addr
+
+
+def test_validate_heir_op_return():
+    k = "test_op_return"
+    v = ["OP_RETURN:48656c6c6f", "0", "30d"]
+    result = Heirs.validate_heir(k, v)
+    assert result[0] == "OP_RETURN:48656c6c6f"
+    assert result[1] == "0"
+
+
+# ------------------------------------------------------------------ #
+# Heirs class OP_RETURN integration
+# ------------------------------------------------------------------ #
+
+def test_heirs_fixed_percent_skips_op_return():
+    class FakeWallet:
+        class FakeDB:
+            def __init__(self):
+                self._data = {}
+            def get(self, key, default=None):
+                return self._data.get(key, default)
+            def put(self, key, value):
+                self._data[key] = value
+        def __init__(self):
+            self.db = self.FakeDB()
+            self.dust_threshold = lambda: 500
+    wallet = FakeWallet()
+    heirs = Heirs(wallet)
+    heirs["op_ret"] = ["OP_RETURN:48656c6c6f", "0", "9999999999"]
+    heirs["normal"] = ["addr1", "10000", "9999999999"]
+    fixed_h, fixed_amt, perc_h, perc_amt, fixed_with_dust = (
+        heirs.fixed_percent_lists_amount(0, 500)
+    )
+    assert "op_ret" in fixed_h
+    assert "normal" in fixed_h
+    assert fixed_h["op_ret"][HEIR_REAL_AMOUNT] == 0
+    assert fixed_h["normal"][HEIR_REAL_AMOUNT] == 10000
+    assert fixed_amt == 10000  # OP_RETURN adds 0
+
+
 if __name__ == "__main__":
     for name in sorted(dir()):
         if name.startswith("test_"):
             globals()[name]()
             print(f"  [OK] {name}")
-    print(f"[OK] All heirs tests passed")
+    print("[OK] All heirs tests passed")

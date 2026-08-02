@@ -1,4 +1,4 @@
-# Using BAL as a wallet recovery net
+# :material-lifebuoy: Using BAL as a wallet recovery net (or wallet backup)
 
 Inheritance is not the only use for a time-locked transaction. The same mechanism gives you a **decentralized safety net against losing your seed**.
 

@@ -17,13 +17,21 @@ the few list classes they reference are imported lazily inside the methods that
 use them (see ``lists`` imports below).
 """
 
+from typing import TYPE_CHECKING
+
+from .calendar import BalCalendar, BalCalendarButton
 from .common import *
 from .common import _, _logger  # underscore names are not re-exported by "import *"
-from .widgets import (BalCheckBox, BalLineEdit, BalTextEdit, BalTxFeesWidget,
-                      LockTimeWidget, PercAmountEdit, ThresholdTimeWidget,
-                      WillSettingsWidget, WillWidget, basic_reminder_offsets,
-                      compute_reminder_offsets)
-from .calendar import BalCalendar, BalCalendarButton
+from .widgets import (
+    WillSettingsWidget,
+    WillWidget,
+    basic_reminder_offsets,
+    compute_reminder_offsets,
+)
+
+if TYPE_CHECKING:
+    from .window import BalWindow
+
 # NOTE: list views (HeirListWidget, PreviewList, WillExecutorWidget) are
 # imported lazily where needed to avoid a dialogs<->lists import cycle.
 
@@ -31,9 +39,7 @@ from .calendar import BalCalendar, BalCalendarButton
 class BalDialog(QDialog,MessageBoxMixin):
     _stopping = False
     def __init__(self, parent, bal_plugin, title=None, icon="icons/bal16x16.png"):
-        import signal
         from PyQt6.QtCore import QMetaObject, Qt
-        from PyQt6.QtWidgets import QApplication
         def handler(signum, frame):
             QMetaObject.invokeMethod(self, "close", Qt.ConnectionType.QueuedConnection)
 
@@ -49,7 +55,7 @@ class BalDialog(QDialog,MessageBoxMixin):
             self.setWindowTitle(title)
         # WindowModalDialog.__init__(self,parent)
         self.setWindowIcon(read_QIcon_from_bytes(bal_plugin.read_file(icon)))
-        
+
     def closeEvent(self, event):
         self._stopping = True
         # NOTE: we deliberately do NOT stop ``self.thread`` here.
@@ -466,7 +472,6 @@ class BalWaitingDialog(BalDialog):
     def exe(self):
         self.thread = TaskThread(self)
         self.thread.finished.connect(self.deleteLater)  # see #3956
-        self.thread.finished.connect(self.finished)
         self.thread.add(self.task, self.on_success, self.accept, self.on_error)
         # IMPORTANT: keep the *application-modal* exec() of the original code.
         # This dialog is driven by a TaskThread whose result (on_success, e.g.
@@ -479,9 +484,6 @@ class BalWaitingDialog(BalDialog):
         self.exec()
 
     def hello(self):
-        pass
-
-    def finished(self):
         pass
 
 
@@ -624,7 +626,12 @@ class BalBuildWillDialog(BalDialog):
         except CheckAliveError as cae:
             fee_per_byte = self.bal_window.will_settings.get("baltx_fees", 1)
             tx = Will.invalidate_will(
-                self.bal_window.willitems, self.bal_window.wallet, fee_per_byte
+                self.bal_window.willitems, self.bal_window.wallet, fee_per_byte,
+                history_label=self.bal_window.bal_plugin.HISTORY_LABEL.get(),
+                will_locktime=Will.get_min_locktime(
+                    self.bal_window.willitems,
+                    default_value=self.bal_window.date_to_check,
+                ),
             )
             if tx:
                 _logger.debug(
@@ -645,9 +652,17 @@ class BalBuildWillDialog(BalDialog):
             Will.check_amounts(
                 self.bal_window.heirs,
                 self.bal_window.willexecutors,
-                self.bal_window.window.wallet.get_utxos(),
+                Util.get_available_utxos(
+                    self.bal_window.window.wallet,
+                    self.bal_window.bal_plugin.HISTORY_LABEL.get(),
+                    Will.get_min_locktime(
+                        self.bal_window.willitems,
+                        default_value=self.bal_window.date_to_check,
+                    ),
+                ),
                 self.bal_window.date_to_check,
                 self.bal_window.window.wallet.dust_threshold(),
+                max_fee=self.bal_window.bal_plugin.MAX_WILLEXECUTOR_FEE.get(),
             )
             _logger.debug("variables ok")
             self.msg_set_status("Checking variables", varrow, "Ok", self.COLOR_OK)
@@ -658,6 +673,10 @@ class BalBuildWillDialog(BalDialog):
                     + "the entire wallet will always be fully emptied. \n"
                     + "Your settings require an adjustment of the amounts"
                 )
+            )
+        except WillExecutorFeeTooHighException as e:
+            self.msg_set_checking(
+                self.msg_warning(f"Will-executor fee too high: {e}")
             )
 
         self.msg_set_checking()
@@ -694,9 +713,14 @@ class BalBuildWillDialog(BalDialog):
             self.msg_set_checking(_("Postponed: invalidating old will"))
             fee_per_byte = self.bal_window.will_settings.get("baltx_fees", 1)
             return None, Will.invalidate_will(
-                self.bal_window.willitems, self.bal_window.wallet, fee_per_byte
+                self.bal_window.willitems, self.bal_window.wallet, fee_per_byte,
+                history_label=self.bal_window.bal_plugin.HISTORY_LABEL.get(),
+                will_locktime=Will.get_min_locktime(
+                    self.bal_window.willitems,
+                    default_value=self.bal_window.date_to_check,
+                ),
             )
-        except NoHeirsException as e:
+        except NoHeirsException:
             _logger.debug("no heirs")
             self.msg_set_checking("No Heirs")
         except NotCompleteWillException as e:
@@ -799,6 +823,15 @@ class BalBuildWillDialog(BalDialog):
                 self.msg_set_status(
                     _("Will-Executor excluded"), None, _("Skipped"), self.COLOR_ERROR
                 )
+
+            except NoWillExecutorNotPresent:
+                _logger.debug("no will-executor selected, build interrupted")
+                self.msg_set_status(
+                    _("Will-Executor"), None,
+                    _("Not present - select one or enable backup mode"),
+                    self.COLOR_ERROR,
+                )
+                return "no_willexecutor", None
 
             except WillExpiredException as e:
                 # An expired will is an EXPECTED situation (the locktime has
@@ -1113,7 +1146,13 @@ class BalBuildWillDialog(BalDialog):
             selected = {
                 url: we
                 for url, we in willexecutors.items()
-                if Willexecutors.is_selected(self.bal_window.willexecutors.get(url))
+                if Willexecutors.is_selected(
+                    self.bal_window.willexecutors.get(url),
+                ) and Willexecutors.is_valid(
+                    self.bal_window.willexecutors.get(url),
+                    max_fee=self.bal_window.bal_plugin.MAX_WILLEXECUTOR_FEE.get(),
+                    dust=self.bal_window.window.wallet.dust_threshold(),
+                )
             }
 
             # Servers that report "already present" need their stored tx
@@ -1346,6 +1385,10 @@ class BalBuildWillDialog(BalDialog):
             QTimer.singleShot(0, self.bal_window.invalidate_will)
             return
 
+        if self.have_to_sign == "no_willexecutor":
+            self._add_no_willexecutor_buttons()
+            return
+
         _logger.debug("have to sign {}".format(self.have_to_sign))
         password = None
         if self.have_to_sign is None:
@@ -1451,6 +1494,13 @@ class BalBuildWillDialog(BalDialog):
     def on_success_phase2(self, arg=False):
         self.thread.stop()
         self.bal_window.save_willitems()
+        # After the whole check/sign/broadcast cycle, keep the wallet's local
+        # history in sync with the current will state (save the still "New"
+        # incomplete txs, remove the now-complete ones).
+        try:
+            self.bal_window._save_will_to_history()
+        except Exception as e:
+            _logger.error(f"save_will_to_history after phase2 failed: {e}")
         self.msg_edit_row(_("Finished"))
         # Instead of auto-closing after a countdown, let the user decide when to
         # dismiss the dialog: they can read the full "Building Will" report at
@@ -1478,6 +1528,73 @@ class BalBuildWillDialog(BalDialog):
         button_row.addWidget(self._close_button)
         self.vbox.addLayout(button_row)
         self._close_button.setFocus()
+
+    # ------------------------------------------------------------------ #
+    # No-willexecutor error handling
+    # ------------------------------------------------------------------ #
+
+    def _add_no_willexecutor_buttons(self):
+        """Add "Will-Executor" and "Close" buttons when no executor is
+        selected and ``no_willexecutor`` is ``False``."""
+        if getattr(self, "_no_we_buttons_added", False):
+            return
+        self._no_we_buttons_added = True
+        btn_row = QHBoxLayout()
+        btn_row.addStretch(1)
+
+        we_btn = QPushButton(_("Will-Executor"))
+        we_btn.clicked.connect(self._open_willexecutor_dialog)
+        btn_row.addWidget(we_btn)
+
+        download_btn = QPushButton(_("\U0001f52e Wizard"))
+        download_btn.clicked.connect(self._open_willexecutor_download_widget)
+        btn_row.addWidget(download_btn)
+
+        close_btn = QPushButton(_("Close"))
+        close_btn.clicked.connect(self.close)
+        btn_row.addWidget(close_btn)
+
+        self._no_we_layout = btn_row
+        self.vbox.addLayout(btn_row)
+        self.resize(self.vbox.sizeHint())
+
+    def _open_willexecutor_dialog(self):
+        """Open the will-executor management dialog, then auto-retry
+        the build when it closes."""
+        d = WillExecutorDialog(self.bal_window, parent=self)
+        d.exec()
+        self._retry_build_after_willexecutor()
+
+    def _open_willexecutor_download_widget(self):
+        """Close the build-will dialog and re-open the wizard at the
+        will-executor download step so the user can add one."""
+        self.close()
+        wizard = BalWizardDialog(self.bal_window)
+        wizard.on_next_heir()
+        wizard.on_next_locktimeandfee()
+        wizard.exec()
+
+    def _retry_build_after_willexecutor(self):
+        """Remove the no-willexecutor buttons, reset the message panel,
+        and re-run ``task_phase1`` on the same thread."""
+        self._no_we_buttons_added = False
+        if self._no_we_layout:
+            while self._no_we_layout.count():
+                item = self._no_we_layout.takeAt(0)
+                w = item.widget()
+                if w:
+                    w.setParent(None)
+                    w.deleteLater()
+            self.vbox.removeItem(self._no_we_layout)
+            self._no_we_layout = None
+        self.labels = []
+        self.msg_update()
+        self.thread.add(
+            self.task_phase1,
+            on_success=self.on_success_phase1,
+            on_done=self.on_accept,
+            on_error=self.on_error_phase1,
+        )
 
     def _ics_provider(self):
         """Return the .ics content for the current will data."""
@@ -1876,10 +1993,18 @@ class BalBuildWillDialog(BalDialog):
 
 
 class WillDetailDialog(BalDialog):
-    def __init__(self, bal_window):
-
-        self.will = bal_window.willitems
-        self.threshold = bal_window.will_settings["real_threshold"]
+    def __init__(self, bal_window, will=None, threshold=None):
+        # ``will``/``threshold`` are passed when showing an IMPORTED (read-only)
+        # will. In that case every action button below operates on the imported
+        # will, never on the live wallet state.
+        self._external_will = will is not None
+        self.will = will if self._external_will else bal_window.willitems
+        if threshold is not None:
+            self.threshold = threshold
+        elif self._external_will:
+            self.threshold = max(wi.tx.locktime for wi in self.will.values())
+        else:
+            self.threshold = bal_window.will_settings["real_threshold"]
 
         self.bal_window = bal_window
         Will.add_willtree(self.will)
@@ -1911,8 +2036,14 @@ class WillDetailDialog(BalDialog):
         b.clicked.connect(self.export_will)
         hlayout.addWidget(b)
         b = QPushButton(_("Invalidate"))
-        b.clicked.connect(bal_window.invalidate_will)
+        b.clicked.connect(self.invalidate_will)
         hlayout.addWidget(b)
+        self.merge_button = None
+        if self._external_will:
+            b = QPushButton(_("Merge"))
+            b.clicked.connect(self.merge_will)
+            hlayout.addWidget(b)
+            self.merge_button = b
         self.vlayout.addWidget(w)
 
         self.paint_scroll_area()
@@ -1933,22 +2064,48 @@ class WillDetailDialog(BalDialog):
         self.scrollbox = QScrollArea()
         viewport = QWidget(self.scrollbox)
         self.willlayout = QVBoxLayout(viewport)
-        self.detailsWidget = WillWidget(parent=self)
+        self.detailsWidget = WillWidget(parent=self, will=self.will)
         self.willlayout.addWidget(self.detailsWidget)
 
         self.scrollbox.setWidget(viewport)
         viewport.setLayout(self.willlayout)
 
     def ask_password_and_sign_transactions(self):
-        self.bal_window.ask_password_and_sign_transactions(callback=self.update)
+        self.bal_window.ask_password_and_sign_transactions(
+            callback=self.update, will=self.will if self._external_will else None
+        )
         self.update()
 
     def broadcast_transactions(self):
-        self.bal_window.broadcast_transactions()
+        self.bal_window.broadcast_transactions(
+            will=self.will if self._external_will else None
+        )
         self.update()
 
     def export_will(self):
-        self.bal_window.export_will()
+        self.bal_window.export_will(will=self.will if self._external_will else None)
+
+    def invalidate_will(self):
+        self.bal_window.invalidate_will(
+            will=self.will if self._external_will else None
+        )
+
+    def merge_will(self):
+        """Merge the imported will into the live will and switch to it.
+
+        The merge is performed by :meth:`BalWindow.merge_will` (the same
+        common method used by the tools-menu "Merge" action). Afterwards the
+        dialog stops showing the read-only imported will and operates on the
+        live wallet willitems directly, so any further Sign/Broadcast/Export/
+        Invalidate action targets the saved will items.
+        """
+        self.bal_window.merge_will(self.will)
+        self._external_will = False
+        self.will = self.bal_window.willitems
+        self.threshold = self.bal_window.will_settings["real_threshold"]
+        if self.merge_button:
+            self.merge_button.hide()
+        self.update()
 
     def toggle_replaced(self):
         self.bal_window.bal_plugin.hide_replaced()
@@ -1967,7 +2124,8 @@ class WillDetailDialog(BalDialog):
         self.update()
 
     def update(self):
-        self.will = self.bal_window.willitems
+        if not self._external_will:
+            self.will = self.bal_window.willitems
         pos = self.vlayout.indexOf(self.scrollbox)
         self.vlayout.removeWidget(self.scrollbox)
         self.paint_scroll_area()

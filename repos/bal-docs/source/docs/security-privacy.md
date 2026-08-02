@@ -1,4 +1,4 @@
-# Security & Privacy
+# :material-shield-lock: Security & Privacy
 
 ## Where trust actually sits
 

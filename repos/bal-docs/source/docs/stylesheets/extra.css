@@ -126,7 +126,15 @@
 
 /* -------- Admonitions mapped to the site's semantic colours --------------- */
 .md-typeset .admonition,
-.md-typeset details { border-radius: 10px; font-size: .76rem; }
+.md-typeset details {
+  border-radius: 10px;
+  font-size: .76rem;
+  /* Material sets `overflow: visible` on <details>, so any child background
+     (title bar, icon, chevron) that doesn't share the container's 10px
+     radius shows through as a notch at the corners. Clipping here fixes the
+     whole class of mismatch at once, regardless of which child causes it. */
+  overflow: hidden;
+}
 
 :root {
   --md-admonition-icon--note: var(--md-admonition-icon--abstract);
@@ -158,6 +166,20 @@
 [data-md-color-scheme="slate"] .md-typeset .tip > summary     { background: rgba(31, 157, 87, .16); }
 [data-md-color-scheme="slate"] .md-typeset .warning > .admonition-title,
 [data-md-color-scheme="slate"] .md-typeset .warning > summary { background: rgba(181, 112, 27, .18); }
+
+/* Admonition bodies get dense fast — give the text room to breathe. */
+.md-typeset .admonition > p,
+.md-typeset .admonition > ul,
+.md-typeset .admonition > ol { line-height: 1.65; }
+.md-typeset .admonition > p + p,
+.md-typeset .admonition > p + ul,
+.md-typeset .admonition > ul + p { margin-top: .7em; }
+.md-typeset .admonition > ul { padding-left: 1.1em; }
+.md-typeset .admonition > ul > li + li { margin-top: .35em; }
+
+/* Title: slightly larger than the body, so the box has a clear entry point. */
+.md-typeset .admonition-title { font-size: .8rem; letter-spacing: .005em; }
+
 
 /* FAQ accordions read better with a little separation. */
 .md-typeset details { margin-bottom: .5rem; }
@@ -226,3 +248,250 @@ p > img.screenshot + em {
 .bal-hero .logo-dark  { display: none; }
 [data-md-color-scheme="slate"] .bal-hero .logo-light { display: none; }
 [data-md-color-scheme="slate"] .bal-hero .logo-dark  { display: inline; }
+
+/* -------- Diagrams -------------------------------------------------------- */
+/* Wide technical diagrams: full content width, light frame, no drop shadow
+   (they already have their own internal panels). */
+img.diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 8px;
+  background: var(--bal-panel);
+  padding: 4px;
+}
+[data-md-color-scheme="slate"] img.diagram { background: #f6f8fa; }
+img.diagram + em {
+  display: block;
+  margin-top: .4rem;
+  font-size: .72rem;
+  font-style: normal;
+  color: var(--md-default-fg-color--light);
+}
+
+/* -------- Status colour swatches (WILL tab table) ------------------------- */
+/* Usage in Markdown:  <span class="sw" style="--c:#8AFA6C"></span> Bright green */
+.md-typeset .sw {
+  display: inline-block;
+  width: .78em;
+  height: .78em;
+  margin-right: .45em;
+  vertical-align: -.06em;
+  border-radius: 3px;
+  background: var(--c);
+  border: 1px solid rgba(0, 0, 0, .28);
+}
+
+/* -------- WILL-tab status table ------------------------------------------- */
+/* Fixed layout with explicit column widths, so every row is one line high
+   and the rhythm stays even. */
+/* Material renders tables as `display: inline-block`, which makes the browser
+   ignore `table-layout: fixed` and auto-distribute the spare width — that is
+   what was inflating the "#" column. Force a real table box first. */
+.md-typeset .status-table table:not([class]) {
+  display: table;
+  table-layout: fixed;
+  width: 100%;
+}
+.md-typeset .status-table th:nth-child(1),
+.md-typeset .status-table td:nth-child(1) {
+  width: 1.5em;
+  text-align: left;
+  padding-left: .5em;
+  padding-right: .1em;
+  color: var(--md-default-fg-color--light);
+}
+/* Stage sits right next to the number, not a column-width away. */
+.md-typeset .status-table th:nth-child(2),
+.md-typeset .status-table td:nth-child(2) {
+  width: 7.5em;
+  padding-left: .35em;
+}
+/* Longest cell is "Azure-green #73F3C8" ≈ 12em of content. 14.5em with tight
+   padding clears it without stealing space the Meaning column needs. */
+.md-typeset .status-table th:nth-child(4),
+.md-typeset .status-table td:nth-child(4) {
+  width: 14.5em;
+  padding-left: .6em;
+  padding-right: .5em;
+}
+.md-typeset .status-table td:nth-child(2),
+.md-typeset .status-table td:nth-child(4) { white-space: nowrap; }
+.md-typeset .status-table td { vertical-align: middle; }
+.md-typeset .status-table code {
+  font-size: .8em;
+  padding: .1em .3em;
+}
+.md-typeset .status-table .sw { margin-right: .35em; }
+
+/* Below ~55em the fixed widths stop fitting; let it scroll instead of wrap. */
+@media screen and (max-width: 55em) {
+  .md-typeset .status-table { overflow-x: auto; }
+  .md-typeset .status-table table:not([class]) { min-width: 34em; }
+}
+
+/* -------- "question" admonition (end-of-page FAQ prompt, and the FAQ page
+   itself) ---------------------------------------------------------------- */
+/* Material ships a lime green (#64dd17) for this type — border, background
+   tint, the "?" icon, AND the expand/collapse chevron all use it. Realign
+   every one of those with the brand accent blue. */
+.md-typeset .admonition.question,
+.md-typeset details.question       { border-color: var(--bal-accent); }
+.md-typeset .question > .admonition-title,
+.md-typeset .question > summary    { background: var(--bal-accent-soft); }
+.md-typeset .question > .admonition-title::before,
+.md-typeset .question > summary::before { background-color: var(--bal-accent); }
+.md-typeset .question > .admonition-title::after,
+.md-typeset .question > summary::after  { color: var(--bal-accent); }
+[data-md-color-scheme="slate"] .md-typeset .question > .admonition-title,
+[data-md-color-scheme="slate"] .md-typeset .question > summary { background: rgba(45, 108, 223, .16); }
+
+/* -------- Wider navigation sidebar ---------------------------------------- */
+/* Material defaults: .md-sidebar = 12.1rem, .md-grid = 61rem.
+   The nav labels in this manual are long ("Wallet recovery use case (or wallet
+   backup)") and wrapped onto three lines. Widening the sidebar by 4rem (+33%)
+   and the grid by the same 4rem keeps the centre column at its original
+   36.8rem — the extra space comes from the unused margin on the right.
+   Only applies where the primary sidebar is actually shown. */
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary   { width: 16.1rem; }
+  /* Same treatment for the table of contents: its longest heading
+     ("The building block: absolute time-locks") needs ~232px against the
+     158px Material allows, so it wrapped onto two lines. */
+  .md-sidebar--secondary { width: 16.7rem; }
+  /* 61rem default + 4rem (primary) + 4.6rem (secondary) — the centre column
+     keeps its original 36.8rem. */
+  .md-grid               { max-width: 69.6rem; }
+}
+
+/* -------- Sidebar left indent ---------------------------------------------- */
+/* Material's nav text sits almost flush against the browser edge (~.4rem).
+   Give the whole left sidebar some breathing room, so section titles and
+   links read as a column with a margin, not text stuck to the window edge. */
+.md-sidebar--primary .md-sidebar__inner {
+  padding-left: 1rem;
+}
+
+/* -------- Sidebar hierarchy: section titles vs. their pages ---------------- */
+/* On desktop Material gives every .md-nav__link inside the primary sidebar
+   the same left padding (.6rem .8rem), regardless of nesting — its per-level
+   indent rules only exist for the mobile/merged nav. That makes section
+   titles ("User guide") and the pages under them ("Heirs and shares") sit at
+   the same x position, with no visual hierarchy. Nudge just the pages right. */
+.md-nav--primary .md-nav__item--nested > .md-nav .md-nav__link {
+  padding-left: 1.175rem; /* Material's default .8rem + 6px */
+}
+
+
+/* -------- Let the widened sidebar actually be used ------------------------ */
+/* Material pins the nav's text column to 11.5rem via
+   `padding-right: calc(100% - 11.5rem)` (inside an @supports block for
+   webkit scrollbars), leaving the rest as dead padding. Because we widened
+   .md-sidebar--primary to 16.1rem, all 4 extra rem went into that padding —
+   the labels kept wrapping next to visibly empty space. Re-derive it from
+   the new width, keeping Material's ~.6rem scrollbar gutter. */
+@media screen and (min-width: 76.25em) {
+  [dir="ltr"] .md-sidebar--primary .md-sidebar__inner {
+    padding-right: calc(100% - 15.5rem);
+  }
+  /* The clamp applies to both sidebars, so the table of contents needs the
+     same treatment against its own 16.7rem width. */
+  [dir="ltr"] .md-sidebar--secondary .md-sidebar__inner {
+    padding-right: calc(100% - 16.1rem);
+  }
+}
+
+/* -------- Compact table (wide comparison tables) -------------------------- */
+/* Default table body is .78rem; 66% ≈ .515rem so a 4-column comparison fits
+   without horizontal scroll. Header cells scale down proportionally too. */
+.md-typeset .compact-table table:not([class]) { font-size: .515rem; }
+.md-typeset .compact-table table:not([class]) th { font-size: .46rem; }
+.md-typeset .compact-table code { font-size: .9em; }
+
+/* -------- Numbered step list (examples page) ------------------------------ */
+.md-typeset .steps { counter-reset: step; margin: 1.3em 0; }
+.md-typeset .steps .step {
+  position: relative;
+  padding: .15rem 0 .15rem 3rem;
+  margin: 0 0 1.2rem;
+  min-height: 2rem;
+}
+/* number badge */
+.md-typeset .steps .step::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -.05rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--bal-accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: .9rem;
+}
+/* connector line between badges */
+.md-typeset .steps .step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: .97rem;
+  top: 2.2rem;
+  bottom: -1.2rem;
+  width: 2px;
+  background: var(--bal-line);
+}
+.md-typeset .steps .step > :first-child { margin-top: 0; }
+.md-typeset .steps .step > :last-child { margin-bottom: 0; }
+/* the Material icon at the start of each step title, tinted accent */
+.md-typeset .steps .step .twemoji {
+  color: var(--bal-accent);
+  margin-right: .15rem;
+}
+.md-typeset .steps .step .twemoji svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  vertical-align: -.2rem;
+}
+/* admonitions nested inside a step sit tighter */
+.md-typeset .steps .step .admonition { margin: .6rem 0 0; }
+
+/* -------- Nav section icons (added by nav-section-icons.js) ---------------- */
+.md-nav--primary .nav-sec-ico {
+  display: inline-flex;
+  vertical-align: -.15em;
+  margin-right: .4em;
+}
+.md-nav--primary .nav-sec-ico svg {
+  width: .95rem;
+  height: .95rem;
+  fill: var(--bal-accent);
+}
+
+/* -------- Homepage "Where to start" card icons ---------------------------- */
+.md-typeset .grid.cards .card-ico {
+  color: var(--bal-accent);
+  margin-right: .35em;
+}
+.md-typeset .grid.cards .card-ico svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  vertical-align: -.2rem;
+}
+
+/* -------- Page-title (H1) icons ------------------------------------------- */
+/* A themed Material icon sits at the start of each page's H1 (added in the
+   Markdown as :material-...:). Make it larger than body icons and tint accent. */
+.md-typeset h1 .twemoji {
+  color: var(--bal-accent);
+  margin-right: .5rem;
+}
+.md-typeset h1 .twemoji svg {
+  width: 1.6rem;
+  height: 1.6rem;
+  vertical-align: -.28rem;
+}

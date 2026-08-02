@@ -1,4 +1,4 @@
-# Running a Will-Executor
+# :material-console: Running a Will-Executor
 
 This page covers setting up your own Will-Executor node. If you are wondering *why* you would, start with [What Will-Executors are](what-they-are.md).
 
@@ -19,6 +19,9 @@ This page covers setting up your own Will-Executor node. If you are wondering *w
     From the protocol's point of view a Will-Executor is a service plus a Bitcoin address. Several operators can pool resources, present themselves as a single Will-Executor, and use a shared **multisig** address for the fee, splitting proceeds however they agree. A meetup, an association, or a group of friends can run one together.
 
     Two things to keep in mind: for a user's redundancy, a consortium still counts as **one** Will-Executor; and the internal split is an agreement outside the protocol, which BAL neither arbitrates nor guarantees.
+
+See the [architecture diagram](../protocol/how-it-works.md#architecture-at-a-glance) for how
+`bal-server` and `bal-pusher` fit into the full flow from plugin to Bitcoin node.
 
 ## The two components
 
@@ -125,3 +128,9 @@ The request/response interface used by the plugin is documented in [`RPC.md`](ht
 ## Getting in touch
 
 For help setting up a Will-Executor, or to collaborate on the project: **[info@bitcoin-after.life](mailto:info@bitcoin-after.life)**
+
+---
+
+!!! question "Still have a question?"
+    The [FAQ](../faq.md) answers the most common ones — costs, hardware wallets,
+    privacy, and what happens if a Will-Executor disappears.

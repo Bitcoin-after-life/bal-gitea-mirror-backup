@@ -1,6 +1,11 @@
-# How the protocol works
+# :material-cog: How the protocol works
 
 A summary of the mechanism, for readers who want to understand what happens underneath the interface.
+
+## Architecture at a glance
+
+![BAL architecture: plugin, Will-Executor, Bitcoin Core](../img/architecture.svg){ .diagram }
+*How a will travels from the Electrum plugin to the Bitcoin network. Click to enlarge.*
 
 ## The building block: absolute time-locks
 
@@ -16,11 +21,14 @@ Because the mempool rejects it, a time-locked transaction **cannot simply be lef
 
 ## The lifecycle
 
-1. **Prepare.** The plugin builds a transaction spending the wallet's UTXOs, with outputs to your heirs and one extra output paying the Will-Executor's fee. One transaction per selected Will-Executor.
-2. **Sign.** Electrum signs with your key. The plugin never signs on your behalf.
-3. **Distribute.** Each signed transaction goes to its Will-Executor, which stores it.
-4. **Wait.** You keep using your wallet. Balance changes trigger a refresh; [Check Alive](../user-guide/check-alive.md) offers to postpone the date while you are around.
-5. **Execute.** On the delivery date, each Will-Executor holding a copy broadcasts. The first one to get its transaction confirmed collects the fee; the heirs receive the funds.
+Each stage below has a matching label and colour in the WILL tab, shown in brackets — see
+[The Status column](../user-guide/will-tab.md#the-status-column) for the full table.
+
+1. **Prepare.** The plugin builds a transaction spending the wallet's UTXOs, with outputs to your heirs and one extra output paying the Will-Executor's fee. One transaction per selected Will-Executor. *[`New`]*{: #stage-prepare }
+2. **Sign.** Electrum signs with your key. The plugin never signs on your behalf. *[`Signed`]*{: #stage-sign }
+3. **Distribute.** Each signed transaction goes to its Will-Executor, which stores it. *[`Pushed`, then `Checked` once the server confirms it holds the copy — or `Failed` if it cannot be reached]*{: #stage-distribute }
+4. **Wait.** You keep using your wallet. Balance changes trigger a refresh; [Check Alive](../user-guide/check-alive.md) offers to postpone the date while you are around. *[`Invalidated` or `Replaced` if the will no longer matches the wallet]*{: #stage-wait }
+5. **Execute.** On the delivery date, each Will-Executor holding a copy broadcasts. The first one to get its transaction confirmed collects the fee; the heirs receive the funds. *[`Pending`, then `Confirmed`]*{: #stage-execute }
 
 ## Why one transaction per Will-Executor
 
@@ -52,3 +60,9 @@ BAL optimises for **simplicity on the heir's side**: one date, one transaction, 
 The cost of that choice falls on the wallet owner: there is **no cancellation window**. On the delivery date the transaction becomes valid and the Will-Executors broadcast it. If you are alive and want to stop it, you must act *before* that date — by postponing it, or by spending a UTXO to invalidate it.
 
 This is why the recommended practice is a **rolling deadline renewed every 2–3 years**: it keeps you structurally far from the delivery date, so the question never becomes urgent. See [Keeping the will up to date](../user-guide/updating.md).
+
+---
+
+!!! question "Still have a question?"
+    The [FAQ](../faq.md) answers the most common ones — costs, hardware wallets,
+    privacy, and what happens if a Will-Executor disappears.

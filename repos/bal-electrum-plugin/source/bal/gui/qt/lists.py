@@ -14,12 +14,60 @@ construction) for all business actions, so the heavy logic stays in ``window``
 and ``dialogs``.
 """
 
+from typing import TYPE_CHECKING
+
+from PyQt6.QtWidgets import QLineEdit as _QLineEdit
+from PyQt6.QtWidgets import QMessageBox, QStyledItemDelegate
+
 from .common import *
 from .common import _, _logger  # underscore names are not re-exported by "import *"
-from .widgets import BalCheckBox, PercAmountEdit, WillSettingsWidget
-from PyQt6.QtWidgets import QMessageBox
-from PyQt6.QtWidgets import QStyledItemDelegate, QLineEdit as _QLineEdit
 from .dialogs import BalBuildWillDialog, BalDialog
+from .widgets import BalCheckBox, WillSettingsWidget
+
+if TYPE_CHECKING:
+    from .window import BalWindow
+
+
+def _can_sign(will_item):
+    """True if a will transaction may still be signed (not fully signed)."""
+    return bool(will_item) and not will_item.get_status("COMPLETE")
+
+
+def _can_broadcast(will_item):
+    """True if a will transaction is ready to broadcast (fully signed)."""
+    return bool(will_item) and will_item.get_status("COMPLETE")
+
+
+def _can_delete(will_item):
+    """True if a will transaction may be deleted (invalid or unsigned).
+
+    Valid AND fully-signed transactions are never deletable: removing them
+    would silently drop a committed inheritance.
+    """
+    return bool(will_item) and (
+        not will_item.get_status("VALID") or not will_item.get_status("COMPLETE")
+    )
+
+
+def _apply_select_all(willexecutors, select, valid=None):
+    """Apply a bulk selection across a ``{url: we_dict}`` mapping.
+
+    ``select`` is the target selection value. When ``valid`` is given (a
+    ``{url: bool}`` validity map), the selection is restricted by validity:
+    selecting sets valid ones to True and invalid ones to False, while
+    deselecting only clears the invalid ones (valid ones keep their state).
+    Without ``valid`` every entry is simply set to ``select``. The mapping is
+    mutated in place and returned.
+    """
+    for url, we in willexecutors.items():
+        if valid is not None:
+            if select:
+                we["selected"] = valid.get(url, False)
+            elif not valid.get(url, False):
+                we["selected"] = False
+        else:
+            we["selected"] = select
+    return willexecutors
 
 
 class HeirListWidget(MyTreeView, MessageBoxMixin):
@@ -84,7 +132,7 @@ class HeirListWidget(MyTreeView, MessageBoxMixin):
         self.bal_window.new_heir_dialog(edit_key)
 
     def on_edited(self, idx, edit_key, *, text):
-        original = prior_name = self.bal_window.heirs.get(edit_key)
+        prior_name = self.bal_window.heirs.get(edit_key)
         if not prior_name:
             return
         col = idx.column()
@@ -105,12 +153,7 @@ class HeirListWidget(MyTreeView, MessageBoxMixin):
         try:
             self.bal_window.set_heir(prior_name)
         except Exception:
-            pass
-
-            try:
-                self.bal_window.set_heir((edit_key,) + original)
-            except Exception:
-                self.update()
+            self.update()
 
     def delete_heirs(self, selected_keys):
         self.bal_window.delete_heirs(selected_keys)
@@ -157,7 +200,17 @@ class HeirListWidget(MyTreeView, MessageBoxMixin):
             heir = self.bal_window.heirs[key]
             labels = [""] * len(self.Columns)
             labels[self.Columns.NAME] = key
-            labels[self.Columns.ADDRESS] = heir[0]
+            if is_op_return_address(heir[0]):
+                data_hex = heir[0][len(OP_RETURN_PREFIX):]
+                try:
+                    decoded = bytes.fromhex(data_hex).decode("utf-8", errors="replace")
+                    if len(decoded) > 40:
+                        decoded = decoded[:40] + "\u2026"
+                    labels[self.Columns.ADDRESS] = decoded
+                except Exception:
+                    labels[self.Columns.ADDRESS] = "OP_RETURN"
+            else:
+                labels[self.Columns.ADDRESS] = heir[0]
             labels[self.Columns.AMOUNT] = Util.decode_amount(
                 heir[1], self.decimal_point
             )
@@ -184,7 +237,7 @@ class HeirListWidget(MyTreeView, MessageBoxMixin):
                 set_current = QPersistentModelIndex(idx)
         try:
             self.will_settings_widget.on_locktime_change()
-        except Exception as e:
+        except Exception:
             pass
         self.set_current_idx(set_current)
         # FIXME refresh loses sort order; so set "default" here:
@@ -204,15 +257,15 @@ class HeirListWidget(MyTreeView, MessageBoxMixin):
         menu.addAction(_("Import"), self.bal_window.import_heirs)
         menu.addAction(_("Export"), lambda: self.bal_window.export_heirs())
 
-        newHeirButton = QPushButton(_("New Heir"))
-        newHeirButton.clicked.connect(self.bal_window.new_heir_dialog)
+        new_heir_button = QPushButton(_("New Heir"))
+        new_heir_button.clicked.connect(self.bal_window.new_heir_dialog)
 
         widget = QWidget(self)
         layout = QHBoxLayout(widget)
         self.will_settings_widget = WillSettingsWidget(self.bal_window, self)
 
         layout.addWidget(self.will_settings_widget)
-        layout.addWidget(newHeirButton)
+        layout.addWidget(new_heir_button)
 
         toolbar.insertWidget(2, widget)
 
@@ -271,7 +324,7 @@ class PreviewList(MyTreeView, MessageBoxMixin):
             self.setModel(QStandardItemModel(self))
             self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
             self.sortByColumn(self.Columns.NAME, Qt.SortOrder.AscendingOrder)
-        except Exception as e:
+        except Exception:
             pass
 
         self.setSortingEnabled(True)
@@ -297,36 +350,64 @@ class PreviewList(MyTreeView, MessageBoxMixin):
             selected_keys.append(sel_key)
         if selected_keys and idx.isValid():
             column_title = self.model().horizontalHeaderItem(column).text()
-            # column_data = "\n".join(
-            #    self.model().itemFromIndex(s_idx).text()
-            #    for s_idx in self.selected_in_column(column)
-            # )
 
             menu.addAction(
                 _("details").format(column_title),
                 lambda: self.show_transaction(selected_keys),
-            ).setEnabled(len(selected_keys) < 2)
+            ).setEnabled(len(selected_keys) == 1)
+            menu.addAction(
+                _("sign").format(column_title),
+                lambda: self.sign_transactions(selected_keys),
+            ).setEnabled(
+                any(_can_sign(self.will.get(k)) for k in selected_keys)
+            )
+            menu.addAction(
+                _("broadcast").format(column_title),
+                lambda: self.broadcast_transactions(selected_keys),
+            ).setEnabled(
+                any(_can_broadcast(self.will.get(k)) for k in selected_keys)
+            )
             menu.addAction(
                 _("check ").format(column_title),
                 lambda: self.check_transactions(selected_keys),
             )
-            if self.bal_window.bal_plugin.ENABLE_MULTIVERSE.get():
-                try:
-                    self.importaction = self.menu.addAction(
-                        _("Import"), self.import_will
-                    )
-                except Exception:
-                    pass
+
+            menu.addSeparator()
+            menu.addAction(
+                _("copy id").format(column_title),
+                lambda: self.copy_txids(selected_keys),
+            )
+            menu.addAction(
+                _("copy").format(column_title),
+                lambda: self.copy_tx_hexes(selected_keys),
+            )
+            menu.addAction(
+                _("merge from txn").format(column_title),
+                lambda: self.merge_from_txn(),
+            )
 
             menu.addSeparator()
             menu.addAction(
                 _("delete").format(column_title), lambda: self.delete(selected_keys)
+            ).setEnabled(
+                any(_can_delete(self.will.get(k)) for k in selected_keys)
             )
 
         menu.exec(self.viewport().mapToGlobal(position))
 
+    def is_deletable(self, key):
+        """True if the will transaction ``key`` may be deleted.
+
+        Deletion is only allowed for transactions that are NOT valid or NOT
+        fully signed (invalidated/replaced/mempool/confirmed items, or
+        unsigned/partially signed ones). Valid and complete transactions are
+        kept (deleting them would silently drop a committed inheritance).
+        """
+        return _can_delete(self.will.get(key))
+
     def delete(self, selected_keys):
-        for key in selected_keys:
+        keys = [k for k in selected_keys if self.is_deletable(k)]
+        for key in keys:
             del self.will[key]
             try:
                 del self.bal_window.willitems[key]
@@ -336,6 +417,75 @@ class PreviewList(MyTreeView, MessageBoxMixin):
                 del self.bal_window.will[key]
             except Exception:
                 pass
+        self.update()
+
+    def sign_transactions(self, selected_keys):
+        """Sign all selected transactions that are not fully signed yet."""
+        keys = [
+            k for k in selected_keys
+            if _can_sign(self.will.get(k))
+        ]
+        if keys:
+            self.bal_window.ask_password_and_sign_transactions(
+                callback=self.update, txids=keys
+            )
+
+    def broadcast_transactions(self, selected_keys):
+        """Force-broadcast all selected fully-signed transactions.
+
+        ``force=True`` makes the will-executors re-accept transactions that
+        were already pushed before.
+        """
+        keys = [
+            k for k in selected_keys
+            if _can_broadcast(self.will.get(k))
+        ]
+        if keys:
+            self.bal_window.broadcast_transactions(force=True, txids=keys)
+            self.update()
+
+    def copy_txids(self, selected_keys):
+        """Copy the selected transaction IDs to the clipboard (one per line)."""
+        self.place_text_on_clipboard(
+            "\n".join(selected_keys), title=_("Transaction IDs")
+        )
+
+    def copy_tx_hexes(self, selected_keys):
+        """Copy the selected transactions (serialised hex) to the clipboard."""
+        hexes = "\n".join(str(self.will[k].tx) for k in selected_keys)
+        self.place_text_on_clipboard(hexes, title=_("Transactions"))
+
+    def merge_from_txn(self):
+        """Merge a transaction read from the clipboard, or from a file if the
+        clipboard does not contain a valid transaction.
+        """
+        tx = None
+        try:
+            tx = tx_from_any(QApplication.clipboard().text())
+        except Exception:
+            tx = None
+        if tx is None:
+            filename = getOpenFileName(
+                parent=self.bal_window.window,
+                title=_("Open transaction file"),
+                filter="All files (*)",
+                config=self.bal_window.window.config,
+            )
+            if not filename:
+                return
+            try:
+                with open(filename, "r") as f:
+                    data = f.read()
+                tx = tx_from_any(data)
+            except Exception as e:
+                self.bal_window.show_error(
+                    _("Invalid transaction file: {}").format(e)
+                )
+                return
+        try:
+            self.bal_window.merge_single_transaction(tx)
+        except Exception as e:
+            self.bal_window.show_error(str(e))
         self.update()
 
     def check_transactions(self, selected_keys):
@@ -385,8 +535,8 @@ class PreviewList(MyTreeView, MessageBoxMixin):
         if bal_tx.we:
             we = bal_tx.we["url"]
         labels[self.Columns.WILLEXECUTOR] = we
-        status = bal_tx.status
-        if len(bal_tx.status) > 53:
+        status = bal_tx.status + signature_suffix(bal_tx)
+        if len(status) > 53:
             status = "...{}".format(status[-50:])
         labels[self.Columns.STATUS] = status
         # Dedicated, always-readable label describing whether the inheritance
@@ -462,9 +612,12 @@ class PreviewList(MyTreeView, MessageBoxMixin):
         menu.addAction(_("Prepare"), self.build_transactions)
         menu.addAction(_("Display"), self.bal_window.preview_modal_dialog)
         menu.addAction(_("Sign"), self.ask_password_and_sign_transactions)
-        menu.addAction(_("Export"), self.export_will)
-        if self.bal_window.bal_plugin.ENABLE_MULTIVERSE.get():
-            self.importaction = menu.addAction(_("Import"), self.import_will)
+        export_menu = menu.addMenu(_("Export"))
+        export_menu.addAction(_("All"), self.export_will)
+        export_menu.addAction(_("Valid"), self.export_will_valid)
+        export_menu.addAction(_("Valid NC"), self.export_will_valid_incomplete)
+        menu.addAction(_("Import"), self.import_will_into_details)
+        menu.addAction(_("Merge"), self.merge_will)
         menu.addAction(_("Broadcast"), self.broadcast)
         menu.addAction(_("Check"), self.check)
         menu.addAction(_("Invalidate"), self.invalidate_will)
@@ -536,8 +689,37 @@ class PreviewList(MyTreeView, MessageBoxMixin):
         self.bal_window.export_will()
         self.update()
 
-    def import_will(self):
-        self.bal_window.import_will()
+    def export_will_valid(self):
+        """Export only the will items that are valid."""
+        subset = {
+            wid: wi
+            for wid, wi in self.will.items()
+            if wi.get_status("VALID")
+        }
+        if not subset:
+            self.show_message(_("No valid will item to export"))
+            return
+        self.bal_window.export_will(will=subset)
+        self.update()
+
+    def export_will_valid_incomplete(self):
+        """Export only the will items that are valid but not yet fully signed (V-NC)."""
+        subset = {
+            wid: wi
+            for wid, wi in self.will.items()
+            if wi.get_status("VALID") and not wi.get_status("COMPLETE")
+        }
+        if not subset:
+            self.show_message(_("No valid, incomplete will item to export"))
+            return
+        self.bal_window.export_will(will=subset)
+        self.update()
+
+    def import_will_into_details(self):
+        self.bal_window.import_will_into_details()
+
+    def merge_will(self):
+        self.bal_window.merge_will_ui()
 
     def ask_password_and_sign_transactions(self):
         self.bal_window.ask_password_and_sign_transactions(callback=self.update)
@@ -756,6 +938,7 @@ class WillExecutorListWidget(MyTreeView):
         idx = self.indexAt(position)
         column = idx.column() or self.Columns.URL
         selected_keys = []
+        sel_key = None
         for s_idx in self.selected_in_column(self.Columns.URL):
             item = self.model().itemFromIndex(s_idx)
             # Use the FULL url stored in the key role, NOT item.data(0): the
@@ -771,6 +954,15 @@ class WillExecutorListWidget(MyTreeView):
             #    self.model().itemFromIndex(s_idx).text()
             #    for s_idx in self.selected_in_column(column)
             # )
+            # When exactly ONE cell is selected, offer "Copy" to copy the value
+            # of that cell to the clipboard (e.g. a single url / address / fee).
+            # This list has no ``main_window``, so use QApplication directly.
+            if len(self.selectionModel().selectedIndexes()) == 1:
+                cell_value = self.model().itemFromIndex(idx).text()
+                menu.addAction(
+                    _("Copy"),
+                    lambda: QApplication.clipboard().setText(cell_value),
+                )
             if Willexecutors.is_selected(self._bal_parent.willexecutors_list[sel_key]):
                 menu.addAction(
                     _("deselect").format(column_title),
@@ -929,6 +1121,17 @@ class WillExecutorListWidget(MyTreeView):
                             pass
                     else:
                         items.append(QStandardItem(e))
+
+                max_fee = self._bal_parent.bal_plugin.MAX_WILLEXECUTOR_FEE.get()
+                dust = self._bal_parent.bal_window.window.wallet.dust_threshold()
+                if not Willexecutors.is_valid(value, max_fee=max_fee, dust=dust):
+                    grey = QColor("#808080")
+                    for item in items:
+                        font = item.font()
+                        font.setItalic(True)
+                        item.setFont(font)
+                        item.setForeground(grey)
+
                 items[self.Columns.SELECTED].setEditable(False)
                 items[self.Columns.URL].setEditable(True)
                 items[self.Columns.ADDRESS].setEditable(True)
@@ -1008,13 +1211,44 @@ class WillExecutorWidget(QWidget, MessageBoxMixin):
         b.clicked.connect(self.import_file)
         buttonbox.addWidget(b)
 
-        b = QPushButton(_("Export"))
-        b.clicked.connect(self.export_file)
-        buttonbox.addWidget(b)
+        def _menu_button(label):
+            btn = QToolButton()
+            btn.setText(_(label))
+            btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+            buttonbox.addWidget(btn)
+            return btn
 
-        b = QPushButton(_("Ping All"))
-        b.clicked.connect(self.update_willexecutors)
-        buttonbox.addWidget(b)
+        export_btn = _menu_button("Export")
+        export_menu = QMenu(export_btn)
+        export_menu.addAction(_("Export all"), lambda: self.export_file())
+        export_menu.addAction(
+            _("Export selected"), lambda: self.export_file(subset="selected")
+        )
+        export_menu.addAction(
+            _("Export only valid"), lambda: self.export_file(subset="valid")
+        )
+        export_btn.setMenu(export_menu)
+
+        ping_btn = _menu_button("Ping All")
+        ping_menu = QMenu(ping_btn)
+        ping_menu.addAction(_("Ping all"), lambda: self.update_willexecutors())
+        ping_menu.addAction(
+            _("Ping selected"), lambda: self.ping_selected_willexecutors()
+        )
+        ping_btn.setMenu(ping_menu)
+
+        select_btn = _menu_button("Select All")
+        select_menu = QMenu(select_btn)
+        select_menu.addAction(_("Select all"), lambda: self.set_select_all(True))
+        select_menu.addAction(
+            _("Select only valid"), lambda: self.set_select_all(True, only_valid=True)
+        )
+        select_menu.addAction(_("Deselect all"), lambda: self.set_select_all(False))
+        select_menu.addAction(
+            _("Deselect only invalid"),
+            lambda: self.set_select_all(False, only_valid=True),
+        )
+        select_btn.setMenu(select_menu)
 
         vbox.addLayout(buttonbox)
         # self.will_executor_list_widget.update()
@@ -1135,6 +1369,7 @@ class WillExecutorWidget(QWidget, MessageBoxMixin):
             add_another_btn.clicked.connect(add_another)
         else:
             self._add_another = False
+            add_another_btn = None
 
         row = 0
         grid.addWidget(QLabel(_("URL")), row, 0)
@@ -1227,13 +1462,68 @@ class WillExecutorWidget(QWidget, MessageBoxMixin):
 
         self.bal_window.download_list(self.bal_window.willexecutors, on_success)
 
-    def export_file(self, path):
+    def export_file(self, subset=None):
+        data = self.export_data(subset)
+        if subset and not data:
+            self.show_message(_("No will-executor matches the selected filter"))
+            return
         export_meta_gui(
-            self.bal_window.window, "willexecutors.json", self.export_json_file
+            self.bal_window.window,
+            "willexecutors.json",
+            partial(self.export_json_file, subset=subset),
         )
 
-    def export_json_file(self, path):
-        write_json_file(path, self.willexecutors_list)
+    def export_data(self, subset=None):
+        data = self.willexecutors_list
+        if subset == "selected":
+            data = {
+                url: we
+                for url, we in data.items()
+                if Willexecutors.is_selected(we)
+            }
+        elif subset == "valid":
+            valid = self._validity()
+            data = {
+                url: we for url, we in data.items() if valid.get(url, False)
+            }
+        return data
+
+    def export_json_file(self, path, subset=None):
+        write_json_file(path, self.export_data(subset))
+
+    def _validity(self):
+        max_fee = self.bal_plugin.MAX_WILLEXECUTOR_FEE.get()
+        dust = self.bal_window.window.wallet.dust_threshold()
+        return {
+            url: Willexecutors.is_valid(we, max_fee=max_fee, dust=dust)
+            for url, we in self.willexecutors_list.items()
+        }
+
+    def _selected_willexecutors(self):
+        return {
+            url: we
+            for url, we in self.willexecutors_list.items()
+            if Willexecutors.is_selected(we)
+        }
+
+    def set_select_all(self, select, only_valid=False):
+        """Apply a bulk selection across all will-executors.
+
+        ``select=True`` selects all (or only the valid ones when
+        ``only_valid=True``, deselecting the invalid ones); ``select=False``
+        deselects all (or only the invalid ones when ``only_valid=True``,
+        leaving the valid ones selected).
+        """
+        valid = self._validity() if only_valid else None
+        _apply_select_all(self.willexecutors_list, select, valid)
+        self.save_willexecutors()
+
+    def ping_selected_willexecutors(self):
+        wes = self._selected_willexecutors()
+        if not wes:
+            self.show_message(_("No will-executor is selected"))
+            return
+        self.update_willexecutors(wes)
 
     def import_file(self):
         import_meta_gui(

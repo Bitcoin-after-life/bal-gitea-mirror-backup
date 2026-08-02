@@ -1,4 +1,4 @@
-# Compatibility
+# :material-check-decagram: Compatibility
 
 ## Wallet types
 
@@ -18,7 +18,7 @@ The plugin follows Electrum closely; each release states the Electrum version it
 
 | Plugin release | Tested with |
 |---|---|
-| v{{ bal.plugin_version }} | Electrum {{ bal.electrum_tested }} (manual verified on {{ bal.electrum_latest }}) |
+| v{{ bal.plugin_version }} | Electrum {{ bal.electrum_tested }} |
 | v0.2.3 | Electrum 4.7.0 |
 | v0.2.0 | Electrum 4.6.2 — introduced the will setup wizard and the remote Will-Executor list |
 | v0.1.0 | Electrum 4.5.8 — first release |

@@ -61,8 +61,9 @@ def get_version():
         try:
             import importlib.resources
 
+            _parent_pkg = __package__.rpartition(".")[0] if __package__ else "bal"
             data = (
-                importlib.resources.files("bal")
+                importlib.resources.files(_parent_pkg)
                 .joinpath("manifest.json")
                 .read_text(encoding="utf-8")
             )
@@ -107,7 +108,7 @@ def get_will(x):
 
 try:
     # Electrum >= 4.8.0
-    from electrum.stored_dict import register_name as _electrum_register_name
+    from electrum.stored_dict import register_name as _electrum_register_name  # pyright: ignore[reportMissingImports]
 
     def _register_will_dict(name, method, _type=None):
         """Register a plugin dict in the wallet DB (Electrum >= 4.8.0 API)."""
@@ -117,7 +118,7 @@ except ImportError:
     # Electrum <= 4.7.2
     def _register_will_dict(name, method, _type=None):
         """Register a plugin dict in the wallet DB (Electrum <= 4.7.2 API)."""
-        json_db.register_dict(name, method, _type)
+        json_db.register_dict(name, method, _type)  # pyright: ignore[reportAttributeAccessIssue]
 
 
 _register_will_dict("heirs", tuple)
@@ -227,6 +228,21 @@ class BalPlugin(BasePlugin):
         self.PREVIEW = BalConfig(config, "bal_preview", True)
         self.SAVE_TXS = BalConfig(config, "bal_save_txs", True)
 
+        # SAVE_HISTORY (history persistence): when enabled, the valid will
+        # transactions are saved into the wallet's LOCAL history (the History
+        # tab) after every check, each with a configurable label. Default ON.
+        self.SAVE_HISTORY = BalConfig(config, "bal_save_history", True)
+
+        # HISTORY_LABEL: label text applied to the will transactions saved into
+        # the wallet's local history. May contain the "{willexecutor}" token,
+        # which is replaced with the will-executor URL of each will item at
+        # save time.
+        self.HISTORY_LABEL = BalConfig(
+            config,
+            "bal_history_label",
+            "BitcoinAfterLife inheritance transaction - {willexecutor}",
+        )
+
         # AUTO_SIGN (Group B / B2): when enabled, pressing "Check" will, after
         # querying the will-executor servers, automatically sign the will
         # transactions and broadcast them to their will-executors, without the
@@ -258,6 +274,9 @@ class BalPlugin(BasePlugin):
         # follows what is saved in that wallet (the default only applies when no
         # value has been stored yet, i.e. new wallets).
         self.NO_WILLEXECUTOR = BalConfig(config, "bal_no_willexecutor", False)
+        self.MAX_WILLEXECUTOR_FEE = BalConfig(
+            config, "bal_max_willexecutor_fee", 500000
+        )
         self.HIDE_REPLACED = BalConfig(config, "bal_hide_replaced", True)
         self.HIDE_INVALIDATED = BalConfig(config, "bal_hide_invalidated", True)
         self.ALLOW_REPUSH = BalConfig(config, "bal_allow_repush", True)
@@ -386,7 +405,7 @@ class BalPlugin(BasePlugin):
         """Fill in any missing will-setting with its default value."""
         defaults = BalPlugin.default_will_settings()
         if not will_settings:
-            will_settings = []
+            will_settings = {}
         if int(will_settings.get("baltx_fees", 0)) < 1:
             will_settings["baltx_fees"] = defaults['baltx_fees']
         if not will_settings.get("threshold"):
@@ -408,7 +427,7 @@ class BalPlugin(BasePlugin):
     @staticmethod
     def default_will_settings():
         """Default will settings: a fee rate plus absolute threshold/locktime."""
-        will_settings = {"baltx_fees": 20}
+        will_settings: dict[str, float] = {"baltx_fees": 20}
         will_settings.update(BalPlugin.default_will_settings_absolute())
         return will_settings
 
@@ -441,10 +460,12 @@ class BalTimestamp:
         * an integer -> an absolute UNIX timestamp (``unit is None``)
     """
 
-    value = None
-    unit = None
+    value: int
+    unit: str | None
 
     def __init__(self, value):
+        self.value = 1
+        self.unit = None
         str_value = str(value)
         if str_value and str_value[-1].lower() in ("y", "d"):
             self.value = int(str_value[:-1])
@@ -473,14 +494,14 @@ class BalTimestamp:
         We clamp out-of-range timestamps to INT32_MAX, mirroring Electrum's own
         ``get_max_allowed_timestamp`` workaround (see Electrum issue #6170).
         """
-        INT32_MAX = 2 ** 31 - 1
+        int32_max = 2 ** 31 - 1
         try:
             return datetime.fromtimestamp(ts)
         except (OSError, OverflowError, ValueError):
             try:
-                return datetime.fromtimestamp(min(int(ts), INT32_MAX))
+                return datetime.fromtimestamp(min(int(ts), int32_max))
             except (OSError, OverflowError, ValueError):
-                return datetime.fromtimestamp(INT32_MAX)
+                return datetime.fromtimestamp(int32_max)
 
     def to_date(self, from_date=None, reverse=False):
         """Resolve to a ``datetime``.

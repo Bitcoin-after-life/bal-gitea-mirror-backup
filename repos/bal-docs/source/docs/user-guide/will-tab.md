@@ -1,4 +1,4 @@
-# The WILL tab
+# :material-format-list-checks: The WILL tab
 
 The **WILL** tab is the technical view of your inheritance: one row per inheritance transaction, per Will-Executor.
 
@@ -12,12 +12,48 @@ The **WILL** tab is the technical view of your inheritance: one row per inherita
 | **Locktime** | The delivery date of the inheritance |
 | **Txid** | Identifier of the Bitcoin transaction |
 | **Will-Executor** | Which server holds this copy |
+| **Status** | How far the transaction has progressed (see below) |
 | **Server** | Whether that server actually has it (see below) |
-| **Status** | Progress of the transaction itself |
+
+The two rightmost columns answer different questions. **Status** describes the life of the
+transaction itself; **Server** describes only whether one particular Will-Executor is holding
+its copy.
+
+## The Status column
+
+Status is **cumulative**: it keeps the whole history, joining each stage with a dot. A freshly
+signed will that has not been sent yet reads `New.Signed`, while one stored and verified on a
+server reads `New.Signed.Pushed.Checked`.
+
+The **row's background colour** shows the latest stage reached, so you can read the state of
+every will at a glance without parsing the text. Each stage name below links to the point in
+[How the protocol works](../protocol/how-it-works.md#the-lifecycle) where that step happens.
+
+<div class="status-table" markdown>
+
+| # | Stage | Meaning | Colour |
+|---|---|---|---|
+| 1 | [**New**](../protocol/how-it-works.md#stage-prepare) | Created, not yet signed | <span class="sw" style="--c:#FFFFFF"></span> White `#FFFFFF` |
+| 2 | [**Signed**](../protocol/how-it-works.md#stage-sign) | Signed in the wallet | <span class="sw" style="--c:#2BC8ED"></span> Azure `#2BC8ED` |
+| 3 | [**Pushed**](../protocol/how-it-works.md#stage-distribute) | Sent to the Will-Executor | <span class="sw" style="--c:#73F3C8"></span> Azure-green `#73F3C8` |
+| 4 | [**Checked**](../protocol/how-it-works.md#stage-distribute) | Verified on the server | <span class="sw" style="--c:#8AFA6C"></span> Bright green `#8AFA6C` |
+| 5 | [**Confirmed**](../protocol/how-it-works.md#stage-execute) | Confirmed on-chain | <span class="sw" style="--c:#BFBFBF"></span> Grey `#BFBFBF` |
+| 6 | [**Pending**](../protocol/how-it-works.md#stage-execute) | Awaiting confirmation | <span class="sw" style="--c:#FFCE30"></span> Yellow `#FFCE30` |
+| 7 | [**Failed**](../protocol/how-it-works.md#stage-distribute) | Server could not be reached | <span class="sw" style="--c:#E83845"></span> Red `#E83845` |
+| 8 | [**Invalidated**](../protocol/how-it-works.md#what-invalidates-a-will) | An input UTXO was spent | <span class="sw" style="--c:#F87838"></span> Orange `#F87838` |
+| 9 | [**Replaced**](../protocol/how-it-works.md#what-invalidates-a-will) | Superseded by a newer will | <span class="sw" style="--c:#FF97E9"></span> Violet `#FF97E9` |
+
+</div>
+
+!!! tip "The three colours you want to see"
+    In normal operation a will sits at **Checked** (bright green) until the delivery date, then
+    moves to **Pending** (yellow) and finally **Confirmed** (grey). **Failed** (red) means a server
+    is unreachable; **Invalidated** (orange) means the will no longer matches your wallet and must
+    be rebuilt — see [Keeping the will up to date](updating.md).
 
 ## The Server column
 
-The Server column tells you, independently of the row colour, whether each inheritance transaction is really stored on its Will-Executor.
+The Server column tells you, independently of the row colour, whether each inheritance transaction is really stored on its Will-Executor. It is a plain textual label — no colour coding.
 
 ![Server column](../img/will-server-column.png){ .screenshot }
 *The Server column reports storage state per Will-Executor.*
@@ -55,3 +91,9 @@ The Server column tells you, independently of the row colour, whether each inher
 *Everything about one inheritance transaction in one window.*
 
 The details window shows the locktime (delivery date), the creation time, the miner fee, the current status, the list of heirs, the Will-Executor address, and the Will-Executor's fee.
+
+---
+
+!!! question "Still have a question?"
+    The [FAQ](../faq.md) answers the most common ones — costs, hardware wallets,
+    privacy, and what happens if a Will-Executor disappears.

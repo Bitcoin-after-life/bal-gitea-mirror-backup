@@ -1,4 +1,4 @@
-# The WeList directory
+# :material-format-list-bulleted: The WeList directory
 
 The **WeList** is the public directory of Will-Executors, published at [welist.bitcoin-after.life](https://welist.bitcoin-after.life/). The plugin downloads it by default, so listed servers appear automatically when you set up a will.
 

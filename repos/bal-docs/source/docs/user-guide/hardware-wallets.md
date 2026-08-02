@@ -1,4 +1,4 @@
-# Hardware wallets
+# :material-key-chain-variant: Hardware wallets
 
 BAL works with **any hardware wallet supported by Electrum** — Ledger, Trezor, Coldcard, BitBox02, Jade, KeepKey and others.
 

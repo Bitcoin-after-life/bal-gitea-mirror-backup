@@ -35,10 +35,17 @@ theme:
     - content.code.copy
 
 extra_css:
-  - stylesheets/extra.css
+  # The ?v= suffix defeats browser caching of the stylesheet. Bump the number
+  # whenever you change extra.css and the browser keeps showing the old style.
+  - stylesheets/extra.css?v=17
+
+extra_javascript:
+  - javascripts/brand-notranslate.js   # keep "Bitcoin After Life" untranslated in Chrome
+  - javascripts/nav-section-icons.js   # small Material icon before each nav section title
 
 nav:
   - Home: index.md
+  - FAQ: faq.md
   - Getting started:
       - Installation: getting-started/installation.md
       - Create your first will: getting-started/quick-start.md
@@ -49,7 +56,7 @@ nav:
       - The WILL tab: user-guide/will-tab.md
       - Keeping the will up to date: user-guide/updating.md
       - Offline backup transaction: user-guide/backup-transaction.md
-      - Wallet recovery use case: user-guide/wallet-recovery.md
+      - Wallet recovery use case (or wallet backup): user-guide/wallet-recovery.md
       - Backing up wallet and will: user-guide/wallet-backup.md
       - Hardware wallets: user-guide/hardware-wallets.md
       - Compatibility: user-guide/compatibility.md
@@ -60,11 +67,20 @@ nav:
       - Running a Will-Executor: will-executors/running-a-server.md
   - Protocol:
       - How it works: protocol/how-it-works.md
+  - Example inheritance plan: examples.md
+  - How BAL compares: comparison.md
   - Security & Privacy: security-privacy.md
-  - FAQ: faq.md
+  - Press & Media Kit: press-kit.md
 
 plugins:
   - search
+  - glightbox:                        # click-to-enlarge on every image (screenshots + diagrams)
+      touchNavigation: true
+      loop: false
+      zoomable: true
+      draggable: true
+      skip_classes:
+        - no-lightbox
   - macros:
       on_error_fail: true             # a typo in a variable breaks the build, not the page
 
@@ -77,6 +93,9 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.tabbed: { alternate_style: true }
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - toc: { permalink: true }
 
 # --- Italian translation (not enabled yet) ------------------------------------
@@ -102,9 +121,9 @@ markdown_extensions:
 # =============================================================================
 extra:
   bal:
-    plugin_version: "0.2.6"           # latest plugin release
-    electrum_tested: "4.7.1"          # Electrum version that release was tested against
-    electrum_latest: "4.7.2"          # latest stable Electrum the manual assumes
+    plugin_version: "0.6.1"           # latest plugin release
+    electrum_tested: "4.8.0"          # Electrum version v0.6.1 was tested against
+    electrum_latest: "4.8.0"          # latest stable Electrum the manual assumes
     welist_fee_sats: "50,000"         # WeList yearly listing fee
     welist_period_days: "365"
     last_reviewed: "2026-07"          # bump when you do a full pass over the manual
@@ -114,4 +133,4 @@ extra:
     - icon: material/source-repository
       link: https://bitcoin-after.life/gitea/bitcoinafterlife
 
-copyright: Bitcoin After Life Protocol — open source, Bitcoin-only, no FIAT used.
+copyright: Bitcoin After Life Protocol — open source. The whole project is built to run on Bitcoin only, with no fiat currency involved anywhere in its design.

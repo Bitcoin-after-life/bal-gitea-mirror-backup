@@ -1,4 +1,4 @@
-# Keeping the will up to date
+# :material-refresh: Keeping the will up to date
 
 An inheritance transaction spends specific UTXOs. If those UTXOs change, the transaction the Will-Executors are holding becomes invalid — so the will has to be rebuilt.
 

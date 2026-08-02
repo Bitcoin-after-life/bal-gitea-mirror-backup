@@ -17,8 +17,8 @@ document.documentElement.classList.remove('nojs');
   Visual system: "Slate" (adapted from bal-welist-preview.html)
   Accent: blue (#2d6cdf), faithful to the reference file.
   Content: index2.html + updated facts from the GitHub repo
-  (Electrum 4.7.2, PyQt6, install flow, Anticipate/Postpone,
-  Server-column states, release v0.6.0, MIT license).
+  (Electrum 4.8.0, PyQt6, install flow, Anticipate/Postpone,
+  Server-column states, release v0.6.1, MIT license).
   All UI copy is in English by project convention.
   =========================================================
 -->
@@ -388,6 +388,7 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
       <a href="blog.html">Blog</a>
+      <a href="https://bitcoin-after.life/docs/">Docs</a>
       <a class="manifesto" href="manifesto.html">Manifesto</a>
       <a class="x" href="https://x.com/BitcoinAfterLif" title="@BitcoinAfterLif on X">@X</a>
     </nav>
@@ -481,7 +482,7 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
   <div class="wrap">
     <span class="eyebrow">How it works</span>
     <h2>From setup to automatic execution</h2>
-    <p class="sub">Six steps — from first setup to the automatic execution of your Bitcoin will.</p>
+    <p class="sub">Six steps — from first setup to the automatic execution of your Bitcoin will. For the full protocol walkthrough, see <a href="https://bitcoin-after.life/docs/protocol/how-it-works.html">How it works</a> in the manual.</p>
     <div class="steps">
       <div class="step"><div class="no">01</div><h3>Add heirs</h3><p>Enter the Bitcoin address of your heir(s) in the BAL plugin. No notary or intermediary required.</p></div>
       <div class="step"><div class="no">02</div><h3>Prepare transaction</h3><p>The wizard builds a time-locked transaction with your delivery date and the Will-Executor fee.</p></div>
@@ -510,7 +511,7 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
     <h2>The beating heart of the protocol</h2>
     <p>The economic incentive that makes all this possible is a fee included in each inheritance transaction. It is paid when the Will-Executor transmits the inheritance transaction to the nodes, and is therefore inserted into the block. The first one to send the transaction to the nodes wins the inheritance fee.</p>
     <p>We expect the BAL Protocol to succeed thanks to these incentives. They are <strong>substantial and grow with the value of Bitcoin over time</strong>, and they are attractive to more and more servers joining the inheritance transactions with a prospect of medium- to long-term gains.</p>
-    <p>Anybody can create a Will-Executor server to contribute to the protocol and earn commissions, since the code is available as open source.</p>
+    <p>Anybody can create a Will-Executor server to contribute to the protocol and earn commissions, since the code is available as open source. Read more in the manual: <a href="https://bitcoin-after.life/docs/will-executors/what-they-are.html">what Will-Executors are</a> and <a href="https://bitcoin-after.life/docs/will-executors/running-a-server.html">running a Will-Executor</a>.</p>
     <div class="callout">
       <span class="k">📋</span>
       <p>Will-Executors are listed on the public <strong>WeList</strong> directory and shown directly inside the plugin. <a href="https://welist.bitcoin-after.life/">Browse the Will-Executor List →</a></p>
@@ -555,12 +556,12 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
   <div class="wrap">
     <span class="eyebrow">Requirements &amp; installation</span>
     <h2>Get the plugin running</h2>
-    <p class="sub">The plugin is a behavior-preserving refactor that cleanly separates the business logic from the PyQt GUI. Build a clean, integrity-checkable archive and install it in Electrum.</p>
+    <p class="sub">The plugin is a behavior-preserving refactor that cleanly separates the business logic from the PyQt GUI. Build a clean, integrity-checkable archive and install it in Electrum. For the full step-by-step walkthrough with screenshots, see the <a href="https://bitcoin-after.life/docs/getting-started/installation.html">installation guide</a> in the manual.</p>
     <div class="install-grid">
       <div class="card">
         <h3>Requirements</h3>
         <ul class="req-list">
-          <li><span class="b">Electrum</span><span class="v">4.7.2 — the last stable release.</span></li>
+          <li><span class="b">Electrum</span><span class="v">4.8.0 — latest stable release, tested against plugin v0.6.1.</span></li>
           <li><span class="b">License</span><span class="v">MIT.</span></li>
         </ul>
       </div>
@@ -625,7 +626,7 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
   <div class="wrap">
     <span class="eyebrow">FAQ</span>
     <h2>Frequently asked questions</h2>
-    <p class="sub">Seventeen answers about the protocol, the plugin and running a Will-Executor.</p>
+    <p class="sub">Seventeen answers about the protocol, the plugin and running a Will-Executor. For more — Check Alive details, hardware wallets, compatibility, and more — see the <a href="https://bitcoin-after.life/docs/faq.html">full FAQ in the manual</a>.</p>
     <div class="faq" id="faqList">
 
       <details class="qa"><summary><span class="qn">01</span><span class="qt">What is the Bitcoin After Life Protocol for?</span><span class="chev">▾</span></summary>
@@ -785,9 +786,9 @@ items.forEach(d => {
       if (data && data.tag_name) {
         const tag = data.tag_name;
         link.textContent = tag;
-        link.href = 'https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases/download/' + tag + '/bal_' + tag + '.zip';
+        link.href = 'https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases/download/' + tag + '/bal_electrum_plugin_' + tag + '.zip';
         if (sig) {
-          sig.href = 'https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases/download/' + tag + '/bal_' + tag + '.zip.sig';
+          sig.href = 'https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases/download/' + tag + '/bal_electrum_plugin_' + tag + '.zip.sig';
           sig.style.display = 'inline';
         }
       }

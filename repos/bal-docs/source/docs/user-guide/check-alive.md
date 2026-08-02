@@ -1,4 +1,4 @@
-# Check Alive
+# :material-heart-pulse: Check Alive
 
 **Check Alive** is the plugin's "are you still around?" mechanism. It is available in **advanced mode**.
 

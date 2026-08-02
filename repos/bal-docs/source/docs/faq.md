@@ -1,4 +1,4 @@
-# FAQ
+# :material-help-circle: FAQ
 
 ## The project
 
@@ -19,7 +19,7 @@
 ??? question "How much does it cost?"
     Two fees, both paid **exclusively in bitcoin** — no subscriptions, no cards:
 
-    - **Miner fee**, chosen by you at signing time. Set it generously so the transaction confirms even under congestion.
+    - **Mining fee**, which you choose when signing. Set it generously so that the transaction is confirmed even during periods of congestion. *The plugin suggests a very high fee, which is designed to work under all blockchain conditions. We strongly advise against lowering it.*
     - **Will-Executor fee**, deducted from the inheritance at execution.
 
 ??? question "Is it hard to use?"
