@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>It all starts with the seed — Bitcoin After Life</title>
+<meta name="description" content="The Coldcard entropy incident is a reminder that everything in Bitcoin grows from the seed. Why Bitcoin After Life deliberately builds on Electrum instead of reinventing the wallet.">
+<meta name="theme-color" content="#2d6cdf">
+<link rel="canonical" href="https://bitcoin-after.life/blog/it-all-starts-with-the-seed.html">
+<link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/pitura/ico/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/pitura/ico/favicon-16.png">
+<script>
+/* Runs before first paint: removes the `nojs` class set on <html>, so the
+   mobile menu button is only shown when it can actually work. */
+document.documentElement.classList.remove('nojs');
+</script>
+<style>
+:root{
+  --maxw:1120px;
+  --radius:10px;
+  --bg:#eef1f4;
+  --panel:#ffffff;
+  --ink:#1a2027;
+  --muted:#5b6672;
+  --line:#dfe4ea;
+  --line-strong:#cbd2da;
+  --accent:#2d6cdf;
+  --accent-soft:#e6eefc;
+  --display:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(20,30,50,.05);
+  --shadow-lg:0 6px 20px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- Top bar (shared with home and manifesto) ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(150%) blur(8px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.topbar .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);
+  font-weight:600;color:var(--ink)}
+.topbar .logo img{width:30px;height:30px;display:block}
+.topbar .logo span{font-size:15px;letter-spacing:-.01em}
+.topbar nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:13px;padding:7px 11px;border-radius:7px}
+.topbar nav a:hover{color:var(--ink);background:var(--accent-soft);text-decoration:none}
+.topbar nav a.active{color:var(--accent);font-weight:600;border:1px solid #cfe0fb;
+  background:var(--accent-soft)}
+.topbar .x{color:var(--ink);font-weight:600}
+
+.navtoggle{
+  display:none;margin-left:auto;width:44px;height:44px;flex:none;
+  align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:9px;
+  color:var(--ink);cursor:pointer;padding:0;
+}
+.navtoggle:hover{border-color:var(--accent);color:var(--accent)}
+.navtoggle .bars{display:block;width:18px;height:2px;background:currentColor;position:relative}
+.navtoggle .bars::before,.navtoggle .bars::after{
+  content:"";position:absolute;left:0;width:18px;height:2px;background:currentColor}
+.navtoggle .bars::before{top:-6px}
+.navtoggle .bars::after{top:6px}
+.navtoggle[aria-expanded="true"] .bars{background:transparent}
+.navtoggle[aria-expanded="true"] .bars::before{top:0;transform:rotate(45deg)}
+.navtoggle[aria-expanded="true"] .bars::after{top:0;transform:rotate(-45deg)}
+
+/* ---------- Footer (shared) ---------- */
+footer{border-top:1px solid var(--line);margin-top:56px;padding:34px 0 40px;
+  color:var(--muted);font-size:14px;background:var(--panel)}
+footer .sig{font-family:var(--display);font-weight:600;color:var(--ink);font-size:16px}
+footer .links{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0}
+footer .built{font-size:13px;color:var(--muted);margin-top:8px}
+
+@media (max-width:900px){
+  .navtoggle{display:inline-flex}
+  .topbar nav{
+    position:absolute;top:100%;left:0;right:0;
+    margin-left:0;display:none;flex-direction:column;gap:2px;flex-wrap:nowrap;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    box-shadow:var(--shadow-lg);padding:10px 20px 16px;
+  }
+  .topbar nav.open{display:flex}
+  .topbar nav a{font-size:15.5px;padding:0 12px;min-height:44px;
+    display:flex;align-items:center;border-radius:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/*
+  Without JavaScript the panel cannot be toggled, so the links are shown
+  inline. On narrow screens they wrap under the logo and the bar is allowed
+  to grow, instead of being clipped by the fixed 60px height.
+*/
+.nojs .navtoggle{display:none}
+.nojs .topbar nav{position:static;display:flex;flex-direction:row;flex-wrap:wrap;
+  box-shadow:none;border-bottom:0;padding:0;margin-left:auto;background:transparent}
+@media (max-width:900px){
+  .nojs .topbar .wrap{height:auto;min-height:56px;flex-wrap:wrap;padding-bottom:8px;gap:10px}
+  .nojs .topbar nav{margin-left:0;width:100%;gap:4px 6px}
+  .nojs .topbar nav a{font-size:14.5px;min-height:40px;padding:0 10px;
+    display:flex;align-items:center;border:1px solid var(--line);border-radius:8px}
+}
+
+.post-head{padding:44px 0 30px;border-bottom:1px solid var(--line);
+  background:radial-gradient(820px 280px at 50% -40%,var(--accent-soft),transparent 70%)}
+.post-head .wrap{max-width:760px}
+.post-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+.post-head h1{font-family:var(--display);font-weight:600;font-size:40px;
+  letter-spacing:-.02em;line-height:1.12;margin:0 0 14px}
+.post-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  font-size:13px;color:var(--muted)}
+.post-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--line-strong)}
+
+.article{max-width:760px;margin:0 auto;padding:34px 20px 8px}
+.article p{font-size:17px;line-height:1.8;color:#36404b;margin:0 0 20px}
+.article p strong{color:var(--ink);font-weight:600}
+.article h2{font-family:var(--display);font-weight:600;font-size:25px;
+  letter-spacing:-.01em;margin:38px 0 14px;padding-bottom:10px;
+  border-bottom:1px solid var(--line-strong)}
+.article ol{padding-left:22px;margin:0 0 20px}
+.article li{font-size:17px;line-height:1.8;color:#36404b;margin-bottom:14px}
+.article li strong{color:var(--ink);font-weight:600}
+.article figure{margin:30px 0}
+.article figure img{width:100%;height:auto;display:block;border-radius:var(--radius);
+  border:1px solid var(--line);box-shadow:var(--shadow)}
+.article hr{border:0;border-top:1px solid var(--line-strong);margin:34px 0 22px}
+.article .disclaimer{font-size:14px;color:var(--muted);font-style:italic;line-height:1.7}
+.back{max-width:760px;margin:26px auto 0;padding:0 20px 8px}
+.back a{font-size:14px;font-weight:600}
+
+@media (max-width:700px){
+  .post-head{padding:30px 0 24px}
+  .post-head h1{font-size:29px}
+  .article{padding:28px 18px 8px}
+  .article h2{font-size:22px;margin-top:32px}
+  .article figure{margin:24px -18px}
+  .article figure img{border-radius:0;border-left:0;border-right:0}
+}
+@media (max-width:400px){
+  .post-head h1{font-size:25px}
+  .wrap{padding:0 15px}
+  .article{padding:24px 16px 8px}
+  .article figure{margin:22px -16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <a class="logo" href="../index.html"><img src="../pitura/logo/Logo_nero.svg" alt="Bitcoin After Life logo"><span translate="no">Bitcoin After Life</span></a>
+    <button class="navtoggle" id="navToggle" type="button"
+            aria-expanded="false" aria-controls="mainNav" aria-label="Open menu">
+      <span class="bars"></span>
+    </button>
+    <nav id="mainNav">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#how">How it works</a>
+      <a href="../index.html#plugin">Plugin</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a class="active" href="../blog.html">Blog</a>
+      <a href="../manifesto.html">Manifesto</a>
+      <a class="x" href="https://x.com/BitcoinAfterLif" title="@BitcoinAfterLif on X">@X</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+<header class="post-head">
+  <div class="wrap">
+    <span class="eyebrow">Blog</span>
+    <h1>It all starts with the seed</h1>
+    <div class="post-meta">
+      <time datetime="2026-08-03">3 August 2026</time>
+      <span class="dot"></span>
+      <span translate="no">Bitcoin After Life</span>
+      <span class="dot"></span>
+      <span>8 min read</span>
+    </div>
+  </div>
+</header>
+
+<article class="article">
+<figure>
+<img src="img/seed-cover.jpg" width="1600" height="900" loading="lazy" alt="Geometric Seed — cover illustration">
+</figure>
+
+<h2>Forty minutes</h2>
+<p>On 30 July 2026, in a window of roughly forty minutes, hundreds of Bitcoin addresses were emptied in a coordinated sweep. The first count spoke of about 594 BTC taken from some 500 addresses. Within a day, independent researchers raised the estimate to more than 1,082 BTC drained from nearly 1,200 wallets. Many of them had been dormant for years — the wallets of long-term holders who had done, by every common standard, everything right.</p>
+<p>There was no phishing. No malware. No stolen device, no coerced signature, no compromised computer. The owners of those coins were attacked through something that happened years earlier, in the few seconds when their wallet was born: <strong>the generation of the seed</strong>.</p>
+<p>Coinkite, the maker of the Coldcard hardware wallet, published a security advisory the same day. During a firmware library migration in early 2021, two random-number functions with matching interfaces had been confused: instead of drawing from the device's hardware true random number generator, seed creation could fall back to a weak software routine fed by predictable values such as the device's serial number and internal clock. Seeds generated on the Mk3 from firmware 4.0.1 (March 2021) onward were the most exposed; seeds generated on Mk4, Mk5 and Q devices before the emergency fixes carried roughly 72 bits of entropy instead of the expected 128.</p>
+<p>To be clear about what that means: a properly generated 12-word seed is protected by a number of combinations so large that guessing it is, for all practical purposes, impossible. Cut the entropy down far enough, and "impossible" quietly becomes "a matter of compute budget". The owners never saw anything change. The words on their steel plates looked exactly the same. The weakness was invisible — until someone found it, enumerated the candidate seeds, and swept the funds.</p>
+
+<h2>Everything grows from the root</h2>
+<p>Bitcoin's entire security model is a chain that begins at one point: a large random number. From that number comes the seed; from the seed, the private keys; from the keys, the addresses; from the addresses, everything else — cold storage, multisig, timelocks, inheritance plans, all of it.</p>
+<p>This chain has a property that is easy to state and easy to forget: <strong>it is only as strong as its first link</strong>. You can engrave your seed on titanium, lock it in a vault, split it across continents, sign every transaction from an air-gapped bunker — and none of it matters if the random number at the root was not random enough. If security is missing at the root, everything built on top of it is theatre.</p>
+<p>That is why entropy is not an implementation detail. It is the foundation of ownership itself. And it is why the question <em>"how was this seed generated, and can I verify it?"</em> deserves at least as much attention as the questions people usually ask — which device to buy, which metal plate to engrave, which passphrase scheme to use.</p>
+
+<h2>The limits of "don't trust, verify"</h2>
+<p>Bitcoin's most repeated maxim is <em>don't trust, verify</em>. The Coldcard incident is a sobering lesson in how hard that maxim is to practice — and an honest analysis has to include an uncomfortable fact: <strong>Coldcard's firmware has always been open source.</strong> The vulnerable code sat in public view for more than four years. Openness was necessary, but it was not sufficient.</p>
+<p>Coinkite itself offered a telling hypothesis about how the flaw was finally found: someone, they suggest, used AI to review old versions of the public firmware and stumbled upon the issue. More bitter still, the company had recently run its own AI-assisted security review — which found nothing.</p>
+<p>So what actually protects a seed-generation path? Three things, and all three have to be present at once:</p>
+<ol>
+<li><strong>Openness</strong> — the code must be publicly readable. Without it, verification is impossible by definition.</li>
+<li><strong>Breadth of review</strong> — openness only pays off when many independent eyes, over many years, actually look. A niche codebase, however public, can carry a subtle bug for half a decade.</li>
+<li><strong>Practical verifiability</strong> — the user, or anyone acting on the user's behalf, must be realistically able to check what runs. A general-purpose computer running open software can be inspected end to end. The silicon inside a sealed device cannot: you can read the firmware, but you cannot look inside the chip that is supposed to produce the randomness. At some point, a closed physical box always asks for a residue of trust.</li>
+</ol>
+<p>None of this means hardware wallets are useless. Air-gapped signing genuinely protects against malware on your computer, and that threat is real. But the incident draws the boundary clearly: a hardware device can protect keys <em>after</em> they exist. It cannot make its own birth verifiable. And knowledge — understanding where your entropy comes from and how to check it — protects you in ways no purchased device can.</p>
+
+<h2>Why we did not reinvent the wallet</h2>
+<p>When we designed <span translate="no">Bitcoin After Life</span>, one decision came before all others: <strong>the protocol would live inside Electrum as a plug-in, not inside a new wallet of our own.</strong></p>
+<p>It would have been more glamorous to ship "the BAL wallet". It also would have been irresponsible. An inheritance protocol asks people to plan across decades. Whoever asks for that kind of time horizon has a duty to build on the most scrutinized foundations available — not on code that is six months old, however carefully written.</p>
+<p>Electrum has existed since 2011. It is one of the most reviewed pieces of Bitcoin software in the world, it has survived fifteen years of adversarial attention, and its seed handling is publicly documented down to the mathematics. A standard Electrum seed phrase carries <strong>132 bits of entropy</strong>, drawn from the operating system's cryptographically secure random number generator — a component that is not a niche codebase but one of the most heavily audited pieces of software on the planet, reviewed for decades by the entire security industry across every field that depends on it. On top of that, Electrum's documented seed-version design brings the effective cost of a brute-force attack to roughly 2<sup>135</sup> operations. These are not marketing figures; they are published, and anyone can check the code that implements them.</p>
+<p>This is the meaning of a choice we made early and have repeated often: <strong>remaining a plug-in of one of the most tested wallets in the world is a deliberate design decision, not a fallback.</strong> We add exactly one thing — time-locked inheritance through nLockTime and the Will-Executor network — and we inherit everything else, including seed generation, from a codebase that has earned trust the only way trust is earned in this industry: by surviving.</p>
+<p>Ask yourself the question we asked ourselves: would you leave your heirs' future in a wallet released last year? Are you able to go all the way and verify its code yourself? If the honest answer is no, then the age and the breadth of review of the foundation are not details. They are the whole point.</p>
+
+<h2>Verification in the age of AI</h2>
+<p>There is one genuinely new element in this story, and it deserves attention: the flaw was likely found — after four and a half years of human blindness — <strong>by a machine reading public code</strong>.</p>
+<p>That cuts both ways. The same capability that armed an attacker is now in everyone's hands, and it changes the economics of <em>don't trust, verify</em>. Reviewing a seed-generation path used to require rare expertise and long hours. Today, anyone can take the open code of their wallet, hand it to a capable AI model, and ask pointed questions: <em>Where does the entropy come from? Is there any fallback path? Under what conditions could this produce a predictable seed?</em> An AI review is not a guarantee — Coinkite's own attempt proves that — but it raises the floor dramatically, and it turns verification from a specialist's privilege into an ordinary habit.</p>
+<p>Our position is simple: <strong>a verification of the seed-generation technology should always be done</strong> — before funds are deposited, and again when the software is updated. This is only possible with open code running on hardware you can inspect. It is one more reason the closed box, however well built, sits uneasily with Bitcoin's founding rule.</p>
+
+<h2>What this means for inheritance</h2>
+<p>An inheritance plan compounds every assumption you make today across the decades it must survive. A weakness that is merely theoretical over one year becomes a real risk over thirty. The Coldcard sweep targeted dormant addresses — precisely the profile of long-term, set-aside funds. Precisely the profile of an inheritance.</p>
+<p>This is why <span translate="no">Bitcoin After Life</span>'s architecture keeps returning to the same principles: use Bitcoin's native, consensus-level features (nLockTime) rather than novel constructions; rely on incentives rather than promises; renew the inheritance transaction every two to three years, so the plan absorbs protocol improvements and lessons like this one; and build only on code that the world has been attacking, and failing to break, for many years.</p>
+<p>And one practical note, because it matters more than any argument: if you generated a seed on an affected Coldcard device since March 2021, follow Coinkite's advisory — update the firmware, generate a new seed on corrected software, and move your funds. Whatever wallet you use, your inheritance plan is only as good as the seed underneath it.</p>
+
+<h2>Conclusion: the root comes first</h2>
+<p>The lesson of 30 July is not that one vendor failed. Every codebase can carry a bug, and Coinkite's transparency after the fact was the correct response. The lesson is older and simpler: <strong>everything starts with the seed</strong>. If randomness is missing at the root, no vault, no steel, no air gap and no inheritance protocol can compensate. Security is not something you add on top; it is something you either have at the foundation or do not have at all.</p>
+<p>We chose not to reinvent the wallet. We chose the foundation with fifteen years of scars, public mathematics, and entropy drawn from the most reviewed code on earth. Boring choices, made deliberately — because your heirs will not care how innovative your wallet looked. They will care that the seed was made the way a seed should be made.</p>
+<p>Those who want to dig deeper will find the Electrum plug-in, instructions, and practical examples at <a href="https://bitcoin-after.life/" target="_blank" rel="noopener">bitcoin-after.life</a>. The code is open source, verifiable by anyone — with your own eyes, or with an AI at your side.</p>
+<p>Verify the root. Everything else follows.</p>
+
+<hr>
+<p class="disclaimer">This article is for informational purposes only and does not constitute legal, tax, or security advice. Facts about the 30 July 2026 incident reflect public reporting and Coinkite's advisory at the time of writing; consult the vendor's official communications for up-to-date guidance on affected devices.</p>
+</article>
+
+<div class="back">
+  <a href="../blog.html">← Back to the blog</a>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="sig">Svātantrya</div>
+    <div>Signed — <span translate="no">Bitcoin After Life</span> Protocol</div>
+    <div class="links">
+      <a href="https://bitcoin-after.life">bitcoin-after.life</a>
+      <a href="mailto:info@bitcoin-after.life">info@bitcoin-after.life</a>
+      <a href="https://x.com/BitcoinAfterLif">@BitcoinAfterLif</a>
+      <a href="https://bitcoin-after.life/pgp">PGP Key</a>
+      <a href="https://bitcoin-after.life/gitea/bitcoinafterlife">Source Code</a>
+    </div>
+    <div class="built">Built with ₿itcoin. No FIAT was used in the making of this protocol.</div>
+  </div>
+</footer>
+
+<script>
+/* Mobile menu toggle -- identical behaviour across all pages. */
+(function () {
+  const toggle = document.getElementById('navToggle');
+  const nav = document.getElementById('mainNav');
+  if (!toggle || !nav) return;
+
+  function setOpen(open) {
+    nav.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+
+  toggle.addEventListener('click', function () {
+    setOpen(!nav.classList.contains('open'));
+  });
+  nav.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') setOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+})();
+</script>
+</body>
+</html>
