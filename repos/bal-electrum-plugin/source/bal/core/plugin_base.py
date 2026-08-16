@@ -251,6 +251,14 @@ class BalPlugin(BasePlugin):
         # (handled by BalWindow.get_wallet_password). Default ON.
         self.AUTO_SIGN = BalConfig(config, "bal_auto_sign", True)
 
+        # REBUILD_ON_CLOSE: when enabled (default), closing the wallet or
+        # quitting Electrum runs the "Build your will" wizard
+        # (BalBuildWillDialog) to rebuild and re-validate the will. When
+        # disabled, on_close() only persists the current in-memory willitems to
+        # the wallet DB: no rebuild dialog, no auto-sign/broadcast, no
+        # invalidation prompts at close. Default ON.
+        self.REBUILD_ON_CLOSE = BalConfig(config, "bal_rebuild_on_close", True)
+
         # EDITABLE_DATES (Group C / C2): when enabled, the delivery-time and
         # check-alive date fields are editable everywhere (toolbar / Heirs tab),
         # not only inside the "Build your will" wizard. Default OFF, so the dates
@@ -306,7 +314,10 @@ class BalPlugin(BasePlugin):
             config, "bal_event_summary", "BAL -Will execution of $wallet_name"
         )
 
-        # Default will-executor servers, keyed by network.
+        # Default will-executor servers, keyed by network.  These addresses are
+        # the ones currently reported by each server's <chain>/info endpoint and
+        # are refreshed again on ping; testnet/testnet4 must NOT be regtest
+        # (bcrt1...) addresses, which are invalid on those networks.
         self.WILLEXECUTORS = BalConfig(
             config,
             "bal_willexecutors",
@@ -325,7 +336,7 @@ class BalPlugin(BasePlugin):
                         "base_fee": 100000,
                         "status": "New",
                         "info": "Bitcoin After Life Will Executor",
-                        "address": "bcrt1qa5cntu4hgadw8zd3n6sq2nzjy34sxdtd9u0gp7",
+                        "address": "tb1qp5tmrvtm6dmz23mzkf55n5d53xh39wt0gwpp5m",
                         "selected": True,
                     }
                 },
@@ -334,7 +345,7 @@ class BalPlugin(BasePlugin):
                         "base_fee": 100000,
                         "status": "New",
                         "info": "Bitcoin After Life Will Executor",
-                        "address": "bcrt1qa5cntu4hgadw8zd3n6sq2nzjy34sxdtd9u0gp7",
+                        "address": "tb1qfj5ewmczg8ck2z0eeff6uysdrxd4qdy2ltrx5a",
                         "selected": True,
                     }
                 },

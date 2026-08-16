@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://bitcoin-after.life/sitemap.xml
+Sitemap: https://bitcoin-after.life/docs/sitemap.xml

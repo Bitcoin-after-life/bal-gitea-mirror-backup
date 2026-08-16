@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Blog — Bitcoin After Life</title>
 <meta name="description" content="Essays and practical notes from the Bitcoin After Life project on decentralized Bitcoin inheritance, time-locked transactions and sovereignty.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Bitcoin After Life">
+<meta property="og:title" content="Blog — Bitcoin After Life">
+<meta property="og:description" content="Essays and practical notes from the Bitcoin After Life project on decentralized Bitcoin inheritance, time-locked transactions and sovereignty.">
+<meta property="og:url" content="https://bitcoin-after.life/blog.html">
+<meta property="og:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@BitcoinAfterLif">
+<meta name="twitter:title" content="Blog — Bitcoin After Life">
+<meta name="twitter:description" content="Essays and practical notes from the Bitcoin After Life project on decentralized Bitcoin inheritance, time-locked transactions and sovereignty.">
+<meta name="twitter:image" content="https://bitcoin-after.life/pitura/og-default.png">
 <meta name="theme-color" content="#2d6cdf">
 <link rel="canonical" href="https://bitcoin-after.life/blog.html">
 <link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
@@ -122,7 +135,8 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
 .post-card{display:grid;grid-template-columns:250px 1fr;gap:22px;
   background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
   box-shadow:var(--shadow);overflow:hidden}
-.post-card img{width:100%;height:100%;min-height:150px;object-fit:cover;display:block}
+.post-card img{width:100%;height:100%;min-height:150px;object-fit:contain;display:block;
+  background:var(--panel);padding:16px;border-right:1px solid var(--line)}
 .post-card .body{padding:22px 24px 22px 0}
 .post-card .date{font-family:var(--mono);font-size:12px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--muted);display:block;margin-bottom:9px}
@@ -142,7 +156,7 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
   .posts{padding:26px 18px 0;gap:16px}
   /* Stack the card: a 250px image column leaves no room for text on a phone. */
   .post-card{grid-template-columns:1fr;gap:0}
-  .post-card img{height:172px;min-height:0}
+  .post-card img{height:172px;min-height:0;border-right:0;border-bottom:1px solid var(--line)}
   .post-card .body{padding:20px}
   .post-card h2{font-size:20px}
   .post-card p{font-size:15px}
@@ -193,6 +207,22 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
     date (machine-readable in the datetime attribute), title, standfirst.
   -->
     <article class="post-card">
+    <a href="blog/what-happens-to-your-bitcoin.html" aria-hidden="true" tabindex="-1">
+      <img src="blog/img/what-happens-to-your-bitcoin-cover.webp" width="1600" height="900" loading="lazy"
+           alt="">
+    </a>
+    <div class="body">
+      <time class="date" datetime="2026-08-15">15 August 2026</time>
+      <h2><a href="blog/what-happens-to-your-bitcoin.html">What happens to your bitcoin when you're gone?</a></h2>
+      <p>Self-custody means nobody can seize your bitcoin — and nobody can help
+         your family if you're gone either. Why seed-sharing, custodians and
+         wills all quietly fail, and how a time-locked transaction lets your
+         heirs receive the coins without ever holding your keys.</p>
+      <a class="more" href="blog/what-happens-to-your-bitcoin.html">Read the article →</a>
+    </div>
+  </article>
+
+  <article class="post-card">
     <a href="blog/it-all-starts-with-the-seed.html" aria-hidden="true" tabindex="-1">
       <img src="blog/img/seed-cover.jpg" width="1600" height="900" loading="lazy"
            alt="">
