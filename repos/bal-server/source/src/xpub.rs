@@ -148,12 +148,12 @@ pub fn calculate_fingerprint(tpub: &str) -> Result<String, String> {
 fn base58check_decode(s: &str) -> Result<Vec<u8>, String> {
     let data = bs58::decode(s).into_vec().map_err(|e| e.to_string())?;
     if data.len() < 4 {
-        return Err("Data troppo corta".to_string());
+        return Err("Data too short".to_string());
     }
     let (payload, checksum) = data.split_at(data.len() - 4);
     let hash = Sha256::digest(Sha256::digest(payload));
     if hash[0..4] != checksum[..] {
-        return Err("Checksum invalido".to_string());
+        return Err("Invalid checksum".to_string());
     }
     Ok(payload.to_vec())
 }
@@ -168,7 +168,7 @@ fn convert_to(zpub: &str, prefix: BS58Prefix) -> Result<String, String> {
     let mut data = base58check_decode(zpub)?;
 
     if data.len() < 4 {
-        return Err("Non è una zpub valida.".to_string());
+        return Err("Not a valid zpub".to_string());
     }
     data.splice(
         0..4,
@@ -207,7 +207,7 @@ pub fn new_address_from_xpub(
 fn main() -> Result<(), Box<dyn std::error::Error>>{
     match convert_to(zpub,BS58Prefix::Tpub) {
         Ok(tpub) => println!("XPUB: {}", tpub),
-        Err(e) => eprintln!("Errore: {}", e),
+        Err(e) => eprintln!("Error: {}", e),
     }
     let fingerprint = base58check_encode(&calculate_fingerprint(zpub));
     println!("ZPUB: {}, FINGERPRINT: {}",zpub,fingerprint);

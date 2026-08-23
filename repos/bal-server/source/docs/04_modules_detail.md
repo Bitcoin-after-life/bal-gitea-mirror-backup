@@ -117,7 +117,7 @@ The main application binary that provides an async HTTP server.
 
 ### Architecture
 - **Runtime:** `actix-web 4.9.0` with `actix-rt` (`#[actix_web::main]`).
-- **Rate Limiting:** `actix-governor` middleware with token-bucket algorithm per endpoint.
+- **Rate Limiting:** `actix-governor` middleware with token-bucket algorithm. Uses `RealIpKeyExtractor` to identify clients by real IP behind reverse proxy (via `X-Real-IP` / `X-Forwarded-For` headers).
 - **Response Compression:** `actix_web::middleware::Compress`.
 - **Request Logging:** `actix_web::middleware::Logger::default()`.
 - **Shared State:** `Arc<Mutex<Connection>>` for database access, `MyConfig` for configuration.
@@ -132,7 +132,7 @@ The main application binary that provides an async HTTP server.
 - `address` (xpub or address), `fixed_fee` (sats), `xpub` (bool), `network` (bitcoin::Network), `name`, `enabled`
 
 **`ActixConfig`** (server tuning):
-- `max_body_size`, `timeout_secs`, per-endpoint rate limits (`pushtxs`, `searchtx`, `info`, `default`), `workers`, `max_connections`
+- `max_body_size`, `timeout_secs`, rate limits (`pushtxs` per sec/burst), `workers`, `max_connections`, `trusted_proxy`
 
 ### Key Routes
 | Method | Path | Handler | Description |

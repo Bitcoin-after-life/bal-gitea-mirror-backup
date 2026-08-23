@@ -1,137 +1,136 @@
-use sqlite::{Connection, Value};
+use bal_server::db::{DatabasePool, open_database};
+use sqlx::Row;
 
-#[test]
-fn test_sql_injection_via_push_err_update() {
-    // Create an in-memory database and the required table
-    let db = Connection::open(":memory:").unwrap();
-    let _ =
-        db.execute("CREATE TABLE tbl_tx (txid TEXT PRIMARY KEY, status INTEGER, push_err TEXT);");
-
-    // Insert a dummy transaction
-    let mut stmt = db
-        .prepare("INSERT INTO tbl_tx (txid, status, push_err) VALUES (?, ?, ?);")
-        .unwrap();
-    stmt.bind((1, Value::String("dummy_txid".to_string())))
-        .unwrap();
-    stmt.bind((2, Value::Integer(0))).unwrap();
-    stmt.bind((3, Value::String("".to_string()))).unwrap();
-    let _ = stmt.next();
-    drop(stmt);
-
-    // Malicious error payload containing a single quote (SQL injection attempt)
-    let malicious_error = "'; DROP TABLE tbl_tx; --";
-    let txid = "dummy_txid";
-
-    // Execute the fixed query using parameter binding (safe)
-    let sql = "UPDATE tbl_tx SET status = 2, push_err = ? WHERE txid = ?";
-    let mut stmt = db.prepare(sql).unwrap();
-    stmt.bind((1, Value::String(malicious_error.to_string())))
-        .unwrap();
-    stmt.bind((2, Value::String(txid.to_string()))).unwrap();
-    let _ = stmt.next();
-
-    // Verify the table still exists and the row was updated correctly
-    let mut check = db
-        .prepare("SELECT status, push_err FROM tbl_tx WHERE txid = ?;")
-        .unwrap();
-    check
-        .bind((1, Value::String("dummy_txid".to_string())))
-        .unwrap();
-    assert!(check.next().unwrap() == sqlite::State::Row);
-    let status: i64 = check.read("status").unwrap();
-    let push_err: String = check.read("push_err").unwrap();
-    assert_eq!(status, 2);
-    assert_eq!(push_err, malicious_error);
-
-    // Ensure no second row was created (injection would have failed or produced extra rows)
-    let mut count_stmt = db.prepare("SELECT COUNT(*) FROM tbl_tx;").unwrap();
-    assert!(count_stmt.next().unwrap() == sqlite::State::Row);
-    let count: i64 = count_stmt.read(0).unwrap();
-    assert_eq!(count, 1);
+async fn setup_db() -> DatabasePool {
+    open_database("sqlite", "sqlite::memory:").await.unwrap()
 }
 
-#[test]
-fn test_sql_injection_via_txid_update() {
-    let db = Connection::open(":memory:").unwrap();
-    let _ = db.execute("CREATE TABLE tbl_tx (txid TEXT PRIMARY KEY, status INTEGER);");
-
-    // Insert multiple dummy transactions
-    for i in 0..3 {
-        let mut stmt = db
-            .prepare("INSERT INTO tbl_tx (txid, status) VALUES (?, ?);")
+#[tokio::test]
+async fn test_sql_injection_via_push_err_update() {
+    let pool = setup_db().await;
+    if let DatabasePool::SQLite(p) = &pool {
+        sqlx::query("CREATE TABLE tbl_tx (txid TEXT PRIMARY KEY, status INTEGER, push_err TEXT);")
+            .execute(p)
+            .await
             .unwrap();
-        stmt.bind((1, Value::String(format!("txid_{}", i))))
-            .unwrap();
-        stmt.bind((2, Value::Integer(0))).unwrap();
-        let _ = stmt.next();
-    }
 
-    // Malicious txid payload
-    let malicious_txid = "' OR '1'='1";
-
-    // The fixed query parameterizes the txid, so this should only update zero rows
-    let sql = "UPDATE tbl_tx SET status = 1 WHERE txid = ?";
-    let mut stmt = db.prepare(sql).unwrap();
-    stmt.bind((1, Value::String(malicious_txid.to_string())))
-        .unwrap();
-    let _ = stmt.next();
-
-    // Verify no rows were updated (status should still be 0 for all)
-    for i in 0..3 {
-        let mut check = db
-            .prepare("SELECT status FROM tbl_tx WHERE txid = ?;")
+        sqlx::query("INSERT INTO tbl_tx (txid, status, push_err) VALUES (?, ?, ?)")
+            .bind("dummy_txid")
+            .bind(0_i64)
+            .bind("")
+            .execute(p)
+            .await
             .unwrap();
-        check
-            .bind((1, Value::String(format!("txid_{}", i))))
+
+        let malicious_error = "'; DROP TABLE tbl_tx; --";
+        let txid = "dummy_txid";
+
+        sqlx::query("UPDATE tbl_tx SET status = 2, push_err = ? WHERE txid = ?")
+            .bind(malicious_error)
+            .bind(txid)
+            .execute(p)
+            .await
             .unwrap();
-        assert!(check.next().unwrap() == sqlite::State::Row);
-        let status: i64 = check.read("status").unwrap();
-        assert_eq!(
-            status, 0,
-            "Row txid_{} should not be updated by malicious txid",
-            i
-        );
+
+        let row = sqlx::query("SELECT status, push_err FROM tbl_tx WHERE txid = ?")
+            .bind("dummy_txid")
+            .fetch_one(p)
+            .await
+            .unwrap();
+
+        let status: i64 = row.try_get("status").unwrap();
+        let push_err: String = row.try_get("push_err").unwrap();
+        assert_eq!(status, 2);
+        assert_eq!(push_err, malicious_error);
+
+        let row = sqlx::query("SELECT COUNT(*) as cnt FROM tbl_tx")
+            .fetch_one(p)
+            .await
+            .unwrap();
+        let count: i64 = row.try_get("cnt").unwrap();
+        assert_eq!(count, 1);
     }
 }
 
-#[test]
-fn test_sql_injection_via_txid_with_comment() {
-    let db = Connection::open(":memory:").unwrap();
-    let _ = db.execute("CREATE TABLE tbl_tx (txid TEXT PRIMARY KEY, status INTEGER);");
+#[tokio::test]
+async fn test_sql_injection_via_txid_update() {
+    let pool = setup_db().await;
+    if let DatabasePool::SQLite(p) = &pool {
+        sqlx::query("CREATE TABLE tbl_tx (txid TEXT PRIMARY KEY, status INTEGER);")
+            .execute(p)
+            .await
+            .unwrap();
 
-    let mut stmt = db
-        .prepare("INSERT INTO tbl_tx (txid, status) VALUES (?, ?);")
-        .unwrap();
-    stmt.bind((1, Value::String("safe_txid".to_string())))
-        .unwrap();
-    stmt.bind((2, Value::Integer(0))).unwrap();
-    let _ = stmt.next();
+        for i in 0..3 {
+            sqlx::query("INSERT INTO tbl_tx (txid, status) VALUES (?, ?)")
+                .bind(format!("txid_{}", i))
+                .bind(0_i64)
+                .execute(p)
+                .await
+                .unwrap();
+        }
 
-    // Another common injection pattern
-    let malicious_txid = "safe_txid'; UPDATE tbl_tx SET status = 99; --";
+        let malicious_txid = "' OR '1'='1";
 
-    let sql = "UPDATE tbl_tx SET status = 1 WHERE txid = ?";
-    let mut stmt = db.prepare(sql).unwrap();
-    stmt.bind((1, Value::String(malicious_txid.to_string())))
-        .unwrap();
-    let _ = stmt.next();
+        sqlx::query("UPDATE tbl_tx SET status = 1 WHERE txid = ?")
+            .bind(malicious_txid)
+            .execute(p)
+            .await
+            .unwrap();
 
-    // Verify the original row was NOT updated (because it was looking for the full malicious string)
-    // and no rows have status 99 (the injected update did not execute)
-    let mut check = db
-        .prepare("SELECT status FROM tbl_tx WHERE txid = ?;")
-        .unwrap();
-    check
-        .bind((1, Value::String("safe_txid".to_string())))
-        .unwrap();
-    assert!(check.next().unwrap() == sqlite::State::Row);
-    let status: i64 = check.read("status").unwrap();
-    assert_eq!(status, 0, "Original row should not be updated");
+        for i in 0..3 {
+            let row = sqlx::query("SELECT status FROM tbl_tx WHERE txid = ?")
+                .bind(format!("txid_{}", i))
+                .fetch_one(p)
+                .await
+                .unwrap();
+            let status: i64 = row.try_get("status").unwrap();
+            assert_eq!(
+                status, 0,
+                "Row txid_{} should not be updated by malicious txid",
+                i
+            );
+        }
+    }
+}
 
-    let mut count_stmt = db
-        .prepare("SELECT COUNT(*) FROM tbl_tx WHERE status = 99;")
-        .unwrap();
-    assert!(count_stmt.next().unwrap() == sqlite::State::Row);
-    let count: i64 = count_stmt.read(0).unwrap();
-    assert_eq!(count, 0, "No rows should have status 99");
+#[tokio::test]
+async fn test_sql_injection_via_txid_with_comment() {
+    let pool = setup_db().await;
+    if let DatabasePool::SQLite(p) = &pool {
+        sqlx::query("CREATE TABLE tbl_tx (txid TEXT PRIMARY KEY, status INTEGER);")
+            .execute(p)
+            .await
+            .unwrap();
+
+        sqlx::query("INSERT INTO tbl_tx (txid, status) VALUES (?, ?)")
+            .bind("safe_txid")
+            .bind(0_i64)
+            .execute(p)
+            .await
+            .unwrap();
+
+        let malicious_txid = "safe_txid'; UPDATE tbl_tx SET status = 99; --";
+
+        sqlx::query("UPDATE tbl_tx SET status = 1 WHERE txid = ?")
+            .bind(malicious_txid)
+            .execute(p)
+            .await
+            .unwrap();
+
+        let row = sqlx::query("SELECT status FROM tbl_tx WHERE txid = ?")
+            .bind("safe_txid")
+            .fetch_one(p)
+            .await
+            .unwrap();
+        let status: i64 = row.try_get("status").unwrap();
+        assert_eq!(status, 0, "Original row should not be updated");
+
+        let row = sqlx::query("SELECT COUNT(*) as cnt FROM tbl_tx WHERE status = 99")
+            .fetch_one(p)
+            .await
+            .unwrap();
+        let count: i64 = row.try_get("cnt").unwrap();
+        assert_eq!(count, 0, "No rows should have status 99");
+    }
 }

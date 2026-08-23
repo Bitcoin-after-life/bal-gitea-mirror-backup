@@ -10,16 +10,11 @@
 
 ### Rate Limiting
 
-All endpoints are rate-limited via `actix-governor` with a token-bucket algorithm. Defaults:
+All endpoints are rate-limited via `actix-governor` with a token-bucket algorithm. The rate limit key is the **real client IP address**, extracted from `X-Real-IP` / `X-Forwarded-For` headers when the request comes from a trusted proxy (default `127.0.0.1`, configurable via `BAL_SERVER_TRUSTED_PROXY`). Direct connections (non-proxy) use the TCP peer IP.
 
-| Endpoint | Rate (req/s) | Burst |
-|----------|-------------|-------|
-| `POST /{network}/pushtxs` | 1 | 3 |
-| `POST /searchtx` | 5 | 10 |
-| `GET /{network}/info` | 20 | 30 |
-| All others | 50 | 100 |
+Default: 1 req/s with burst of 3 (configurable via `BAL_SERVER_ACTIX_PUSHTXS_PER_SEC` / `BAL_SERVER_ACTIX_PUSHTXS_BURST`).
 
-Rate limits are configurable via `BAL_SERVER_ACTIX_*` environment variables.
+When behind Nginx, ensure `proxy_set_header X-Real-IP $remote_addr` is set so the server can identify individual clients.
 
 ### `GET /`
 - **Description:** Returns a static identification string (default: "Will Executor Server").

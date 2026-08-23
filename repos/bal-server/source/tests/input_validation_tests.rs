@@ -1,60 +1,48 @@
-use bal_server::db::{get_all_addresses_by_xpub, open_db};
-use sqlite::Value;
+use bal_server::db::{DatabasePool, create_database, get_all_addresses_by_xpub, open_database};
 
-fn setup_db_with_xpub() -> sqlite::Connection {
-    let db = open_db(":memory:").unwrap();
-    let _ = db.execute(
-        "CREATE TABLE tbl_xpub (id INTEGER PRIMARY KEY, network TEXT, xpub TEXT, path_idx INTEGER DEFAULT -1);"
-    );
-    let _ = db.execute(
-        "CREATE TABLE tbl_address (address TEXT PRIMARY KEY, path TEXT, xpub INTEGER, remote_address TEXT);"
-    );
-    // Insert test xpub
-    let mut stmt = db
-        .prepare("INSERT INTO tbl_xpub(id, network, xpub) VALUES(?, ?, ?);")
-        .unwrap();
-    stmt.bind((1, Value::Integer(1))).unwrap();
-    stmt.bind((2, Value::String("testnet".to_string())))
-        .unwrap();
-    stmt.bind((3, Value::String("tpub_test".to_string())))
-        .unwrap();
-    let _ = stmt.next();
-    drop(stmt);
-    // Insert test addresses
-    for addr in ["addr1", "addr2", "addr3"] {
-        let mut stmt = db
-            .prepare("INSERT INTO tbl_address(address, path, xpub) VALUES(?, ?, ?);")
+async fn setup_db_with_xpub() -> DatabasePool {
+    let pool = open_database("sqlite", "sqlite::memory:").await.unwrap();
+    create_database(&pool).await.unwrap();
+
+    if let DatabasePool::SQLite(p) = &pool {
+        sqlx::query("INSERT INTO tbl_xpub(id, network, xpub) VALUES(1, 'testnet', 'tpub_test')")
+            .execute(p)
+            .await
             .unwrap();
-        stmt.bind((1, Value::String(addr.to_string()))).unwrap();
-        stmt.bind((2, Value::String("m/0/1".to_string()))).unwrap();
-        stmt.bind((3, Value::Integer(1))).unwrap();
-        let _ = stmt.next();
-        drop(stmt);
+
+        for addr in ["addr1", "addr2", "addr3"] {
+            sqlx::query("INSERT INTO tbl_address(address, path, xpub) VALUES(?, 'm/0/1', 1)")
+                .bind(addr)
+                .execute(p)
+                .await
+                .unwrap();
+        }
     }
-    db
+
+    pool
 }
 
-#[test]
-fn test_get_all_addresses_by_xpub_returns_known() {
-    let db = setup_db_with_xpub();
-    let addresses = get_all_addresses_by_xpub(&db, "tpub_test").unwrap();
+#[tokio::test]
+async fn test_get_all_addresses_by_xpub_returns_known() {
+    let pool = setup_db_with_xpub().await;
+    let addresses = get_all_addresses_by_xpub(&pool, "tpub_test").await.unwrap();
     assert!(addresses.contains("addr1"));
     assert!(addresses.contains("addr2"));
     assert!(addresses.contains("addr3"));
     assert_eq!(addresses.len(), 3);
 }
 
-#[test]
-fn test_get_all_addresses_by_xpub_empty_for_missing() {
-    let db = setup_db_with_xpub();
-    let addresses = get_all_addresses_by_xpub(&db, "tpub_nonexistent").unwrap();
+#[tokio::test]
+async fn test_get_all_addresses_by_xpub_empty_for_missing() {
+    let pool = setup_db_with_xpub().await;
+    let addresses = get_all_addresses_by_xpub(&pool, "tpub_nonexistent")
+        .await
+        .unwrap();
     assert!(addresses.is_empty());
 }
 
 #[test]
 fn test_network_unknown_returns_404() {
-    // This is a code-level check; the actual HTTP test requires actix-web setup.
-    // Verify that the NETWORKS constant includes the expected set.
     let networks = ["bitcoin", "testnet", "testnet4", "signet", "regtest"];
     for n in networks {
         assert!(networks.contains(&n), "{} should be a valid network", n);

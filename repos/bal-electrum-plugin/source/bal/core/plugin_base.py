@@ -24,12 +24,13 @@ This module performs **no** GUI work and imports nothing from PyQt / electrum.gu
 import json
 import os
 import platform
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from electrum import constants, json_db
 from electrum.logging import get_logger
 from electrum.plugin import BasePlugin
 from electrum.transaction import tx_from_any
+from electrum.util import classproperty
 
 _logger = get_logger(__name__)
 
@@ -169,9 +170,12 @@ class BalPlugin(BasePlugin):
     }
 
     # Human-readable chain name ("bitcoin", "testnet", "regtest", ...).
-    chainname = (
-        constants.net.NET_NAME if constants.net.NET_NAME != "mainnet" else "bitcoin"
-    )
+    # Must be a classproperty (not a plain class attribute) because the class
+    # is defined before constants.net is set to the correct network — a plain
+    # attribute would capture "bitcoin" and never update.
+    @classproperty
+    def chainname(cls):
+        return constants.net.NET_NAME if constants.net.NET_NAME != "mainnet" else "bitcoin"
 
     # Default geometry hint for some dialogs (kept from the original code).
     SIZE = (159, 97)
@@ -258,6 +262,16 @@ class BalPlugin(BasePlugin):
         # the wallet DB: no rebuild dialog, no auto-sign/broadcast, no
         # invalidation prompts at close. Default ON.
         self.REBUILD_ON_CLOSE = BalConfig(config, "bal_rebuild_on_close", True)
+
+        # AUTO_REBUILD: when enabled, an incoming/outgoing wallet transaction
+        # automatically re-runs the same rebuild flow the wizard runs at
+        # wallet close (anticipate the delivery date by one day to orphan the
+        # previous will; build an on-chain invalidation tx ONLY when the
+        # anticipated locktime would fall before the check-alive threshold or
+        # the threshold is already in the past). When disabled (default) the
+        # will is only rebuilt when the user presses Check / Prepare or closes
+        # the wallet. Default OFF.
+        self.AUTO_REBUILD = BalConfig(config, "bal_auto_rebuild", False)
 
         # EDITABLE_DATES (Group C / C2): when enabled, the delivery-time and
         # check-alive date fields are editable everywhere (toolbar / Heirs tab),
@@ -446,8 +460,8 @@ class BalPlugin(BasePlugin):
     def default_will_settings_absolute():
         """Convert the default relative dates into absolute timestamps (from today)."""
         relative_dates = BalPlugin.default_will_settings_relative()
-        today = date.today()
-        dt = datetime(today.year, today.month, today.day, 0, 0, 0)
+        today = datetime.now(tz=timezone.utc).date()
+        dt = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc)
         threshold = (
             dt + timedelta(days=BalTimestamp(relative_dates["threshold"]).duration_to_days())
         ).timestamp()
@@ -507,12 +521,12 @@ class BalTimestamp:
         """
         int32_max = 2 ** 31 - 1
         try:
-            return datetime.fromtimestamp(ts)
+            return datetime.fromtimestamp(ts, tz=timezone.utc)
         except (OSError, OverflowError, ValueError):
             try:
-                return datetime.fromtimestamp(min(int(ts), int32_max))
+                return datetime.fromtimestamp(min(int(ts), int32_max), tz=timezone.utc)
             except (OSError, OverflowError, ValueError):
-                return datetime.fromtimestamp(int32_max)
+                return datetime.fromtimestamp(int32_max, tz=timezone.utc)
 
     def to_date(self, from_date=None, reverse=False):
         """Resolve to a ``datetime``.
@@ -525,7 +539,7 @@ class BalTimestamp:
             return self._safe_fromtimestamp(self.value)
         else:
             if from_date is None:
-                from_date = datetime.now()
+                from_date = datetime.now(tz=timezone.utc)
             if isinstance(from_date, (int, float)):
                 from_date = self._safe_fromtimestamp(from_date)
             reverse = 1 if not reverse else -1

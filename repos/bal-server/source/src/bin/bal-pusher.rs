@@ -10,7 +10,6 @@ use log::{debug, error, info, trace, warn};
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
-use sqlite::{Connection, Value};
 use std::collections::HashMap;
 use std::env;
 use std::error::Error as StdError;
@@ -18,18 +17,21 @@ use std::str;
 use std::{thread, time::Duration};
 use zmq::{Context, Socket};
 
-use bal_server::db::open_db;
+use bal_server::db::{calculate_and_upsert_stats, get_pending_txs, open_database};
 use bal_server::validation::is_valid_welist_url;
 use base64::{Engine as _, engine::general_purpose};
 use reqwest::Client as rClient;
 use std::net::SocketAddr;
 use url::Url;
 
-const LOCKTIME_THRESHOLD: i64 = 5000000;
+// BIP-65: locktime values below this are block heights, at or above are UNIX timestamps.
+const LOCKTIME_THRESHOLD: i64 = 500_000_000;
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct MyConfig {
+    db_backend: String,
     db_file: String,
+    pg_dsn: String,
     bitcoin_dir: String,
     regtest: NetworkParams,
     testnet: NetworkParams,
@@ -44,7 +46,9 @@ struct MyConfig {
 impl Default for MyConfig {
     fn default() -> Self {
         MyConfig {
+            db_backend: env::var("BAL_PUSHER_DB_BACKEND").unwrap_or("sqlite".to_string()),
             db_file: env::var("BAL_PUSHER_DB_FILE").unwrap_or("bal.db".to_string()),
+            pg_dsn: env::var("BAL_PUSHER_PG_DSN").unwrap_or_default(),
             bitcoin_dir: env::var("BAL_PUSHER_BITCOIN_DIR").unwrap_or("".to_string()),
             regtest: get_network_params_default(Network::Regtest),
             testnet: get_network_params_default(Network::Testnet),
@@ -206,114 +210,79 @@ async fn main_result(cfg: &MyConfig, network_params: &NetworkParams) -> Result<(
         Ok((rpc, bcinfo)) => {
             info!("connected");
             info!("median time: {}", bcinfo.median_time);
-            //info!("height time: {}",bcinfo.median_time);
             info!("blocks: {}", bcinfo.blocks);
             debug!("best block hash: {}", bcinfo.best_block_hash);
 
             let average_time = bcinfo.median_time;
-            let db = match open_db(&cfg.db_file) {
-                Ok(c) => c,
+
+            let connection_string = match cfg.db_backend.as_str() {
+                "sqlite" => cfg.db_file.clone(),
+                "postgresql" => cfg.pg_dsn.clone(),
+                other => {
+                    error!("Unknown DB backend: {}", other);
+                    return Ok(());
+                }
+            };
+
+            let db = match open_database(&cfg.db_backend, &connection_string).await {
+                Ok(pool) => pool,
                 Err(e) => {
                     error!("Fatal: {}", e);
                     std::process::exit(1);
                 }
             };
-            info!("db open {}", &cfg.db_file);
+            info!("db open {}", &connection_string);
 
-            let sqlquery = "SELECT  * FROM tbl_tx WHERE network = :network AND status = :status AND ( locktime < :bestblock_height  OR locktime > :locktime_threshold AND locktime < :bestblock_time);";
-            let query_tx = match db.prepare(sqlquery) {
-                Ok(q) => q.into_iter(),
+            let pending_txs = match get_pending_txs(
+                &db,
+                &network_params.db_field,
+                LOCKTIME_THRESHOLD,
+                bcinfo.blocks as i64,
+                average_time as i64,
+            )
+            .await
+            {
+                Ok(txs) => txs,
                 Err(e) => {
-                    warn!("tbl_tx not ready yet (tables may not exist): {}", e);
+                    warn!("Failed to query pending transactions: {}", e);
                     return Ok(());
                 }
             };
-            trace!("query_tx: {}", sqlquery);
-            trace!(":locktime_threshold: {}", LOCKTIME_THRESHOLD);
-            trace!(":bestblock_time: {}", average_time);
-            trace!(":bestblock_height: {}", bcinfo.blocks);
-            trace!(":network: {}", network_params.db_field.clone());
-            trace!(":status: {}", 0);
-            //let query_tx = db.prepare("SELECT * FROM tbl_tx where status = :status").unwrap().into_iter();
+
             let mut pushed_txs: Vec<String> = Vec::new();
-            let mut invalid_txs: std::collections::HashMap<String, String> = HashMap::new();
-            for row_result in match query_tx.bind::<&[(_, Value)]>(
-                &[
-                    (":locktime_threshold", LOCKTIME_THRESHOLD.into()),
-                    (":bestblock_time", (average_time as i64).into()),
-                    (":bestblock_height", (bcinfo.blocks as i64).into()),
-                    (":network", network_params.db_field.clone().into()),
-                    (":status", 0.into()),
-                ][..],
-            ) {
-                Ok(bound) => bound,
-                Err(e) => {
-                    error!("Failed to bind query parameters: {}", e);
-                    return Ok(());
-                }
-            } {
-                let row = match row_result {
-                    Ok(r) => r,
-                    Err(e) => {
-                        warn!("Failed to read row: {}", e);
-                        continue;
-                    }
-                };
-                let tx = row.read::<&str, _>("tx");
-                let txid = row.read::<&str, _>("txid");
-                let locktime = row.read::<i64, _>("locktime");
+            let mut invalid_txs: HashMap<String, String> = HashMap::new();
+
+            for row in &pending_txs {
+                let txid = &row.txid;
+                let tx = &row.tx;
+                let locktime = row.locktime;
                 info!("to be pushed: {}: {}", txid, locktime);
-                match rpc.send_raw_transaction(tx) {
+                match rpc.send_raw_transaction(tx.as_str()) {
                     Ok(o) => {
                         info!("tx: {} pusshata PUSHED\n{}", txid, o);
-                        pushed_txs.push(txid.to_string());
+                        pushed_txs.push(txid.clone());
                     }
                     Err(err) => {
                         warn!("Error: {}\n{}", err, txid);
-                        //store err in invalid_txs
-                        invalid_txs.insert(txid.to_string(), err.to_string());
+                        invalid_txs.insert(txid.clone(), err.to_string());
                     }
                 };
             }
 
             for txid in &pushed_txs {
-                let sql = "UPDATE tbl_tx SET status = 1 WHERE txid = ?";
-                match db.prepare(sql) {
-                    Ok(mut stmt) => {
-                        if let Err(e) = stmt.bind((1, Value::String(txid.clone()))) {
-                            error!("Failed to bind txid for status update: {}", e);
-                            continue;
-                        }
-                        let _ = stmt.next();
-                    }
-                    Err(e) => {
-                        error!("Failed to prepare status update: {}", e);
-                    }
+                if let Err(e) = bal_server::db::update_tx_status(&db, txid, 1, None).await {
+                    error!("Failed to update tx status: {}", e);
                 }
             }
             for (txid, txerr) in &invalid_txs {
-                let sql = "UPDATE tbl_tx SET status = 2, push_err = ? WHERE txid = ?";
-                match db.prepare(sql) {
-                    Ok(mut stmt) => {
-                        if let Err(e) = stmt.bind((1, Value::String(txerr.clone()))) {
-                            error!("Failed to bind txerr for error update: {}", e);
-                            continue;
-                        }
-                        if let Err(e) = stmt.bind((2, Value::String(txid.clone()))) {
-                            error!("Failed to bind txid for error update: {}", e);
-                            continue;
-                        }
-                        let _ = stmt.next();
-                    }
-                    Err(e) => {
-                        error!("Failed to prepare error update: {}", e);
-                    }
+                if let Err(e) = bal_server::db::update_tx_status(&db, txid, 2, Some(txerr)).await {
+                    error!("Failed to update tx status: {}", e);
                 }
             }
             if let Err(e) = send_stats_report(cfg, bcinfo).await {
                 error!("send_stats_report failed: {}", e);
             }
-            if let Err(e) = calculate_stats(&db, network_params.db_field.clone()).await {
+            if let Err(e) = calculate_and_upsert_stats(&db, &network_params.db_field).await {
                 warn!("calculate_stats failed: {e}");
             }
         }
@@ -325,65 +294,8 @@ async fn main_result(cfg: &MyConfig, network_params: &NetworkParams) -> Result<(
     }
     Ok(())
 }
-async fn calculate_stats(db: &Connection, chain: String) -> Result<(), reqwest::Error> {
-    // Validate chain to prevent SQL injection via environment variable tampering
-    if !chain
-        .chars()
-        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-        || chain.is_empty()
-    {
-        error!("Invalid chain name: {chain}");
-        return Ok(());
-    }
-    //let sql = "drop table if exists tbl_stats;";
-    let sql = format!("DELETE FROM tbl_stats WHERE chain = '{chain}';");
-    if let Err(err) = db.execute(&sql) {
-        error!("error deleting from tbl_stats where chain:{chain} error: {err}");
-    }
-    let sql = format!(
-        "INSERT INTO tbl_stats (
-  report_date, chain, totals, waiting, sent, failed,
-  waiting_profit, sent_profit, missed_profit, unique_inputs
-)
-VALUES (
-  CURRENT_TIMESTAMP,
-  '{chain}',
-  (SELECT COUNT(*) FROM tbl_tx WHERE network = '{chain}'),
-  (SELECT COUNT(*) FROM tbl_tx WHERE status = 0 AND network = '{chain}'),
-  (SELECT COUNT(*) FROM tbl_tx WHERE status = 1 AND network = '{chain}'),
-  (SELECT COUNT(*) FROM tbl_tx WHERE status = 2 AND network = '{chain}'),
-  (SELECT IFNULL(SUM(our_fees),0) FROM tbl_tx WHERE status = 0 AND network = '{chain}'),
-  (SELECT IFNULL(SUM(our_fees),0) FROM tbl_tx WHERE status = 1 AND network = '{chain}'),
-  (SELECT IFNULL(SUM(our_fees),0) FROM tbl_tx WHERE status = 2 AND network = '{chain}'),
-  (SELECT COUNT(DISTINCT tbl_inp.in_txid)
-     FROM tbl_inp
-     JOIN tbl_tx ON tbl_inp.txid = tbl_tx.txid
-     WHERE tbl_tx.status = 0 AND tbl_tx.network = '{chain}')
-)
-ON CONFLICT(chain) DO UPDATE SET
-  report_date = excluded.report_date,
-  totals = excluded.totals,
-  waiting = excluded.waiting,
-  sent = excluded.sent,
-  failed = excluded.failed,
-  waiting_profit = excluded.waiting_profit,
-  sent_profit = excluded.sent_profit,
-  missed_profit = excluded.missed_profit,
-  unique_inputs = excluded.unique_inputs;
-  "
-    );
 
-    if let Err(err) = db.execute(&sql) {
-        error!("error inserting creating stats table {err}");
-    } else {
-        info!("tbl_stats creation success");
-    }
-    Ok(())
-}
 /// Parse the `(host, port)` pair from a base URL like `https://host[:port]`.
-///
-/// Falls back to the scheme's well-known default port (443 for `https`,
-/// 80 for plain `http`), or to 443 when the scheme is unknown.
 fn parse_host_port(base_url: &str) -> Option<(String, u16)> {
     let url = Url::parse(base_url).ok()?;
     let host = url
@@ -396,8 +308,6 @@ fn parse_host_port(base_url: &str) -> Option<(String, u16)> {
 }
 
 /// Resolve `host:port` and return the first IPv6 (AAAA) address, if any.
-///
-/// Returns `None` when the host has no IPv6 address.
 async fn resolve_first_ipv6(host: &str, port: u16) -> Option<SocketAddr> {
     use std::net::ToSocketAddrs;
     let host = host.to_string();
@@ -412,14 +322,6 @@ async fn resolve_first_ipv6(host: &str, port: u16) -> Option<SocketAddr> {
     .flatten()
 }
 
-/// Build the HTTP client used for welist reports.
-///
-/// When `BAL_PUSHER_PREFER_IPV6` is truthy, the welist host is resolved and
-/// the client is pinned to its first IPv6 address (the original hostname is
-/// still used for the `Host` header and TLS SNI). This works around networks
-/// where the IPv4 route to the welist host is broken while IPv6 works: the
-/// default connector may otherwise pick the broken family and the request
-/// stalls. When the variable is unset (the default), behavior is unchanged.
 async fn welist_http_client(welist_url: &str) -> rClient {
     let prefer_ipv6 = env::var("BAL_PUSHER_PREFER_IPV6")
         .unwrap_or("false".to_string())
@@ -521,6 +423,15 @@ fn sign_message(private_key_path: &str, message: &str) -> String {
 }
 
 fn parse_env(cfg: &mut MyConfig) {
+    if let Ok(value) = env::var("BAL_PUSHER_DB_BACKEND") {
+        cfg.db_backend = value;
+    }
+    if let Ok(value) = env::var("BAL_PUSHER_DB_FILE") {
+        cfg.db_file = value;
+    }
+    if let Ok(value) = env::var("BAL_PUSHER_PG_DSN") {
+        cfg.pg_dsn = value;
+    }
     cfg.regtest = parse_env_netconfig(cfg, "regtest");
     cfg.signet = parse_env_netconfig(cfg, "signet");
     cfg.testnet = parse_env_netconfig(cfg, "testnet");
@@ -528,7 +439,6 @@ fn parse_env(cfg: &mut MyConfig) {
     drop(parse_env_netconfig(cfg, "bitcoin"));
 }
 fn parse_env_netconfig(cfg_lock: &mut MyConfig, chain: &str) -> NetworkParams {
-    //fn parse_env_netconfig(cfg_lock: &MutexGuard<MyConfig>, chain: &str) ->  &NetworkParams{
     let cfg = match chain {
         "regtest" => &mut cfg_lock.regtest,
         "signet" => &mut cfg_lock.signet,

@@ -20,7 +20,7 @@ hex = 			{ version = "0.4.3" }
 log = 			{ version = "0.4.21" }
 serde = 		{ version = "1.0.152", features = ["derive"] }
 serde_json = 		{ version = "1.0.116" }
-sqlite = 		{ version = "0.34.0" }
+sqlx = 			{ version = "0.8", features = ["runtime-tokio", "sqlite", "postgres", "chrono"] }
 regex = 		{ version = "1.10.4" }
 tokio = 		{ version = "1", features = ["rt", "net","macros","rt-multi-thread"] }
 url = 			{ version = "2" }

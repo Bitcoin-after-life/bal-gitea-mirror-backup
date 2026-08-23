@@ -1,39 +1,51 @@
-.gitsecret/keys/random_seed
-!*.secret
-
-# Environment files - NEVER commit tokens or secrets
-*.env
+# Secrets and environment files - NEVER commit
 .env
-.env.local
-.env.production
-.env.secret
-
-
-# Private keys - NEVER commit to git
-# Only public_key.pem should be tracked (if needed)
+.env.*
+!.env.example
 *.pem
 !public_key.pem
-data/*.pem
-!data/public_key.pem
 *.key
-!*.secret
-private_key.pem
-privkey.pem
-ec.key
-chiave_privata.key
 
-# Other sensitive files
-bal.db
-.bal.db
-download_bal_db.sh
+# Databases
+*.db
+*.db-shm
+*.db-wal
 
-# IDE files
-*.swp
-*.swo
 # Rust build artifacts
 /target
-Cargo.lock
-!lib/
-!contrib/
-!src/
+
+# Release artifacts
+/releases/
+*.tar.gz
+*.tar.gz.asc
+*.tar.gz.sig
+*.tar.gz.sha256
+bal-server-*/
+
+# Deployment configs (keep in deploy scripts, not in repo)
+bal-server.env
+bal-pusher.env
+bitcoind.service
+tbitcoind.service
+
+# Test data and scratch files
+invalid_txs
+valid_txs
+test
+update
+update_codebase.txt
+
+# Utility scripts (keep local, not in repo)
+sendtx.sh
+lib.sh
+generate_random_ascii.sh
+start_postgres_docker.sh
 make_release.sh
+download_bal_db.sh
+
+# Misc
+*.swp
+*.swo
+src/xpub.rs2
+public_key.pem
+.gitsecret/

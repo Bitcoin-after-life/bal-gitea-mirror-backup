@@ -52,7 +52,7 @@
 **Description:** All DoS vectors mitigated via actix-web migration.
 **Mitigation Applied:**
 - Body size limit: `PayloadConfig::default().limit(max_body_size)` via `BAL_SERVER_ACTIX_MAX_BODY_SIZE` (default 1 MiB).
-- Rate limiting: `actix-governor` with token-bucket per endpoint (`BAL_SERVER_ACTIX_PUSHTXS_PER_SEC`/`BURST`).
+- Rate limiting: `actix-governor` with token-bucket per client IP (`BAL_SERVER_ACTIX_PUSHTXS_PER_SEC`/`BURST`). Uses `RealIpKeyExtractor` to extract real client IP from proxy headers.
 - Connection limits: `workers(4)` and `max_connections(100)` via `BAL_SERVER_ACTIX_WORKERS`/`MAX_CONNECTIONS`.
 - Body timeout: configurable via `BAL_SERVER_ACTIX_TIMEOUT_SECS`.
 - ZMQ timeout: `set_rcvtimeo(5000)` prevents infinite blocking.
@@ -130,7 +130,7 @@
 6. Use read-only filesystem for the server binary.
 
 ### Application-Level
-1. **Rate Limiting:** Implemented via `actix-governor` with per-endpoint token-bucket configuration.
+1. **Rate Limiting:** Implemented via `actix-governor` with token-bucket per client IP. `RealIpKeyExtractor` identifies clients behind reverse proxy using `X-Real-IP` / `X-Forwarded-For` headers. Trusted proxy IP configurable via `BAL_SERVER_TRUSTED_PROXY`.
 2. **Input Validation:** Network enum check, txid hex validation, body size limits.
 3. **HTTPS:** Via Nginx reverse proxy with Let's Encrypt.
 4. **WAL Mode:** Enabled with retry logic for concurrent access.

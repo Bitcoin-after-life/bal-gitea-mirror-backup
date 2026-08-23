@@ -112,6 +112,7 @@ The `bal-server` application can be configured using environment variables.
 | `BAL_SERVER_ACTIX_DEFAULT_BURST` | Rate limit: default burst size. | `100` |
 | `BAL_SERVER_ACTIX_WORKERS` | Number of Actix worker threads. | `4` |
 | `BAL_SERVER_ACTIX_MAX_CONNECTIONS` | Maximum concurrent connections. | `100` |
+| `BAL_SERVER_TRUSTED_PROXY` | Trusted reverse proxy IP for rate-limiting client identification. | `127.0.0.1` |
 
 ---
 

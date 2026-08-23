@@ -830,22 +830,39 @@ items.forEach(d => {
   const apiUrl = 'https://bitcoin-after.life/gitea/api/v1/repos/bitcoinafterlife/bal-electrum-plugin/releases/latest';
   const link = document.getElementById('latest-release-link');
   const sig = document.getElementById('latest-release-sig');
+  const releasesUrl = 'https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases';
   if (!link) return;
   fetch(apiUrl)
     .then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status)))
     .then(data => {
-      if (data && data.tag_name) {
-        const tag = data.tag_name;
-        link.textContent = tag;
-        link.href = 'https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases/download/' + tag + '/bal_electrum_plugin_' + tag + '.zip';
-        if (sig) {
-          sig.href = 'https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin/releases/download/' + tag + '/bal_electrum_plugin_' + tag + '.zip.sig';
+      if (!data || !data.tag_name) return;
+      link.textContent = data.tag_name;
+
+      const assets = data.assets || [];
+      // Take the real zip asset straight from the API instead of
+      // rebuilding its name from a fixed template. The publisher does
+      // not always use the same filename (e.g. "bal_electrum_plugin_v0.6.0.zip"
+      // vs "bal_v0.6.1.zip"), so any reconstructed name eventually breaks.
+      const zipAsset = assets.find(a => /\.zip$/i.test(a.name));
+      const sigAsset = assets.find(a => /\.zip\.(sig|asc)$/i.test(a.name));
+
+      // If no zip asset is found, fall back to the releases page so the
+      // link is never dead.
+      link.href = zipAsset ? zipAsset.browser_download_url : releasesUrl;
+
+      if (sig) {
+        if (sigAsset) {
+          sig.href = sigAsset.browser_download_url;
           sig.style.display = 'inline';
+        } else {
+          sig.style.display = 'none';
         }
       }
     })
     .catch(err => {
       console.error('Failed to fetch latest release:', err);
+      link.href = releasesUrl;
+      if (sig) sig.style.display = 'none';
     });
 })();
 </script>
