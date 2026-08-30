@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why We Built BAL as an Electrum Plugin — and Why Timelocks Remove the Need for Trust — Bitcoin After Life</title>
+<meta name="description" content="Signing is the most security-critical operation in Bitcoin, so BAL never signs. How building on Electrum and on nLocktime replaces trust with consensus rules and on-chain incentives.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Bitcoin After Life">
+<meta property="og:title" content="Why We Built BAL as an Electrum Plugin — and Why Timelocks Remove the Need for Trust — Bitcoin After Life">
+<meta property="og:description" content="Signing is the most security-critical operation in Bitcoin, so BAL never signs. How building on Electrum and on nLocktime replaces trust with consensus rules and on-chain incentives.">
+<meta property="og:url" content="https://bitcoin-after.life/blog/why-electrum-and-timelocks.html">
+<meta property="og:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@BitcoinAfterLif">
+<meta name="twitter:title" content="Why We Built BAL as an Electrum Plugin — and Why Timelocks Remove the Need for Trust — Bitcoin After Life">
+<meta name="twitter:description" content="Signing is the most security-critical operation in Bitcoin, so BAL never signs. How building on Electrum and on nLocktime replaces trust with consensus rules and on-chain incentives.">
+<meta name="twitter:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta name="theme-color" content="#2d6cdf">
+<link rel="canonical" href="https://bitcoin-after.life/blog/why-electrum-and-timelocks.html">
+<link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/pitura/ico/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/pitura/ico/favicon-16.png">
+<script>
+/* Runs before first paint: removes the `nojs` class set on <html>, so the
+   mobile menu button is only shown when it can actually work. */
+document.documentElement.classList.remove('nojs');
+</script>
+<style>
+:root{
+  --maxw:1120px;
+  --radius:10px;
+  --bg:#eef1f4;
+  --panel:#ffffff;
+  --ink:#1a2027;
+  --muted:#5b6672;
+  --line:#dfe4ea;
+  --line-strong:#cbd2da;
+  --accent:#2d6cdf;
+  --accent-soft:#e6eefc;
+  --display:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(20,30,50,.05);
+  --shadow-lg:0 6px 20px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- Top bar (shared with home and manifesto) ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(150%) blur(8px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.topbar .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);
+  font-weight:600;color:var(--ink)}
+.topbar .logo img{width:30px;height:30px;display:block}
+.topbar .logo span{font-size:15px;letter-spacing:-.01em}
+.topbar nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:13px;padding:7px 11px;border-radius:7px}
+.topbar nav a:hover{color:var(--ink);background:var(--accent-soft);text-decoration:none}
+.topbar nav a.active{color:var(--accent);font-weight:600;border:1px solid #cfe0fb;
+  background:var(--accent-soft)}
+.topbar .x{color:var(--ink);font-weight:600}
+
+.navtoggle{
+  display:none;margin-left:auto;width:44px;height:44px;flex:none;
+  align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:9px;
+  color:var(--ink);cursor:pointer;padding:0;
+}
+.navtoggle:hover{border-color:var(--accent);color:var(--accent)}
+.navtoggle .bars{display:block;width:18px;height:2px;background:currentColor;position:relative}
+.navtoggle .bars::before,.navtoggle .bars::after{
+  content:"";position:absolute;left:0;width:18px;height:2px;background:currentColor}
+.navtoggle .bars::before{top:-6px}
+.navtoggle .bars::after{top:6px}
+.navtoggle[aria-expanded="true"] .bars{background:transparent}
+.navtoggle[aria-expanded="true"] .bars::before{top:0;transform:rotate(45deg)}
+.navtoggle[aria-expanded="true"] .bars::after{top:0;transform:rotate(-45deg)}
+
+/* ---------- Footer (shared) ---------- */
+footer{border-top:1px solid var(--line);margin-top:56px;padding:34px 0 40px;
+  color:var(--muted);font-size:14px;background:var(--panel)}
+footer .sig{font-family:var(--display);font-weight:600;color:var(--ink);font-size:16px}
+footer .links{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0}
+footer .built{font-size:13px;color:var(--muted);margin-top:8px}
+
+@media (max-width:900px){
+  .navtoggle{display:inline-flex}
+  .topbar nav{
+    position:absolute;top:100%;left:0;right:0;
+    margin-left:0;display:none;flex-direction:column;gap:2px;flex-wrap:nowrap;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    box-shadow:var(--shadow-lg);padding:10px 20px 16px;
+  }
+  .topbar nav.open{display:flex}
+  .topbar nav a{font-size:15.5px;padding:0 12px;min-height:44px;
+    display:flex;align-items:center;border-radius:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/*
+  Without JavaScript the panel cannot be toggled, so the links are shown
+  inline. On narrow screens they wrap under the logo and the bar is allowed
+  to grow, instead of being clipped by the fixed 60px height.
+*/
+.nojs .navtoggle{display:none}
+.nojs .topbar nav{position:static;display:flex;flex-direction:row;flex-wrap:wrap;
+  box-shadow:none;border-bottom:0;padding:0;margin-left:auto;background:transparent}
+@media (max-width:900px){
+  .nojs .topbar .wrap{height:auto;min-height:56px;flex-wrap:wrap;padding-bottom:8px;gap:10px}
+  .nojs .topbar nav{margin-left:0;width:100%;gap:4px 6px}
+  .nojs .topbar nav a{font-size:14.5px;min-height:40px;padding:0 10px;
+    display:flex;align-items:center;border:1px solid var(--line);border-radius:8px}
+}
+
+.post-head{padding:44px 0 30px;border-bottom:1px solid var(--line);
+  background:radial-gradient(820px 280px at 50% -40%,var(--accent-soft),transparent 70%)}
+.post-head .wrap{max-width:760px}
+.post-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+.post-head h1{font-family:var(--display);font-weight:600;font-size:40px;
+  letter-spacing:-.02em;line-height:1.12;margin:0 0 14px}
+.post-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  font-size:13px;color:var(--muted)}
+.post-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--line-strong)}
+
+.article{max-width:760px;margin:0 auto;padding:34px 20px 8px}
+.article p{font-size:17px;line-height:1.8;color:#36404b;margin:0 0 20px}
+.article p strong{color:var(--ink);font-weight:600}
+.article h2{font-family:var(--display);font-weight:600;font-size:25px;
+  letter-spacing:-.01em;margin:38px 0 14px;padding-bottom:10px;
+  border-bottom:1px solid var(--line-strong)}
+.article ol{padding-left:22px;margin:0 0 20px}
+.article li{font-size:17px;line-height:1.8;color:#36404b;margin-bottom:14px}
+.article li strong{color:var(--ink);font-weight:600}
+.article figure{margin:30px 0}
+.article figure img{width:100%;height:auto;display:block;border-radius:var(--radius);
+  border:1px solid var(--line);box-shadow:var(--shadow)}
+.article hr{border:0;border-top:1px solid var(--line-strong);margin:34px 0 22px}
+.article .disclaimer{font-size:14px;color:var(--muted);font-style:italic;line-height:1.7}
+
+/*
+  Inline code and the comparison table: this post is the first to need them.
+  Both reuse the existing palette tokens so nothing new is introduced visually.
+*/
+.article code{font-family:var(--mono);font-size:.9em;background:var(--accent-soft);
+  color:var(--ink);padding:2px 6px;border-radius:5px}
+/* The wrapper scrolls on narrow screens so the page body never scrolls sideways. */
+.article .tablewrap{overflow-x:auto;margin:0 0 22px;-webkit-overflow-scrolling:touch}
+.article table{width:100%;border-collapse:collapse;font-size:15.5px;min-width:480px}
+.article th,.article td{text-align:left;padding:11px 14px;border:1px solid var(--line);
+  line-height:1.6;color:#36404b;vertical-align:top}
+.article th{font-family:var(--display);font-weight:600;color:var(--ink);
+  background:var(--accent-soft)}
+
+.back{max-width:760px;margin:26px auto 0;padding:0 20px 8px}
+.back a{font-size:14px;font-weight:600}
+
+@media (max-width:700px){
+  .post-head{padding:30px 0 24px}
+  .post-head h1{font-size:29px}
+  .article{padding:28px 18px 8px}
+  .article h2{font-size:22px;margin-top:32px}
+  .article figure{margin:24px -18px}
+  .article figure img{border-radius:0;border-left:0;border-right:0}
+}
+@media (max-width:400px){
+  .post-head h1{font-size:25px}
+  .wrap{padding:0 15px}
+  .article{padding:24px 16px 8px}
+  .article figure{margin:22px -16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <a class="logo" href="../index.html"><img src="../pitura/logo/Logo_nero.svg" alt="Bitcoin After Life logo"><span translate="no">Bitcoin After Life</span></a>
+    <button class="navtoggle" id="navToggle" type="button"
+            aria-expanded="false" aria-controls="mainNav" aria-label="Open menu">
+      <span class="bars"></span>
+    </button>
+    <nav id="mainNav">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#how">How it works</a>
+      <a href="../index.html#plugin">Plugin</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a class="active" href="../blog.html">Blog</a>
+      <a href="../manifesto.html">Manifesto</a>
+      <a class="x" href="https://x.com/BitcoinAfterLif" title="@BitcoinAfterLif on X">@X</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+<header class="post-head">
+  <div class="wrap">
+    <span class="eyebrow">Blog</span>
+    <h1>Why We Built BAL as an Electrum Plugin — and Why Timelocks Remove the Need for Trust</h1>
+    <div class="post-meta">
+      <time datetime="2026-08-23">23 August 2026</time>
+      <span class="dot"></span>
+      <span translate="no">Bitcoin After Life</span>
+      <span class="dot"></span>
+      <span>4 min read</span>
+    </div>
+  </div>
+</header>
+
+<article class="article">
+<figure>
+<img src="img/why-electrum-and-timelocks.webp" width="1600" height="900" loading="lazy" alt="Temporal Seal — a padlock shaped like a clock holding a signed Bitcoin document">
+</figure>
+
+<p>When people first hear about <span translate="no">Bitcoin After Life</span>, two questions arrive almost immediately. The first: <em>"Why a plugin for Electrum instead of your own wallet?"</em> The second: <em>"And why should I trust these Will-Executor servers with my inheritance?"</em></p>
+<p>Both questions have the same answer, and it is the design philosophy at the core of the whole protocol: <strong>don't ask people to trust you — build a system where trust is not required.</strong></p>
+
+<h2>Why Electrum: signing is sacred</h2>
+<p>The single most security-critical operation in Bitcoin is signing a transaction. Everything else — addresses, balances, broadcasting — is public and verifiable. Signing is where your private keys touch the world, and it is where wallets live or die.</p>
+<p>Electrum has been signing Bitcoin transactions since 2011. It is one of the oldest, most audited, most battle-tested pieces of software in the entire ecosystem. It supports hardware wallets, it works offline for air-gapped signing, and millions of users have stress-tested it against every edge case imaginable for over a decade.</p>
+<p>Building a new wallet from scratch would have meant asking users to trust <em>our</em> signing code with <em>their</em> life savings. We refused. The BAL plugin never signs anything. It builds the transaction, shows it to you, and then asks Electrum — your Electrum, with your keys, your password, your hardware wallet — to sign it. The plugin asks; you decide. Your keys never leave your device, and the signing process is entirely independent of BAL.</p>
+<p>This choice also shrinks the attack surface dramatically: BAL's code handles no secrets, so there is nothing in it worth stealing.</p>
+
+<h2>Why timelocks: consensus, not promises</h2>
+<p>The second pillar is <code>nLocktime</code>, a feature built into the Bitcoin protocol itself since the very beginning.</p>
+<p>A time-locked transaction is a normal, fully signed Bitcoin transaction with one special property: it carries a timestamp, and <strong>Bitcoin nodes will reject it until that moment arrives</strong>. Not "should reject" — <em>will</em> reject. It is not a policy of any company or server. It is a consensus rule, enforced by the same mathematics that prevents double-spending.</p>
+<p>This changes the entire trust equation of inheritance:</p>
+<ul style="padding-left:22px">
+<li><strong>No one can execute your will early.</strong> Not an impatient heir, not a compromised server, not a bug. Before the delivery date, the transaction simply does not exist as far as the network is concerned.</li>
+<li><strong>No one can alter it.</strong> The transaction is already fully signed by your key. Changing a single satoshi would invalidate the signature.</li>
+<li><strong>No one can steal with it.</strong> The outputs are fixed at signing time: your heirs' addresses and the executor's fee. A Will-Executor holding the transaction holds something that can only ever pay <em>your</em> chosen destinations.</li>
+</ul>
+
+<h2>What Will-Executors actually are (and are not)</h2>
+<p>With timelocks in place, the role of the Will-Executor becomes almost boring — and that is precisely the point. A Will-Executor server does exactly two things:</p>
+<ol>
+<li><strong>Store</strong> your signed, time-locked transaction.</li>
+<li><strong>Broadcast</strong> it to the Bitcoin network when the delivery date arrives.</li>
+</ol>
+<p>It cannot peek at the future, cannot modify the transaction, cannot redirect the funds. It is closer to an automated mailbox than to a bank. And its incentive to behave is not reputational or legal — it is <strong>on-chain</strong>: each inheritance transaction includes a fee for the executor, which is only paid when the transaction confirms. The server earns nothing unless the inheritance executes exactly as you designed it.</p>
+<p>Redundancy completes the picture. The plugin creates one transaction per selected Will-Executor, drawn from the public WeList directory. Only one of them needs to still be operating on the delivery date for your will to execute. The first to broadcast wins the fee — a built-in race that keeps every executor honest and punctual.</p>
+
+<h2>Trust, deleted</h2>
+<p>The history of crypto is littered with "trust us" — trusted exchanges, trusted custodians, trusted recovery services — and with the wreckage left when that trust broke. BAL's architecture is an attempt to delete the word entirely:</p>
+<div class="tablewrap">
+<table>
+<thead>
+<tr><th>Concern</th><th>Traditional answer</th><th>BAL's answer</th></tr>
+</thead>
+<tbody>
+<tr><td>Who holds my keys?</td><td>A custodian</td><td>Only you, in Electrum</td></tr>
+<tr><td>Who controls the timing?</td><td>A court</td><td>Bitcoin consensus (<code>nLocktime</code>)</td></tr>
+<tr><td>Who executes the will?</td><td>A lawyer</td><td>A redundant network of incentivized servers</td></tr>
+<tr><td>What stops abuse?</td><td>Legal liability</td><td>Mathematics and game theory</td></tr>
+</tbody>
+</table>
+</div>
+<p>If you are the kind of person who verifies instead of trusting — and if you hold your own keys, you probably are — both the plugin and the server are open source, MIT-licensed, and waiting for your review on our <a href="https://bitcoin-after.life/gitea/bitcoinafterlife" target="_blank" rel="noopener">Gitea</a>. The full protocol walkthrough is in the <a href="https://bitcoin-after.life/docs/protocol/how-it-works.html" target="_blank" rel="noopener">manual</a>, and we recommend everyone starts on testnet.</p>
+<p>Don't trust. Verify. Then, and only then, plan.</p>
+</article>
+
+<div class="back">
+  <a href="../blog.html">← Back to the blog</a>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="sig">Svātantrya</div>
+    <div>Signed — <span translate="no">Bitcoin After Life</span> Protocol</div>
+    <div class="links">
+      <a href="https://bitcoin-after.life">bitcoin-after.life</a>
+      <a href="mailto:info@bitcoin-after.life">info@bitcoin-after.life</a>
+      <a href="https://x.com/BitcoinAfterLif">@BitcoinAfterLif</a>
+      <a href="https://bitcoin-after.life/pgp">PGP Key</a>
+      <a href="https://bitcoin-after.life/gitea/bitcoinafterlife">Source Code</a>
+    </div>
+    <div class="built">Built with ₿itcoin. No FIAT was used in the making of this protocol.</div>
+  </div>
+</footer>
+
+<script>
+/* Mobile menu toggle -- identical behaviour across all pages. */
+(function () {
+  const toggle = document.getElementById('navToggle');
+  const nav = document.getElementById('mainNav');
+  if (!toggle || !nav) return;
+
+  function setOpen(open) {
+    nav.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+
+  toggle.addEventListener('click', function () {
+    setOpen(!nav.classList.contains('open'));
+  });
+  nav.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') setOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+})();
+</script>
+</body>
+</html>
