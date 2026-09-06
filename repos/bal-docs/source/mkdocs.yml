@@ -42,6 +42,7 @@ extra_css:
 extra_javascript:
   - javascripts/brand-notranslate.js   # keep "Bitcoin After Life" untranslated in Chrome
   - javascripts/nav-section-icons.js   # small Material icon before each nav section title
+  - javascripts/footer-home-link.js    # visible "bitcoin-after.life" text link in the footer
 
 nav:
   - Home: index.md

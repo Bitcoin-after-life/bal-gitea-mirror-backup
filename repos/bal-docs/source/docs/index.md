@@ -44,8 +44,9 @@ You set your heirs and a delivery date. The plugin builds a time-locked transact
 | Resource | Link |
 |---|---|
 | Website | [bitcoin-after.life](https://bitcoin-after.life) |
-| Plugin source & releases | [bal-electrum-plugin](https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin) |
-| Will-Executor server source | [bal-server](https://bitcoin-after.life/gitea/bitcoinafterlife/bal-server) |
-| Public Will-Executor directory | [WeList](https://welist.bitcoin-after.life/) |
-| All repositories | [Gitea](https://bitcoin-after.life/gitea/bitcoinafterlife) |
+| Plugin source & releases | [bitcoin-after.life/gitea/.../bal-electrum-plugin](https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin) |
+| Will-Executor server source | [bitcoin-after.life/gitea/.../bal-server](https://bitcoin-after.life/gitea/bitcoinafterlife/bal-server) |
+| Public Will-Executor directory | [welist.bitcoin-after.life](https://welist.bitcoin-after.life/) |
+| All repositories | [bitcoin-after.life/gitea/bitcoinafterlife](https://bitcoin-after.life/gitea/bitcoinafterlife) |
+| GitHub backup | [github.com/Bitcoin-after-life](https://github.com/Bitcoin-after-life/) |
 | Contact | [info@bitcoin-after.life](mailto:info@bitcoin-after.life) |

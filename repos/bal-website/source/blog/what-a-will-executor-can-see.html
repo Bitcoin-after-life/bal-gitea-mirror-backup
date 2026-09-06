@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Can a Will-Executor Actually See? Privacy in the BAL Protocol — Bitcoin After Life</title>
+<meta name="description" content="A Will-Executor holds one signed, time-locked transaction — nothing else. Exactly what it can see, what it cannot, and why privacy here comes from architecture, not from a policy.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Bitcoin After Life">
+<meta property="og:title" content="What Can a Will-Executor Actually See? Privacy in the BAL Protocol — Bitcoin After Life">
+<meta property="og:description" content="A Will-Executor holds one signed, time-locked transaction — nothing else. Exactly what it can see, what it cannot, and why privacy here comes from architecture, not from a policy.">
+<meta property="og:url" content="https://bitcoin-after.life/blog/what-a-will-executor-can-see.html">
+<meta property="og:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@BitcoinAfterLif">
+<meta name="twitter:title" content="What Can a Will-Executor Actually See? Privacy in the BAL Protocol — Bitcoin After Life">
+<meta name="twitter:description" content="A Will-Executor holds one signed, time-locked transaction — nothing else. Exactly what it can see, what it cannot, and why privacy here comes from architecture, not from a policy.">
+<meta name="twitter:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta name="theme-color" content="#2d6cdf">
+<link rel="canonical" href="https://bitcoin-after.life/blog/what-a-will-executor-can-see.html">
+<link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/pitura/ico/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/pitura/ico/favicon-16.png">
+<script>
+/* Runs before first paint: removes the `nojs` class set on <html>, so the
+   mobile menu button is only shown when it can actually work. */
+document.documentElement.classList.remove('nojs');
+</script>
+<style>
+:root{
+  --maxw:1120px;
+  --radius:10px;
+  --bg:#eef1f4;
+  --panel:#ffffff;
+  --ink:#1a2027;
+  --muted:#5b6672;
+  --line:#dfe4ea;
+  --line-strong:#cbd2da;
+  --accent:#2d6cdf;
+  --accent-soft:#e6eefc;
+  --display:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(20,30,50,.05);
+  --shadow-lg:0 6px 20px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- Top bar (shared with home and manifesto) ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(150%) blur(8px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.topbar .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);
+  font-weight:600;color:var(--ink)}
+.topbar .logo img{width:30px;height:30px;display:block}
+.topbar .logo span{font-size:15px;letter-spacing:-.01em}
+.topbar nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:13px;padding:7px 11px;border-radius:7px}
+.topbar nav a:hover{color:var(--ink);background:var(--accent-soft);text-decoration:none}
+.topbar nav a.active{color:var(--accent);font-weight:600;border:1px solid #cfe0fb;
+  background:var(--accent-soft)}
+.topbar .x{color:var(--ink);font-weight:600}
+
+.navtoggle{
+  display:none;margin-left:auto;width:44px;height:44px;flex:none;
+  align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:9px;
+  color:var(--ink);cursor:pointer;padding:0;
+}
+.navtoggle:hover{border-color:var(--accent);color:var(--accent)}
+.navtoggle .bars{display:block;width:18px;height:2px;background:currentColor;position:relative}
+.navtoggle .bars::before,.navtoggle .bars::after{
+  content:"";position:absolute;left:0;width:18px;height:2px;background:currentColor}
+.navtoggle .bars::before{top:-6px}
+.navtoggle .bars::after{top:6px}
+.navtoggle[aria-expanded="true"] .bars{background:transparent}
+.navtoggle[aria-expanded="true"] .bars::before{top:0;transform:rotate(45deg)}
+.navtoggle[aria-expanded="true"] .bars::after{top:0;transform:rotate(-45deg)}
+
+/* ---------- Footer (shared) ---------- */
+footer{border-top:1px solid var(--line);margin-top:56px;padding:34px 0 40px;
+  color:var(--muted);font-size:14px;background:var(--panel)}
+footer .sig{font-family:var(--display);font-weight:600;color:var(--ink);font-size:16px}
+footer .links{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0}
+footer .built{font-size:13px;color:var(--muted);margin-top:8px}
+
+@media (max-width:900px){
+  .navtoggle{display:inline-flex}
+  .topbar nav{
+    position:absolute;top:100%;left:0;right:0;
+    margin-left:0;display:none;flex-direction:column;gap:2px;flex-wrap:nowrap;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    box-shadow:var(--shadow-lg);padding:10px 20px 16px;
+  }
+  .topbar nav.open{display:flex}
+  .topbar nav a{font-size:15.5px;padding:0 12px;min-height:44px;
+    display:flex;align-items:center;border-radius:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/*
+  Without JavaScript the panel cannot be toggled, so the links are shown
+  inline. On narrow screens they wrap under the logo and the bar is allowed
+  to grow, instead of being clipped by the fixed 60px height.
+*/
+.nojs .navtoggle{display:none}
+.nojs .topbar nav{position:static;display:flex;flex-direction:row;flex-wrap:wrap;
+  box-shadow:none;border-bottom:0;padding:0;margin-left:auto;background:transparent}
+@media (max-width:900px){
+  .nojs .topbar .wrap{height:auto;min-height:56px;flex-wrap:wrap;padding-bottom:8px;gap:10px}
+  .nojs .topbar nav{margin-left:0;width:100%;gap:4px 6px}
+  .nojs .topbar nav a{font-size:14.5px;min-height:40px;padding:0 10px;
+    display:flex;align-items:center;border:1px solid var(--line);border-radius:8px}
+}
+
+.post-head{padding:44px 0 30px;border-bottom:1px solid var(--line);
+  background:radial-gradient(820px 280px at 50% -40%,var(--accent-soft),transparent 70%)}
+.post-head .wrap{max-width:760px}
+.post-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+.post-head h1{font-family:var(--display);font-weight:600;font-size:40px;
+  letter-spacing:-.02em;line-height:1.12;margin:0 0 14px}
+.post-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  font-size:13px;color:var(--muted)}
+.post-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--line-strong)}
+
+.article{max-width:760px;margin:0 auto;padding:34px 20px 8px}
+.article p{font-size:17px;line-height:1.8;color:#36404b;margin:0 0 20px}
+.article p strong{color:var(--ink);font-weight:600}
+.article h2{font-family:var(--display);font-weight:600;font-size:25px;
+  letter-spacing:-.01em;margin:38px 0 14px;padding-bottom:10px;
+  border-bottom:1px solid var(--line-strong)}
+.article ol{padding-left:22px;margin:0 0 20px}
+.article li{font-size:17px;line-height:1.8;color:#36404b;margin-bottom:14px}
+.article li strong{color:var(--ink);font-weight:600}
+.article figure{margin:30px 0}
+.article figure img{width:100%;height:auto;display:block;border-radius:var(--radius);
+  border:1px solid var(--line);box-shadow:var(--shadow)}
+.article hr{border:0;border-top:1px solid var(--line-strong);margin:34px 0 22px}
+.article .disclaimer{font-size:14px;color:var(--muted);font-style:italic;line-height:1.7}
+
+/*
+  Comparison table, same treatment as the Electrum post: the wrapper scrolls
+  on narrow screens so the page body never scrolls sideways.
+*/
+.article .tablewrap{overflow-x:auto;margin:0 0 22px;-webkit-overflow-scrolling:touch}
+.article table{width:100%;border-collapse:collapse;font-size:15.5px;min-width:480px}
+.article th,.article td{text-align:left;padding:11px 14px;border:1px solid var(--line);
+  line-height:1.6;color:#36404b;vertical-align:top}
+.article th{font-family:var(--display);font-weight:600;color:var(--ink);
+  background:var(--accent-soft)}
+
+.back{max-width:760px;margin:26px auto 0;padding:0 20px 8px}
+.back a{font-size:14px;font-weight:600}
+
+@media (max-width:700px){
+  .post-head{padding:30px 0 24px}
+  .post-head h1{font-size:29px}
+  .article{padding:28px 18px 8px}
+  .article h2{font-size:22px;margin-top:32px}
+  .article figure{margin:24px -18px}
+  .article figure img{border-radius:0;border-left:0;border-right:0}
+}
+@media (max-width:400px){
+  .post-head h1{font-size:25px}
+  .wrap{padding:0 15px}
+  .article{padding:24px 16px 8px}
+  .article figure{margin:22px -16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <a class="logo" href="../index.html"><img src="../pitura/logo/Logo_nero.svg" alt="Bitcoin After Life logo"><span translate="no">Bitcoin After Life</span></a>
+    <button class="navtoggle" id="navToggle" type="button"
+            aria-expanded="false" aria-controls="mainNav" aria-label="Open menu">
+      <span class="bars"></span>
+    </button>
+    <nav id="mainNav">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#how">How it works</a>
+      <a href="../index.html#plugin">Plugin</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a class="active" href="../blog.html">Blog</a>
+      <a href="../manifesto.html">Manifesto</a>
+      <a class="x" href="https://x.com/BitcoinAfterLif" title="@BitcoinAfterLif on X">@X</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+<header class="post-head">
+  <div class="wrap">
+    <span class="eyebrow">Blog</span>
+    <h1>What Can a Will-Executor Actually See? Privacy in the BAL Protocol</h1>
+    <div class="post-meta">
+      <time datetime="2026-09-06">6 September 2026</time>
+      <span class="dot"></span>
+      <span translate="no">Bitcoin After Life</span>
+      <span class="dot"></span>
+      <span>4 min read</span>
+    </div>
+  </div>
+</header>
+
+<article class="article">
+<figure>
+<img src="img/what-a-will-executor-can-see-cover.webp" width="1600" height="900" loading="lazy" alt="A blue shield bearing the Bitcoin symbol covers an eye in front of a document — what a Will-Executor can and cannot see">
+</figure>
+
+<p>When you hand something to a third party — even an automated one — the first question a careful Bitcoiner asks is: <em>what do they learn about me?</em></p>
+<p>It's the right question. Traditional inheritance is a privacy disaster by design: a notary learns your identity, your family structure, your assets, and your heirs' identities, and all of it ends up in records that can be subpoenaed, leaked, or — in many jurisdictions — made public after probate. Custodial services are worse: they hold your coins <em>and</em> your data.</p>
+<p><span translate="no">Bitcoin After Life</span> was built to need no third party at all. But it does involve Will-Executor servers, so let's answer the privacy question precisely, without marketing fog: <strong>here is exactly what a Will-Executor can see, and what it cannot.</strong></p>
+
+<h2>What a Will-Executor holds</h2>
+<p>A Will-Executor stores one thing: your <strong>signed, time-locked inheritance transaction</strong>. Nothing else travels to the server — no identity, no email, no account, no documents. The BAL plugin doesn't ask who you are, because the protocol doesn't need to know.</p>
+<p>From that transaction, an executor — like anyone who inspects a raw Bitcoin transaction — can technically observe:</p>
+<ul style="padding-left:22px">
+<li><strong>The inputs:</strong> the specific UTXOs your inheritance will spend, and therefore the amount they contain.</li>
+<li><strong>The outputs:</strong> your heirs' addresses, their shares, and the executor fee.</li>
+<li><strong>The locktime:</strong> the delivery date after which the transaction becomes valid.</li>
+</ul>
+<p>That is the complete list. Let's now look at the much longer list of what remains invisible.</p>
+
+<h2>What a Will-Executor cannot see</h2>
+<p><strong>Your identity.</strong> There is no account system, no KYC, no registration. To a Will-Executor you are a transaction, not a person. Bitcoin addresses are pseudonymous by design — the server sees strings of characters, not names.</p>
+<p><strong>The rest of your wallet.</strong> The transaction reveals only the UTXOs it spends. Your other addresses, your total holdings, your transaction history beyond those specific coins: none of it is exposed by the protocol. The executor sees the inheritance, not your wealth.</p>
+<p><strong>Your heirs' identities.</strong> Heirs appear as addresses. A name, a face, a relationship — none of that is in a Bitcoin transaction, and none of it is in what BAL sends.</p>
+<p><strong>Your activity and your lifetime.</strong> Executors cannot tell whether you're alive, active, traveling, or simply quiet. The Check Alive mechanism that postpones your delivery date works through your own wallet — the server doesn't track you, ping you, or monitor you. There is no surveillance built into the protocol, because there is no need for any.</p>
+<p><strong>Any way to profit from what it sees.</strong> This is the crucial point. Even the limited information above is useless for abuse: the transaction is already fully signed, so it cannot be altered; it is time-locked, so it cannot be broadcast early; and its outputs are fixed, so not a single satoshi can be redirected. A Will-Executor that tried to front-run, censor, or manipulate would gain nothing — and would lose its fee, which is only paid when the inheritance executes exactly as written.</p>
+
+<h2>Privacy by architecture, not by policy</h2>
+<p>Most services protect your data with a privacy <em>policy</em> — a legal promise that can change with an acquisition, a subpoena, or a new CEO. BAL protects it with <em>architecture</em>: the protocol was designed so that the sensitive data never exists on the server in the first place.</p>
+<div class="tablewrap">
+<table>
+<thead>
+<tr><th>What traditional inheritance exposes</th><th>What BAL exposes</th></tr>
+</thead>
+<tbody>
+<tr><td>Your legal identity</td><td>Nothing — no accounts</td></tr>
+<tr><td>Full inventory of your assets</td><td>Only the UTXOs in the transaction</td></tr>
+<tr><td>Heirs' names and relationships</td><td>Heirs' addresses only</td></tr>
+<tr><td>Family structure, stored in public records</td><td>Nothing — no records exist</td></tr>
+<tr><td>Protected by: a privacy policy</td><td>Protected by: protocol design</td></tr>
+</tbody>
+</table>
+</div>
+<p>You cannot leak what you never collected.</p>
+
+<h2>Optional hardening for the privacy-conscious</h2>
+<p>The protocol's defaults are already strong, but Bitcoin hygiene adds another layer:</p>
+<ul style="padding-left:22px">
+<li><strong>Use fresh addresses for your heirs.</strong> Electrum generates new addresses freely; an address that has never appeared on-chain carries no history to analyze.</li>
+<li><strong>Consider multiple executors.</strong> Splitting your will across several Will-Executors from the WeList is primarily a redundancy feature — but it also means no single server is your only counterparty.</li>
+<li><strong>Review before you send.</strong> The plugin always lets you inspect the generated transactions before anything is transmitted. Verify the outputs yourself; trust is not required.</li>
+</ul>
+
+<h2>The honest summary</h2>
+<p>A Will-Executor sees one signed transaction: some addresses, some amounts, a date. It does not know who you are, what else you own, or who your heirs are — and the cryptography guarantees it can do nothing harmful even with what little it sees.</p>
+<p>Compare that with the alternative: a folder in a lawyer's cabinet containing your name, your family's names, and the full list of what you own.</p>
+<p>Inheritance used to require giving up your privacy to be safe. We built BAL so you could keep both.</p>
+
+<p><em>Want the technical detail? The full protocol walkthrough is in the <a href="https://bitcoin-after.life/docs/protocol/how-it-works.html" target="_blank" rel="noopener">manual</a>, and both the <a href="https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin" target="_blank" rel="noopener">plugin</a> and the <a href="https://bitcoin-after.life/gitea/bitcoinafterlife/bal-server" target="_blank" rel="noopener">server</a> are open source — verify, don't trust.</em></p>
+</article>
+
+<div class="back">
+  <a href="../blog.html">← Back to the blog</a>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="sig">Svātantrya</div>
+    <div>Signed — <span translate="no">Bitcoin After Life</span> Protocol</div>
+    <div class="links">
+      <a href="https://bitcoin-after.life">bitcoin-after.life</a>
+      <a href="mailto:info@bitcoin-after.life">info@bitcoin-after.life</a>
+      <a href="https://x.com/BitcoinAfterLif">@BitcoinAfterLif</a>
+      <a href="https://bitcoin-after.life/pgp">PGP Key</a>
+      <a href="https://bitcoin-after.life/gitea/bitcoinafterlife">Source Code</a>
+    </div>
+    <div class="built">Built with ₿itcoin. No FIAT was used in the making of this protocol.</div>
+  </div>
+</footer>
+
+<script>
+/* Mobile menu toggle -- identical behaviour across all pages. */
+(function () {
+  const toggle = document.getElementById('navToggle');
+  const nav = document.getElementById('mainNav');
+  if (!toggle || !nav) return;
+
+  function setOpen(open) {
+    nav.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+
+  toggle.addEventListener('click', function () {
+    setOpen(!nav.classList.contains('open'));
+  });
+  nav.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') setOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+})();
+</script>
+</body>
+</html>
