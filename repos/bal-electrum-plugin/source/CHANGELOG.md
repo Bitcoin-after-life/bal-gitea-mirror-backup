@@ -2908,3 +2908,360 @@ renumber the grid rows.
 - Full test suite: 438 passed (unchanged).
 
 **Outcome:** DONE.
+
+## 56. QR / audio will transfer (chunked multi-QR export/import + review-and-sign wizard)
+
+**Date:** 2026-08-27
+
+**Goal (owner request):** export a will to another device via QR codes (with
+an optional audio channel on top), and import it there with a per-transaction
+review-and-sign flow. QR codes are chunked because a full will usually exceeds
+a single code's capacity.
+
+**What changed:**
+
+- `bal/core/qrtransfer.py` (new, GUI-free): the wire format and chunk
+  scheduler — `BALQR{version}|{total}|{index}|{flags}|{payload}` frames,
+  `encode_transfer` / `decode_transfer`, `split_frames` / `parse_frame` /
+  `assemble`, optional `Z` (zlib+base64) compression at export, four chunk
+  presets (150/400/900/1800 bytes/frame, EC level M), plus
+  `preset_index_for_chunk_size` and the `QrTransferError` exception family.
+- `tests/test_core_qr_transfer.py` (new): round-trips (plain/compressed),
+  boundaries (exact-fit, size>payload, `|` in payload), min-size guard, bad
+  magic/version/numbers/flags, multi-frame reassembly, header consistency.
+- `bal/core/plugin_base.py`: new `QR_CHUNK_SIZE` config (default 150).
+- `bal/gui/qt/plugin.py`: settings-dialog row 16 "QR Code Size" combo
+  (4 presets) + reset button, visible in BASIC and ADVANCED.
+- `bal/gui/qt/dialogs.py`:
+  - `BalQrImage`: QR widget with MEDIUM error correction (Electrum's
+    `QRCodeWidget` is EC-L), reusing `draw_qr`.
+  - `WillQrExportDialog`: walks the frames (Prev/Next, "i of N" progress),
+    export filters **All / Valid / Valid-NC**, live chunk-preset selector,
+    **Auto slideshow** (toggle button + "QR codes per second" spinbox, stops on
+    the last frame and on filter/chunk changes), optional audio-send button.
+  - `WillQrImportDialog`: camera scan (Electrum `scan_qrcode_from_camera`,
+    one code at a time), manual paste fallback, slot grid (1..N) with
+    green=stored, total-mismatch reset, optional audio-receive that mirrors
+    the audio_modem `_recv` sink with a callback instead of `setText`.
+  - `WillTxReviewSignDialog`: per-transaction review (outputs via
+    `get_ui_address_str`, total outputs, fee) with Sign / Skip / Cancel and a
+    single wallet password; final page offers "Save signed file…" and
+    "Show signed QR…". Runs on the imported local copy only.
+- `bal/gui/qt/window.py`: `export_will_via_qr`, `import_will_via_qr`,
+  `get_audio_modem_plugin`, `_audio_send_payload`; `sign_transactions`
+  refactored into a byte-equivalent batch loop plus the reusable
+  `_prepare_and_sign_tx(…, txid, password)` single-transaction helper.
+- `bal/gui/qt/lists.py`: will-list menu gains **Export → QR Codes** and
+  **Import via QR**.
+- `tests/test_gui_qr_transfer.py` (new): export build/navigation/chunk
+  change, filters (Valid, Valid-NC, empty-revert), import frame flow,
+  assembly+decode, total-mismatch reset, manual entry.
+- `PLAN_QR_TRANSFER.md`: the full spec (wire format, settings, export,
+  import, wizard checklist P0–P6, findings log).
+- Docs: `README.md` QR-transfer section; `QML_PLAN.md` updated (Phase 2
+  `BalQrTransferModel`, Phase 3 dedicated QML export/import pages, R6
+  mitigation rewritten, deferred-chunks note removed).
+
+**Audio channel caveats:**
+- The audio send/receive buttons only appear when Electrum's `audio_modem`
+  plugin is enabled *and* `amodem` + PortAudio are installed (not present in
+  the current dev runtime — verified F22). On that channel the transport
+  zlib-compresses internally, so no BAL framing/`Z` flag is used.
+- `WaitingDialog` requires a real `QWidget` parent and the plugin's `_recv`
+  hard-wires `parent.setText`, so receive uses a local mirror with a
+  callback sink.
+
+**Verification:**
+- `python3 tests/test_core_qr_transfer.py`: all pass.
+- `QT_QPA_PLATFORM=offscreen python3 tests/test_gui_qr_transfer.py`: all pass.
+- Pytest batch `tests/test_core_*.py tests/test_gui_*.py`: 374 passed (only
+  the two pre-existing `test_bt_to_date_*` datetime compare failures remain).
+- `QT_QPA_PLATFORM=offscreen python3 tests/smoke_test.py
+  electrum.plugins.bal`: passed (clean import under real Electrum).
+- `ruff`: no new violations on changed files.
+
+**Audio-environment notes (dev box, discovered while testing):**
+- `amodem` 1.16.0 is old and uses `np.ndarray.tostring()`, removed in numpy 2.x;
+  the runtime venv (numpy 2.4.6) needs the one-line patch
+  `tostring()` → `tobytes()` in
+  `electrum/env/lib/python3.11/site-packages/amodem/common.py` (done locally,
+  not in the repo). Any machine with numpy>=2 and this amodem version needs
+  the same patch (or numpy<2).
+- Electrum's `audio_modem` plugin hardcodes `libportaudio.so` (unversioned).
+  Debian/Ubuntu only ship `libportaudio.so.2`, so the load fails silently
+  inside the plugin's `_send` `WaitingDialog` (no `on_error` → no sound, no
+  message). Fix on the dev box:
+  `sudo ln -s /usr/lib/x86_64-linux-gnu/libportaudio.so.2 /usr/lib/x86_64-linux-gnu/libportaudio.so`
+  (created by the `libportaudio-dev` package; a `LD_LIBRARY_PATH` stub works
+  without root). The audio buttons stay hidden unless the plugin is enabled
+  and available.
+- Verified on the dev box (no physical mic required) via a full
+  send→sink→monitor→recv round-trip: set the default PulseAudio source to
+  `<sink>.monitor` at receive time; payload returned byte-identical.
+
+**Follow-up fixes (same session, reported during audio testing):**
+- `WillItem.__init__` now defaults `status` to `""` instead of `None`. A
+  `WillItem` built from a bare `{"tx": ...}` (QR/audio import, clipboard
+  merge) crashed in `set_status` with
+  `unsupported operand type(s) for +=: 'NoneType' and 'str'` during the
+  validity pass / `IMPORTED` marking.
+- `BalWindow.invalidate_will` guards a missing `date_to_check` (first-action
+  case) like `merge_will` already did, fixing
+  `AttributeError: 'BalWindow' object has no attribute 'date_to_check'` when
+  invalidating before the periodic check initialized it.
+- Regression test `test_imported_item_status_not_none` added to
+  `tests/test_gui_qr_transfer.py`; QR GUI suite 12/12, batch 377 passed.
+---
+
+## 57. Name the real cause of a failed build instead of guessing
+
+**Date:** 2026-09-04
+
+**Goal (owner request):** the "Building Will" report was hard to read and often
+misleading.
+
+1. The long "could not build the will" block was printed entirely in amber
+   (`COLOR_WARNING`), which the owner reported as barely legible.
+2. Whenever the build produced nothing, the dialog printed a FIXED list of
+   three "possible reasons" (low balance / dust shares / check-alive later than
+   the delivery date) regardless of what had actually happened. In a case
+   reproduced from the owner's log all three were false, and the real cause
+   (no delivery date left to build) was not even in the list.
+3. The "Checking your will" row had the same problem: the single sentence
+   "Found CHANGES to the DATE or the HEIRS" was shown for five different
+   situations, including one where it is plainly wrong - funds received, where
+   neither the date nor the heirs changed.
+
+**What changed:**
+
+- `bal/core/heirs.py`
+  - `Heirs.__init__` / `buildTransactions`: new `last_build_error` attribute
+    recording WHY a build produced no transaction. Reset at the start of every
+    build, and set at each path that previously returned empty with no
+    explanation at all: `NO_HEIRS`, `NO_UTXO`, `NO_WILLEXECUTOR_USABLE`,
+    `NO_FUTURE_DATE`, `WILLEXECUTOR_FEE`, `WILLEXECUTOR_FEE_TOO_HIGH`,
+    `TX_BUILD_FAILED`, `WILLEXECUTOR_TX_ERROR`.
+  - Added a `processed_willexecutors` counter so that "the loop skipped every
+    will-executor" - which returned silently, with no log line whatsoever - is
+    told apart from "we tried and the build failed".
+  - Fixed a latent crash in the `prepare_transactions` exception handler. It
+    read `e.heirname` in order to auto-deselect the offending will-executor,
+    but NOTHING in the plugin sets that attribute any more (leftover from an
+    older exception design), so the lookup itself raised AttributeError and the
+    inner `except Exception: raise` re-raised THAT, aborting the whole build
+    with a confusing secondary error instead of the real one. The handler now
+    records `WILLEXECUTOR_TX_ERROR`, logs the actual exception together with
+    the will-executor it happened on, and moves on to the next one - which is
+    what the original code was clearly trying to do.
+
+- `bal/gui/qt/dialogs.py`
+  - New `msg_alert()`: an amber warning sign (U+26A0, written as a numeric HTML
+    entity so the source stays ASCII) followed by text in the theme's default
+    colour. Colour is what ATTRACTS attention, not what is read, so it is kept
+    on the sign alone; the message body stays readable and still works under
+    the dark theme, where a hard-coded black would disappear.
+  - New `_build_failure_message()`: maps `last_build_error` to ONE specific
+    sentence. When the code is missing or unrecognised it SAYS the cause could
+    not be determined and lists what to check, instead of asserting three
+    guesses as if they were the only possibilities.
+  - New `_check_failure_message()`: replaces the single "Found CHANGES to the
+    DATE or the HEIRS" line with seven precise messages, reusing the detail the
+    exceptions already carry (heir name, will-executor URL, old and new fee
+    rate). The two plain `NotCompleteWillException` cases are told apart
+    STRUCTURALLY (raised with no argument vs. with one), not by matching
+    message text, which would be fragile. No new exception classes were added
+    (owner request).
+  - Added a dedicated `except BalanceTooLowException` handler. The exception
+    already carried the balance, the fees and the dust threshold, but was
+    falling through to the generic handler, which printed the raw technical
+    string in red and re-raised. It now shows the real figures.
+  - "Checking variables" row: `No Heirs` now uses `msg_alert()`. The
+    "Check Alive Threshold Passed" message deliberately STAYS red
+    (`COLOR_ERROR`) because it is the more urgent situation (owner request).
+
+- `bal/gui/qt/common.py`
+  - Re-export `BalanceTooLowException` from `core.heirs` so the Qt layer can
+    catch it.
+
+**Verification:**
+- `py_compile` clean on all 44 files of the package.
+- The real `msg_alert`, `_build_failure_message` and `_check_failure_message`
+  were extracted from the source via AST and executed against every reason code
+  and every exception type, with the exception hierarchy rebuilt from
+  `will.py`: 9 build cases and 8 check cases all produce the intended text.
+- NOT RUN: the official test suite. The machine used for this task (Windows)
+  has no importable `electrum` module, so `tests/` could not be executed.
+- Manually tested by the owner in Electrum 4.8.1: `NO_FUTURE_DATE`,
+  `WILLEXECUTOR_FEE` and `No Heirs` were all confirmed on screen.
+
+## 57. Remove all `copy.deepcopy` (ad-hoc copy helpers; `WillItem` copies serialize/deserialize)
+
+**Date:** 2026-08-28
+
+**Goal (owner request):** eliminate every `copy.deepcopy` from the codebase
+and replace it with ad-hoc copy methods; `WillItem` copies must be produced by
+serializing and deserializing the item rather than by deep-copying live
+runtime objects (which can hold a `threading.RLock` and cannot be pickled).
+
+**What changed:**
+
+- `bal/core/util.py`: new `copy_structure(value, _path="copy")` — the single
+  JSON-safe, deepcopy-free recursive cloner (dict / list / tuple cloned
+  structurally, JSON scalars kept as-is, any accidental runtime object coerced
+  to `str` + logged). It replaces the old `heirs._json_safe` implementation.
+- `bal/core/heirs.py`: `_json_safe` is now a thin backward-compatible alias of
+  `bal.core.util.copy_structure`; `Heirs.save` behaviour is unchanged.
+- `bal/core/will.py`:
+  - `WillItem.__init__` on a `WillItem` argument no longer does
+    `self.__dict__ = w.__dict__.copy()` + `copy.deepcopy`; instead it
+    serializes (`to_dict()`) and deserializes: the tx is re-parsed into a fresh
+    object, `STATUS` is rebuilt from a clone, and heirs / will-executors are
+    cloned recursively, so the copy shares no mutable state with the source.
+  - New `WillItem.copy(wallet=None)` (serialize/deserialize round trip; re-adds
+    wallet tx info when a wallet is passed) and the static
+    `WillItem.copy_status_table(table)` used for the `STATUS` tables.
+  - `to_dict()` now also emits `Father` / `Children` so the round trip is
+    faithful.
+  - `normalize_will` routes copies through the constructor / `copy()`.
+- `bal/gui/qt/window.py` and `bal/cli/controller.py`: the Build-will flow now
+  uses `copy_structure(...)` instead of `copy.deepcopy(...)` for heirs and
+  will-executors.
+- Dropped now-unused `import copy` (`will.py`, `controller.py`, `qt/common.py`,
+  `qt/window.py`).
+- Tests updated to the same helpers: STATUS tables via
+  `WillItem.copy_status_table`, heirs / built dicts via `copy_structure`
+  (`test_core_will.py`, `test_core_will_invalidate.py`,
+  `test_heir_relative_anchor.py`, `test_anticipate_manual_locktime.py`,
+  `test_no_willexecutor_karen7.py`, `test_reproduce_none_type.py`,
+  `test_group_e_mock_karen7.py`, `test_group_e_karen7_invalidate.py`,
+  `sim_update_flows.py`).
+
+**Verification:**
+- Full offline batch `tests/test_core_*.py tests/test_gui_*.py`: 377 passed,
+  only the two pre-existing `test_bt_to_date_*` datetime compare failures
+  remain (identical to HEAD — no regression; `test_heir_relative_anchor`
+  isolated-file failure is pre-existing test-pollution at HEAD too).
+- Ad-hoc semantics check: `copy()`/ctor copy share no mutable state with the
+  source (mutating source heirs/STATUS does not leak into the copy and vice
+  versa), `copy_status_table` returns fresh lists, `normalize_will` runs.
+- `ruff` on all touched files: no new violations (4 findings, all pre-existing
+  at HEAD).
+- `tests/smoke_test.py electrum.plugins.bal`: passed.
+- `python3 build_zip.py`: 45 files, 343591 bytes, sha256 `aa8f8154…`;
+  `tests/external_zip_test.py bal-electrum-plugin.zip`: passed (Plugin class
+  loads via the zipimport shim).
+
+**Outcome:** DONE.
+
+---
+
+## Next. Animated-QR interop (BC-UR v1/v2, BBQR)
+
+**Date:** 2026-09-08
+
+**Goal:** Let BAL export/import a will not only as its own BAL QR frame format
+but also as BC-UR v1 (`ur:bytes`, BC32 + SHA-256), BC-UR v2 (`ur:bytes`, CBOR
+bytewords-minimal fountain codes) and BBQR (Coinkite `B$…`) animated-QR
+sequences, so transfers interoperate with Blockchain Commons / Coldcard-style
+tools and BitKit. Codecs must be stdlib-only and the export must keep BAL QR
+as the default.
+
+**What changed:**
+
+- `bal/core/animated_qr.py` (new): stdlib-only codec module.
+  - BC32 (bech32_bis checksum, XOR `0x3FFFFFFF`) encode/decode matching the
+    BCR-2020-004/005 reference vectors.
+  - bytewords-minimal encode/decode (BCR-2020-012) with CRC-32 rejection;
+    the word list was transcribed verbatim from the reference C++.
+  - BC-UR v2: CBOR part writer/reader, CRC-32, `choose_fragments`
+    (xoshiro256** + alias + ary-threshold sampler) and XOR-based fountain
+    mixing/solving; emits a redundant mixed wave for loss tolerance.
+  - BC-UR v1: multipart with SHA-256 digest and single-part digest-less
+    frames; `1of1` handling.
+  - BBQR: base32 (encoding `2`), hex (uppercase, `H`) and zlib (lowercase,
+    `Z`, automatic compression fallback) frames; out-of-order reconstruction.
+  - One `AnimatedQrSession` + `detect_format` + `parse_for_detection` for
+    auto-detecting the incoming format and keying the GUI debounce.
+  - Safety caps: `_MAX_SESSION_PARTS = 20000`, `_MAX_MESSAGE_BYTES = 32 MB`,
+    zlib-bomb guard, `TransferConflictError`/`SessionLimitError`.
+- `bal/gui/qt/dialogs.py`:
+  - Export page (`BalQrExportWidget`) gained a **Format** selector
+    (BAL QR default, BC-UR v1, BC-UR v2, BBQR) reusing the QR-size presets,
+    with per-format intro/format-hint text.
+  - Import page (`BalQrImportWidget`) now routes every frame through
+    `parse_for_detection` + `AnimatedQrSession.add_part`, auto-detecting the
+    format and resetting when the transfer's session key changes; the
+    review/sign step resolves the session and decodes parts uniformly.
+  - `qr_import_accept_frame` generalised to
+    `(state, fmt, session_key, frame_total, index, payload, stable_reads=2)`.
+- `tests/test_core_animated_qr.py` (new, 32 tests): BC32 spec vectors,
+  bytewords round-trip/CRC, C++ reference-frame decode+re-encode parity
+  (single-part 12B, seq_len=2, seq_len=7), fountain solve with missing pure
+  part, out-of-order/duplicate handling, single/multipart UR v1, BBQR
+  Z/2/H round-trips, runt last part, zlib-bomb guard, detection positive/
+  negative.
+
+**Verification:**
+
+- `tests/test_core_animated_qr.py`: 32/32 pass.
+- `tests/test_gui_qr_transfer.py` (now 36 tests) + `test_gui_export_dialogs.py`: pass.
+- `ruff` clean on `animated_qr.py`, `dialogs.py` and both test files;
+  `pyright` 0 errors on the touched modules.
+- `tests/smoke_test.py electrum.plugins.bal`, `python3 build_zip.py` and
+  `external_zip_test.py` all pass.
+- Full regression: 462 passed; only pre-existing failures remain
+  (`test_bt_to_date_*`, will-invalidate fee, unrelated `sign_transactions`
+  stub test).
+
+**Notes / caveats:**
+
+- A real bug was found & fixed during this work: `_ur2_part_cost` used
+  `2 * body_len` but `bytewords_minimal_encode` appends a 4-byte CRC, so every
+  UR v2 frame was undercounted by 8 characters and could overflow the QR
+  budget for large transfers.
+- UR v1 multipart emits the digest-carrying `1of1/<digest>/<frag>` form for a
+  single part (both headered and headerless single parts are accepted on
+  import); this keeps deterministic digest verification.
+- Imported payloads are UTF-8 text; the codec sessions do not decode raw
+  binary transfer blobs.
+
+**Outcome:** DONE (uncommitted).
+
+---
+
+## Animated-QR bugfix: QVideoSink signal wiring + will-export JSON crash
+
+**Date:** 2026-09-08
+
+**Goal:** Fix two runtime crashes found by manual testing of the QR paths.
+
+**What changed:**
+
+- `bal/gui/qt/dialogs.py`:
+  - `_start_scan`/`_stop_scan` used `QVideoSink.videoFrame.connect/.disconnect`,
+    but on PyQt6 `videoFrame` is the frame **getter method**, not a signal —
+    this raised ``AttributeError: 'builtin_function_or_method' object has no
+    attribute 'connect'`` on camera scan. Switched to the `videoFrameChanged`
+    signal (same wiring Electrum's `QrReaderVideoSurface` uses).
+  - `_stop_scan` now tolerates `AttributeError` when disconnecting the sink
+    and guards the `errorOccurred` disconnect too, so a mid-init failure can
+    never cascade into a second uncaught exception.
+  - `_whole_will_json` (whole-will QR export) serialized ``WillItem.to_dict()``
+    with plain `json.dumps`, crashing with ``TypeError: Object of type
+    Transaction is not JSON serializable`` (the ``tx`` field holds a real
+    ``Transaction``). Now uses Electrum's `MyEncoder`, matching `write_json_file`.
+- `tests/test_gui_qr_transfer.py`: new `test_import_start_stop_scan_signal_wiring`
+  drives the real `QVideoSink` life-cycle with a mocked camera and fails if
+  the signal name regresses to `videoFrame`.
+- `tests/test_gui_export_dialogs.py`: new
+  `test_qr_whole_will_json_serializes_transaction` covers the JSON export.
+
+**Verification:**
+
+- `pytest tests/test_gui_qr_transfer.py tests/test_gui_export_dialogs.py -q`: pass.
+- Full offline batch `tests/test_core_*.py tests/test_gui_*.py`: 444 passed.
+- Regression test flips correctly (fails when reverted to the buggy call).
+- `ruff` clean on touched files; `tests/smoke_test.py`, `build_zip.py`,
+  `external_zip_test.py` all pass.
+
+**Outcome:** DONE (uncommitted).

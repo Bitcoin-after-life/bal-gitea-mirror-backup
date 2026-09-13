@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid Network's $320M Lesson: Why BAL Only Builds on Bedrock — Bitcoin After Life</title>
+<meta name="description" content="A $320 million bug on Liquid Network is a reminder of a rule Bitcoin After Life follows without exception: no sidechains, no Layer-2s, no experimental scripts — only Bitcoin's most tested primitives.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Bitcoin After Life">
+<meta property="og:title" content="Liquid Network's $320M Lesson: Why BAL Only Builds on Bedrock — Bitcoin After Life">
+<meta property="og:description" content="A $320 million bug on Liquid Network is a reminder of a rule Bitcoin After Life follows without exception: no sidechains, no Layer-2s, no experimental scripts — only Bitcoin's most tested primitives.">
+<meta property="og:url" content="https://bitcoin-after.life/blog/liquid-network-and-why-we-trust-only-bedrock.html">
+<meta property="og:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@BitcoinAfterLif">
+<meta name="twitter:title" content="Liquid Network's $320M Lesson: Why BAL Only Builds on Bedrock — Bitcoin After Life">
+<meta name="twitter:description" content="A $320 million bug on Liquid Network is a reminder of a rule Bitcoin After Life follows without exception: no sidechains, no Layer-2s, no experimental scripts — only Bitcoin's most tested primitives.">
+<meta name="twitter:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta name="theme-color" content="#2d6cdf">
+<link rel="canonical" href="https://bitcoin-after.life/blog/liquid-network-and-why-we-trust-only-bedrock.html">
+<link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/pitura/ico/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/pitura/ico/favicon-16.png">
+<script>
+/* Runs before first paint: removes the `nojs` class set on <html>, so the
+   mobile menu button is only shown when it can actually work. */
+document.documentElement.classList.remove('nojs');
+</script>
+<style>
+:root{
+  --maxw:1120px;
+  --radius:10px;
+  --bg:#eef1f4;
+  --panel:#ffffff;
+  --ink:#1a2027;
+  --muted:#5b6672;
+  --line:#dfe4ea;
+  --line-strong:#cbd2da;
+  --accent:#2d6cdf;
+  --accent-soft:#e6eefc;
+  --display:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(20,30,50,.05);
+  --shadow-lg:0 6px 20px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- Top bar (shared with home and manifesto) ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(150%) blur(8px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.topbar .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);
+  font-weight:600;color:var(--ink)}
+.topbar .logo img{width:30px;height:30px;display:block}
+.topbar .logo span{font-size:15px;letter-spacing:-.01em}
+.topbar nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:13px;padding:7px 11px;border-radius:7px}
+.topbar nav a:hover{color:var(--ink);background:var(--accent-soft);text-decoration:none}
+.topbar nav a.active{color:var(--accent);font-weight:600;border:1px solid #cfe0fb;
+  background:var(--accent-soft)}
+.topbar .x{color:var(--ink);font-weight:600}
+
+.navtoggle{
+  display:none;margin-left:auto;width:44px;height:44px;flex:none;
+  align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:9px;
+  color:var(--ink);cursor:pointer;padding:0;
+}
+.navtoggle:hover{border-color:var(--accent);color:var(--accent)}
+.navtoggle .bars{display:block;width:18px;height:2px;background:currentColor;position:relative}
+.navtoggle .bars::before,.navtoggle .bars::after{
+  content:"";position:absolute;left:0;width:18px;height:2px;background:currentColor}
+.navtoggle .bars::before{top:-6px}
+.navtoggle .bars::after{top:6px}
+.navtoggle[aria-expanded="true"] .bars{background:transparent}
+.navtoggle[aria-expanded="true"] .bars::before{top:0;transform:rotate(45deg)}
+.navtoggle[aria-expanded="true"] .bars::after{top:0;transform:rotate(-45deg)}
+
+/* ---------- Footer (shared) ---------- */
+footer{border-top:1px solid var(--line);margin-top:56px;padding:34px 0 40px;
+  color:var(--muted);font-size:14px;background:var(--panel)}
+footer .sig{font-family:var(--display);font-weight:600;color:var(--ink);font-size:16px}
+footer .links{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0}
+footer .built{font-size:13px;color:var(--muted);margin-top:8px}
+
+@media (max-width:900px){
+  .navtoggle{display:inline-flex}
+  .topbar nav{
+    position:absolute;top:100%;left:0;right:0;
+    margin-left:0;display:none;flex-direction:column;gap:2px;flex-wrap:nowrap;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    box-shadow:var(--shadow-lg);padding:10px 20px 16px;
+  }
+  .topbar nav.open{display:flex}
+  .topbar nav a{font-size:15.5px;padding:0 12px;min-height:44px;
+    display:flex;align-items:center;border-radius:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/*
+  Without JavaScript the panel cannot be toggled, so the links are shown
+  inline. On narrow screens they wrap under the logo and the bar is allowed
+  to grow, instead of being clipped by the fixed 60px height.
+*/
+.nojs .navtoggle{display:none}
+.nojs .topbar nav{position:static;display:flex;flex-direction:row;flex-wrap:wrap;
+  box-shadow:none;border-bottom:0;padding:0;margin-left:auto;background:transparent}
+@media (max-width:900px){
+  .nojs .topbar .wrap{height:auto;min-height:56px;flex-wrap:wrap;padding-bottom:8px;gap:10px}
+  .nojs .topbar nav{margin-left:0;width:100%;gap:4px 6px}
+  .nojs .topbar nav a{font-size:14.5px;min-height:40px;padding:0 10px;
+    display:flex;align-items:center;border:1px solid var(--line);border-radius:8px}
+}
+
+.post-head{padding:44px 0 30px;border-bottom:1px solid var(--line);
+  background:radial-gradient(820px 280px at 50% -40%,var(--accent-soft),transparent 70%)}
+.post-head .wrap{max-width:760px}
+.post-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+.post-head h1{font-family:var(--display);font-weight:600;font-size:40px;
+  letter-spacing:-.02em;line-height:1.12;margin:0 0 14px}
+.post-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  font-size:13px;color:var(--muted)}
+.post-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--line-strong)}
+
+.article{max-width:760px;margin:0 auto;padding:34px 20px 8px}
+.article p{font-size:17px;line-height:1.8;color:#36404b;margin:0 0 20px}
+.article p strong{color:var(--ink);font-weight:600}
+.article h2{font-family:var(--display);font-weight:600;font-size:25px;
+  letter-spacing:-.01em;margin:38px 0 14px;padding-bottom:10px;
+  border-bottom:1px solid var(--line-strong)}
+.article ol{padding-left:22px;margin:0 0 20px}
+.article li{font-size:17px;line-height:1.8;color:#36404b;margin-bottom:14px}
+.article li strong{color:var(--ink);font-weight:600}
+.article figure{margin:30px 0}
+.article figure img{width:100%;height:auto;display:block;border-radius:var(--radius);
+  border:1px solid var(--line);box-shadow:var(--shadow)}
+.article figcaption{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
+.article hr{border:0;border-top:1px solid var(--line-strong);margin:34px 0 22px}
+.article .disclaimer{font-size:14px;color:var(--muted);font-style:italic;line-height:1.7}
+.article code{font-family:var(--mono);font-size:.9em;background:var(--accent-soft);
+  color:var(--ink);padding:2px 6px;border-radius:5px}
+
+/*
+  Blockquote and pull-quote: this post is the first to need them. Both
+  reuse the existing palette tokens so nothing new is introduced visually.
+*/
+.article blockquote{margin:26px 0;padding:16px 20px;border-left:3px solid var(--accent);
+  background:var(--accent-soft);border-radius:0 var(--radius) var(--radius) 0;
+  font-style:italic;color:#2a3542}
+.article blockquote p{margin:0;font-size:16.5px;line-height:1.7;color:inherit}
+.article .pull{font-family:var(--display);font-size:20px;font-weight:600;
+  line-height:1.45;color:var(--ink);border-top:1px solid var(--line-strong);
+  border-bottom:1px solid var(--line-strong);padding:22px 0;margin:30px 0}
+
+.back{max-width:760px;margin:26px auto 0;padding:0 20px 8px}
+.back a{font-size:14px;font-weight:600}
+
+@media (max-width:700px){
+  .post-head{padding:30px 0 24px}
+  .post-head h1{font-size:29px}
+  .article{padding:28px 18px 8px}
+  .article h2{font-size:22px;margin-top:32px}
+  .article figure{margin:24px -18px}
+  .article figure img{border-radius:0;border-left:0;border-right:0}
+  .article .pull{font-size:18px}
+}
+@media (max-width:400px){
+  .post-head h1{font-size:25px}
+  .wrap{padding:0 15px}
+  .article{padding:24px 16px 8px}
+  .article figure{margin:22px -16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <a class="logo" href="../index.html"><img src="../pitura/logo/Logo_nero.svg" alt="Bitcoin After Life logo"><span translate="no">Bitcoin After Life</span></a>
+    <button class="navtoggle" id="navToggle" type="button"
+            aria-expanded="false" aria-controls="mainNav" aria-label="Open menu">
+      <span class="bars"></span>
+    </button>
+    <nav id="mainNav">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#how">How it works</a>
+      <a href="../index.html#plugin">Plugin</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a class="active" href="../blog.html">Blog</a>
+      <a href="../manifesto.html">Manifesto</a>
+      <a class="x" href="https://x.com/BitcoinAfterLif" title="@BitcoinAfterLif on X">@X</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+<header class="post-head">
+  <div class="wrap">
+    <span class="eyebrow">Blog</span>
+    <h1>Liquid Network's $320M Lesson: Why BAL Only Builds on Bedrock</h1>
+    <div class="post-meta">
+      <time datetime="2026-09-12">12 September 2026</time>
+      <span class="dot"></span>
+      <span translate="no">Bitcoin After Life</span>
+      <span class="dot"></span>
+      <span>7 min read</span>
+    </div>
+  </div>
+</header>
+
+<article class="article">
+<figure>
+<img src="img/liquid-network-bedrock-cover.webp" width="1600" height="900" loading="lazy" alt="On the left, a fragile scaffolding of gears and pipes cracks and falls apart. On the right, a single unbreakable black monolith engraved with the Bitcoin symbol. A thin blue line separates them.">
+<figcaption>The base layer, and everything built on top of it, do not carry the same weight.</figcaption>
+</figure>
+
+<p>On <strong>6 September 2026</strong>, a group of attackers — who later called themselves white-hats — walked away with roughly <strong>4,000 BTC, worth about $320 million</strong>, from the Liquid Network. They did it in a few hours, from their laptops, by exploiting a bug in the software that Liquid's nodes use to validate transactions. Most of the funds were later returned, but around <strong>$47 million</strong> remained under the attackers' control at the time of writing. <a href="https://www.chainalysis.com/blog/320m-exploit-liquid-network/" target="_blank" rel="noopener">(Chainalysis analysis)</a></p>
+
+<p>Liquid is not a scam project. It is built by <strong>Blockstream</strong>, one of the most respected engineering teams in Bitcoin. Its code is open source. Its federation includes serious exchanges and custodians. If a network of that caliber can lose $320 million in an afternoon, it is worth asking a very calm, very serious question:</p>
+
+<p class="pull">If even the best-engineered Bitcoin sidechain can break, what should an inheritance protocol — a plan that must survive for decades — be allowed to depend on?</p>
+
+<p>Our answer, from day one, has been the same. And this incident is not a surprise to us. It is a confirmation.</p>
+
+<h2>What actually broke on Liquid</h2>
+<p>The short version: Liquid's software caches the results of expensive cryptographic checks, so it does not have to re-verify the same data twice. A flaw in how those cached results were identified meant that <strong>new, invalid data could be mistaken for old, valid data</strong>. The attackers used this to create <strong>L-BTC that was never backed by real Bitcoin</strong>, then swapped that fake L-BTC for real BTC held in the network's reserves.</p>
+<p>It is worth reading that twice. Bitcoin itself was not broken. The Bitcoin base layer, once again, did exactly what it was supposed to do. What broke was <strong>a layer built on top of Bitcoin</strong> — a sidechain with its own nodes, its own consensus rules, its own new code, and therefore its own new attack surface.</p>
+<p>This is the pattern every serious builder in this space has learned to expect: <strong>every new layer adds new bugs</strong>. Not "might". <em>Will</em>. The only real question is when they are discovered, and by whom.</p>
+
+<h2>Why we refuse to build on new things</h2>
+<p><span translate="no">Bitcoin After Life</span> is an inheritance protocol. That single sentence forces a very specific design philosophy on us.</p>
+<p>An inheritance plan is not a trade. You do not close it at the end of the week. You set it up, and then you ask it to <strong>keep working for twenty, thirty, forty years</strong> — through software updates, through market cycles, through your own absence. Whatever we build on has to survive all of that.</p>
+<p>So we made a promise to our users, and to ourselves: <strong><span translate="no">BAL</span> will only use tools that have already survived the test of time on Bitcoin's base layer.</strong> Concretely, that means:</p>
+<ul style="padding-left:22px">
+<li><strong>No sidechains.</strong> Not Liquid, not any other. A sidechain is a separate network with its own rules and its own bugs, as this month proved.</li>
+<li><strong>No Layer-2s.</strong> Lightning is wonderful for payments; it is not a place to park an inheritance.</li>
+<li><strong>No exotic scripts.</strong> No fresh Miniscript contraptions, no vaults still being debated in mailing lists, no covenants that only exist on testnet.</li>
+<li><strong>No new wallet built by us.</strong> Signing keys are sacred. We will not ask anyone to trust code we wrote last year with the coins their family will need.</li>
+</ul>
+<p>What we <em>do</em> use is the boring, uninteresting, deeply tested core of Bitcoin — the parts that have been attacked by the entire world for fifteen years and have not moved.</p>
+
+<h2>The two pillars we allow ourselves</h2>
+<p><strong>Electrum.</strong> Signing has been done in Electrum since 2011. It is one of the most audited pieces of Bitcoin software on Earth. Its seed generation draws <strong>132 bits of entropy</strong> from the operating system's cryptographic RNG — one of the most reviewed pieces of code in any industry. The BAL plugin never signs anything on its own; it builds the transaction, shows it to you, and lets Electrum, with your keys and your hardware wallet, decide. Our attack surface for signing is therefore <em>Electrum's</em> attack surface — and that surface has held for a decade and a half. <a href="https://bitcoin-after.life/blog/why-electrum-and-timelocks.html">(Why Electrum, in detail)</a></p>
+<p><strong>nLockTime.</strong> This is not a clever script. It is not a smart contract. It is a <strong>consensus rule</strong> that has been part of Bitcoin since the very first version — a field that tells the network "do not accept this transaction before this date". Every full node on the planet enforces it. It cannot be bypassed by a compromised server, an impatient heir, or a bug in some intermediate layer. It is, quite literally, the same category of guarantee that stops people from double-spending.</p>
+<p>That is it. That is the entire cryptographic surface of <span translate="no">Bitcoin After Life</span>: <strong>a signature made by Electrum, and a delay enforced by Bitcoin consensus.</strong> Nothing else stands between your heirs and the coins you want them to receive.</p>
+
+<h2>Will-Executors: nothing to hack</h2>
+<p>People often ask us next: <em>"But what about the Will-Executor servers? Aren't they the weak link?"</em> This is where the design gets almost anticlimactic — on purpose.</p>
+<p>A Will-Executor is not a custodian. It does not hold your keys. It cannot modify the transaction it was given. It cannot redirect the funds. All it can do is <strong>store one already-signed, time-locked transaction, and broadcast it when the date arrives</strong>. It is closer to an automated mailbox than to a bank.</p>
+<p>Its incentive to do its job is purely on-chain: <strong>every inheritance transaction includes a small Bitcoin fee for the executor</strong>, and that fee is only paid when the transaction actually confirms. Not when the server "promises". When the Bitcoin network says so. No confirmation, no fee.</p>
+<p>On top of that, the network is <strong>decentralized and redundant</strong>. When you set up your inheritance, the plugin creates one copy of the transaction for each Will-Executor you chose from the public WeList directory. Only one of them needs to still be online at the delivery date. If ten servers hold a copy and nine disappear, the tenth still executes your will and collects the fee.</p>
+<p>Now imagine an attacker who wants to hurt BAL. What is the target?</p>
+<ul style="padding-left:22px">
+<li>They cannot steal from the executor — the executor has no keys.</li>
+<li>They cannot alter the transactions — they are already signed.</li>
+<li>They cannot execute early — Bitcoin consensus rejects the transaction before the locktime.</li>
+<li>They cannot bribe the executor to "hold" your will — someone else's redundant copy will broadcast anyway, and take the fee.</li>
+</ul>
+<p>There is almost nothing to attack. And that, again, is the point.</p>
+
+<h2>Contrast with Liquid</h2>
+<p>Compare that with what the Liquid attackers had to work with: a novel network, a novel token (L-BTC), novel Confidential Transactions, novel range-proof caching, and a federation of nodes that mint and redeem representations of Bitcoin. Every one of those "novels" is a place where a bug can live. This month, one of them did.</p>
+<p>None of this is a criticism of Blockstream. They responded with transparency, they patched quickly, they coordinated the return of funds. That is exactly how a mature team should behave. But the incident makes the underlying trade-off unmistakable: <strong>more features on top of Bitcoin means more code, more code means more bugs, more bugs means more risk over time</strong>. For a trading layer that risk may be acceptable. For an inheritance plan measured in decades, it simply is not.</p>
+
+<h2>Built for atomic bombs, hackers, and coming AIs</h2>
+<p>We say this only half-jokingly: the <span translate="no">Bitcoin After Life</span> protocol is designed to be <strong>hacker-proof, AI-proof, and — in the very long run — as close to "atomic-bomb-proof" as software allows</strong>.</p>
+<p>What we mean, concretely:</p>
+<ul style="padding-left:22px">
+<li><strong>No single server can be attacked into failing the user.</strong> The Will-Executor network is decentralized, redundant, and incentivized by on-chain fees. Kill a server; another one takes over.</li>
+<li><strong>No novel cryptography is on the critical path.</strong> The security of your inheritance comes from Bitcoin signatures and nLockTime — primitives that have survived a decade and a half of adversarial review. No custom scripts to be broken by an unknown class of attack.</li>
+<li><strong>No secret code to reverse-engineer.</strong> The plugin and the executor are open source, MIT-licensed, and small enough to be audited by a serious reader — human or AI.</li>
+<li><strong>AI cuts both ways, and we welcome it.</strong> As we wrote in <a href="https://bitcoin-after.life/blog/it-all-starts-with-the-seed.html">"It all starts with the seed"</a>, the Coldcard seed flaw was likely found by an AI reading old public code. That capability is now in every user's hands: you can hand our code to a capable model tomorrow and ask, in plain English, <em>where can this break?</em> An inheritance protocol should welcome that scrutiny, not fear it. Ours does.</li>
+<li><strong>The plan renews itself.</strong> BAL is designed for periodic refresh every two to three years, so lessons like Liquid's are absorbed before they become tomorrow's crisis.</li>
+</ul>
+<blockquote><p>The Liquid hack did not shake our design. It reinforced it. Every place BAL <em>could</em> have added a shortcut — a sidechain for cheaper fees, a new script for cleverer conditions, a proprietary wallet for a nicer UX — is a place where, in 2026, someone else lost $320 million.</p></blockquote>
+
+<h2>What this means for you</h2>
+<p>If you are planning a Bitcoin inheritance, the practical takeaways from this month are simple:</p>
+<ul style="padding-left:22px">
+<li><strong>Do not park inheritance funds on a sidechain or an L2.</strong> Not on Liquid, not on Lightning channels, not on any bridge or wrapper. Keep the coins on the Bitcoin base layer.</li>
+<li><strong>Distrust anything shiny.</strong> "New" is a feature for traders and a liability for heirs. Prefer the software that has been publicly attacked for the longest.</li>
+<li><strong>Ask where the trust is.</strong> If any part of an inheritance plan says "trust our server / trust our custodian / trust our federation", that part is where it will eventually fail. Replace it with something a consensus rule enforces.</li>
+<li><strong>Verify.</strong> Read the code, or ask an AI to read it for you, and do it again after every update. This is now a habit anyone can afford.</li>
+</ul>
+<p><span translate="no">Bitcoin After Life</span> is deliberately narrow. We do exactly one thing — a time-locked, redundantly-executed inheritance transaction — and we do it on top of the two most tested primitives in Bitcoin. We refuse features that would force us onto experimental ground. That refusal is not conservatism for its own sake. It is the only honest posture for a protocol whose promises must outlive its authors.</p>
+<p>The Liquid attackers wrote a $320 million reminder into the blockchain this month. Our reading of it is the same one we started with:</p>
+
+<p class="pull">Don't trust. Verify. Then, and only then, plan — on bedrock.</p>
+
+<p>The plugin, the executor, and the full protocol walkthrough are open source and available at <a href="https://bitcoin-after.life/">bitcoin-after.life</a>. Start on testnet. Read the code. Bring an AI. Break it if you can — that is exactly what we want.</p>
+
+<hr>
+<p class="disclaimer">This article is for informational purposes only and does not constitute legal, tax, or security advice. Facts about the September 2026 Liquid Network incident reflect public reporting and Blockstream's advisories at the time of writing; consult the vendor's official communications for up-to-date guidance.</p>
+</article>
+
+<div class="back">
+  <a href="../blog.html">← Back to the blog</a>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="sig">Svātantrya</div>
+    <div>Signed — <span translate="no">Bitcoin After Life</span> Protocol</div>
+    <div class="links">
+      <a href="https://bitcoin-after.life">bitcoin-after.life</a>
+      <a href="mailto:info@bitcoin-after.life">info@bitcoin-after.life</a>
+      <a href="https://x.com/BitcoinAfterLif">@BitcoinAfterLif</a>
+      <a href="https://bitcoin-after.life/pgp">PGP Key</a>
+      <a href="https://bitcoin-after.life/gitea/bitcoinafterlife">Source Code</a>
+    </div>
+    <div class="built">Built with ₿itcoin. No FIAT was used in the making of this protocol.</div>
+  </div>
+</footer>
+
+<script>
+/* Mobile menu toggle -- identical behaviour across all pages. */
+(function () {
+  const toggle = document.getElementById('navToggle');
+  const nav = document.getElementById('mainNav');
+  if (!toggle || !nav) return;
+
+  function setOpen(open) {
+    nav.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+
+  toggle.addEventListener('click', function () {
+    setOpen(!nav.classList.contains('open'));
+  });
+  nav.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') setOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+})();
+</script>
+</body>
+</html>
