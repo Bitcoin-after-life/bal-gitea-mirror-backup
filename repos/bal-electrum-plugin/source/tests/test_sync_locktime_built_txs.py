@@ -18,7 +18,7 @@ The method is exercised with a lightweight fake ``self`` (no Qt event loop, no
 Electrum wallet) by calling it as an unbound method.
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     python3 tests/test_sync_locktime_built_txs.py
 """
 

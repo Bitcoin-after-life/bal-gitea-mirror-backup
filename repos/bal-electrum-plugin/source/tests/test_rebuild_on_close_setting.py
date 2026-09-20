@@ -15,7 +15,7 @@ light-weight fake controller and a recording stub for ``BalBuildWillDialog``,
 so no full wallet/GUI machinery is needed.
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     QT_QPA_PLATFORM=offscreen python3 tests/test_rebuild_on_close_setting.py
 """
 

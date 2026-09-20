@@ -10,7 +10,7 @@ Covers:
     transactions in history" checkbox is off, and re-enabled when it is on.
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     QT_QPA_PLATFORM=offscreen python3 tests/test_settings_history_dialog.py
 """
 

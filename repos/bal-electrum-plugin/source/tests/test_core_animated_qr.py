@@ -426,6 +426,7 @@ def test_bbqr_part_number_limits():
 
 def test_detect_format_recognises_all_formats():
     assert aq.detect_format("BALQR1|1|1||payload") == "balqr"
+    assert aq.detect_format("BAL1" + "001" + "001" + "0" + "payload") == "balqr"
     assert aq.detect_format(aq.ur1_frames(b"x", 400)[0]) == "ur1"
     assert aq.detect_format(aq.ur2_frames(b"x", 400)[0]) == "ur2"
     assert aq.detect_format(aq.bbqr_frames(b"x", 50)[0]) == "bbqr"
@@ -444,6 +445,9 @@ def test_detect_format_rejects_garbage():
 def test_parse_for_detection_keys():
     bal = aq.parse_for_detection("BALQR1|3|2||payload")
     assert bal == ("balqr", "balqr:3", 3, 2)
+    # Compact v2 frame (fixed 11-char header) is detected too.
+    bal_v2 = aq.parse_for_detection("BAL1" + "007" + "004" + "0" + "payload")
+    assert bal_v2 == ("balqr", "balqr:7", 7, 4)
     v2 = aq.parse_for_detection(aq.ur2_frames(b"x"*50, 400)[0])
     assert v2[0] == "ur2" and v2[2] == 1 and v2[3] == 1
     v1 = aq.parse_for_detection(aq.ur1_frames(b"x"*50, 120)[0])

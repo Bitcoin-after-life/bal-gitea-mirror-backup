@@ -353,7 +353,7 @@ CLI (electrum bal_*)                    Daemon (Electrum 4.8.0)
 ### 11.2 Verifica manuale (da documentare nel README/HANDOFF)
 
 ```bash
-source /home/steal/devel/bal/electrum/env/bin/activate
+source "$BAL_HOME/electrum/env/bin/activate"
 electrum daemon -d
 electrum load_wallet
 electrum bal_heirs_list

@@ -3265,3 +3265,65 @@ as the default.
   `external_zip_test.py` all pass.
 
 **Outcome:** DONE (uncommitted).
+
+---
+
+## Balanced-QR wire format v2: compact header + best-of compression
+
+**Date:** 2026-09-13
+
+**Goal:** Shrink the native BAL QR wire format to its minimum. The old
+pipe-separated header (`BALQR1|total|index|flags|`) wasted 12-14 characters on
+direction marker, separators and decimal count fields, and the export always
+sent uncompressed hex text. New exports should fit a will in the fewest,
+densest frames possible.
+
+**What changed:**
+
+- `bal/core/qrtransfer.py`:
+  - New wire format v2: `BAL1<TTT><iii><F><payload>` — fixed 11-char header,
+    no separators. `BAL1` magic, 3-digit **base36** zero-padded totals/index
+    (values `00A`-`ZZZ`, cap 46655 frames), single flag char.
+  - Flags: `0` = plain payload, `Z` = zlib+base64 compressed payload (the importer
+    already decompressed `Z`; the exporter now produces it).
+  - `encode_transfer_best(tx_strings)` returns the shorter of plain vs
+    compressed; the export widget uses it as the default for BAL QR.
+  - `parse_frame` is dual: old `BALQR1|total|index|flags|payload` frames still
+    import unchanged (backwards-compatible receive).
+  - Frame-count overflow (a transfer needing > 46655 frames) raises
+    `QrTransferError` at encode time instead of emitting corrupt headers.
+- `bal/gui/qt/dialogs.py` (`BalQrExportWidget`): BAL QR export now encodes via
+  `encode_transfer_best`, so plain *or* compressed frames are emitted per
+  transfer; import is untouched (already format-agnostic and flag-driven).
+- `bal/core/animated_qr.py`: `detect_format` accepts `BAL1` in addition to the
+  legacy `BALQR` prefix; wire-format docstring updated.
+- `bal/gui/qt/widgets.py` (`WillWidget`): the will detail view now shows each
+  heir's address (or the decoded UTF-8 text of an `OP_RETURN:` heir) and a
+  dedicated Address row for the will-executor.
+
+**Verification:**
+
+- `tests/test_core_qr_transfer.py` (new v2 tests: header structure, field width,
+  `Z` flag round-trip, best-of selection, malformed `BAL1` frames, 46655 cap and
+  exact boundary): all pass; legacy `BALQR1` parse tests unchanged and green.
+- `tests/test_core_animated_qr.py`: `BAL1` detection + `parse_for_detection`;
+  `tests/test_gui_qr_transfer.py`: format-combo + chunk-navigation updated for
+  the compact export.
+- `pytest tests/test_core_*.py tests/test_import_will_details.py -q`: 345 passed.
+- `ruff` clean on all touched files except the pre-existing `dialogs.py` I001
+  (present on HEAD); `pyright` 0 errors on the codec modules.
+- Android Chaquopy bundle re-synced (`sync_codecs.py` + `verify_chain.py`).
+
+**Notes / caveats:**
+
+- **Compatibility break (forward):** the new default export (compressed
+  `BAL1…`) is NOT readable by older BAL versions — nor by the previously
+  released Android APK — until those are updated to accept `BAL1`. Imports of
+  legacy `BALQR1…` exports keep working on this version. Existing audio
+  transfers are unaffected (they keep explicit `compress=False`, and the audio
+  format was never flag-driven on receive).
+- A typical multi-tx will now ships as a single dense frame instead of two
+  sparse ones: header overhead dropped from 12-14 chars to a constant 11, and
+  the base36 count fields are 3 chars regardless of how many frames exist.
+
+**Outcome:** DONE.

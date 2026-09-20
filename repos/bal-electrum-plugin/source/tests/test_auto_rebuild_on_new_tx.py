@@ -21,7 +21,7 @@ Covers:
         the check-alive threshold (and no sign/push in that case).
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     QT_QPA_PLATFORM=offscreen python3 tests/test_auto_rebuild_on_new_tx.py
 """
 

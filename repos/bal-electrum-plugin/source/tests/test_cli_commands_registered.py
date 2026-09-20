@@ -12,7 +12,7 @@ daemon/network, i.e. the ``'n'`` flag; the wallet-bound ones the ``'w'`` flag;
 signing also ``'p'``).
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     python3 tests/test_cli_commands_registered.py
 """
 

@@ -3,14 +3,17 @@
 BAL — Bitcoin After Life, an Electrum plugin (inheritance / dead-man's-switch).
 Source-of-truth docs: `README.md`, `HANDOFF.md`, `COMPATIBILITY.md`.
 
+Paths below are relative to the repo, or use `$BAL_HOME` (the directory
+containing this repo and the sibling `electrum/` checkout).
+
 ## Environments (critical)
 
 Two separate venvs; using the wrong one is the #1 mistake.
 
 - **Runtime env** (Electrum + PyQt6, has `electrum` importable):
-  `source /home/steal/devel/bal/electrum/env/bin/activate`
+  `source "$BAL_HOME/electrum/env/bin/activate"`
   This is an editable install of the Electrum 4.8.0 checkout at
-  `/home/steal/devel/bal/electrum`. Use it for anything that imports
+  `$BAL_HOME/electrum`. Use it for anything that imports
   `electrum`, runs GUI code, or runs tests.
 - **Lint venv** (repo-local `venv/`): ruff, black, flake8 only. It cannot
   import `electrum` or `PyQt6`. Do NOT use it to run tests.
@@ -25,7 +28,7 @@ naming and also have `if __name__ == "__main__"` blocks). Run a single file
 directly:
 
 ```bash
-source /home/steal/devel/bal/electrum/env/bin/activate
+source "$BAL_HOME/electrum/env/bin/activate"
 python3 tests/test_core_heirs.py        # core, no Qt needed
 QT_QPA_PLATFORM=offscreen python3 tests/test_gui_common.py   # GUI tests need offscreen
 ```
@@ -33,7 +36,7 @@ QT_QPA_PLATFORM=offscreen python3 tests/test_gui_common.py   # GUI tests need of
 Or run a batch with pytest (as `make-release.sh` does):
 
 ```bash
-source /home/steal/devel/bal/electrum/env/bin/activate
+source "$BAL_HOME/electrum/env/bin/activate"
 QT_QPA_PLATFORM=offscreen python3 -m pytest tests/test_core_*.py -q
 ```
 
@@ -53,7 +56,7 @@ QT_QPA_PLATFORM=offscreen python3 -m pytest tests/test_core_*.py -q
   just avoid adding new violations. Config: `pyproject.toml` (line-length 88,
   E501 ignored). Per-file ignores suppress `F403`/`F405` for the intentional
   `from .common import *` hub pattern in `bal/gui/qt/`.
-- Lint via the repo venv: `/home/steal/devel/bal/bal-electrum-plugin/venv/bin/ruff`
+- Lint via the repo venv: `./venv/bin/ruff`
 - Typecheck: `pyright` (npm, `node_modules/`), config `pyrightconfig.json`
   (`extraPaths: ["../electrum"]`). Pyright reports many false positives on
   dynamically-attached attrs (e.g. `self.window`, `BalPlugin.*`); don't chase

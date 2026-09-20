@@ -22,7 +22,7 @@ These tests exercise the exact code used at runtime (no GUI/Electrum wallet
 needed, and no Qt import).
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     python3 tests/test_group_i_basic_checkalive.py
 """
 

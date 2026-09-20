@@ -31,7 +31,7 @@ supports **BC-UR v1**, **BC-UR v2** and **BBQR**:
 
 | Format    | Wire appearance            | Interop target                                       |
 |-----------|----------------------------|------------------------------------------------------|
-| BAL QR    | `BALQR1\|total\|index\|…`  | Past/other BAL versions (default, always exported)   |
+| BAL QR    | `BAL1<total><index><flag>…` (v2) / `BALQR1\|total\|index\|…` (legacy import-only) | Past/other BAL versions: **v2 exports are NOT readable by old builds**; old `BALQR1` exports still import here (default, best-of compression, flag `0` = plain, `Z` = deflate) |
 | BC-UR v1  | `ur:bytes/<bc32>`          | Blockchain Commons / Coldcard-style UR (BC32, SHA-256 digest, part counts per part) |
 | BC-UR v2  | `ur:bytes/<seq>-<seqlen>/<bytewords>` | BC-UR 2.x fountain codes (CBOR parts, CRC-32, bytewords-minimal) |
 | BBQR      | `B$<enc><type><N><n>…`     | Coinkite BitKit / Coldcard's BBQR animated-QR mode   |

@@ -107,10 +107,12 @@ class StubWillItem:
         return {"tx": str(self.tx), "status": self.statuses}
 
 
-def _make_willitems(n=3, payload_len=120):
+def _make_willitems(n=3, payload_len=120, payloads=None):
+    if payloads is None:
+        payloads = ["T{}".format(i) * payload_len for i in range(n)]
     return {
-        "item{}".format(i): StubWillItem("T{}".format(i) * payload_len)
-        for i in range(n)
+        "item{}".format(i): StubWillItem(p)
+        for i, p in enumerate(payloads)
     }
 
 
@@ -288,8 +290,17 @@ def test_export_filter_empty_reverts():
 
 
 def test_export_navigation_and_chunk_change():
+    # Low-redundancy serialized transactions resist deflate, so even the
+    # compressed best-of transfer still needs several frames at the default
+    # chunk and navigation across frames is exercised.
+    def noisy(pad):
+        return "".join("{:02x}".format((pad * 31 + j * 101 + j * j) % 256) for j in range(200))
+
     bw = FakeBalWindow()
-    bw.willitems = _make_willitems(n=6, payload_len=400)
+    bw.willitems = _make_willitems(
+        n=6, payload_len=400,
+        payloads=["{}0{}".format(noisy(i), "T" * 50) for i in range(6)],
+    )
     d = dialogs.WillExportDialog(bw, bal_plugin=bw.bal_plugin, initial_mode="qr")
     page = d.qr_page
     first_count = len(page.frames)
@@ -568,7 +579,7 @@ def test_export_format_combo_switches_codecs():
     d = dialogs.WillExportDialog(bw, bal_plugin=bw.bal_plugin, initial_mode="qr")
     page = d.qr_page
     assert page.format == "balqr"
-    assert page.frames[0].startswith("BALQR1|")
+    assert page.frames[0].startswith("BAL1")
     assert page.format_combo.count() == 4
 
     page._on_format_change(1)  # BC-UR v1

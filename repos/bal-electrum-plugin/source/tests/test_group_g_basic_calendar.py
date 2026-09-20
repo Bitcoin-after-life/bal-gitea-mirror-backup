@@ -14,7 +14,7 @@ drives that decision.
 so these tests run without Qt (or Electrum) at all.
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     python3 tests/test_group_g_basic_calendar.py
 """
 

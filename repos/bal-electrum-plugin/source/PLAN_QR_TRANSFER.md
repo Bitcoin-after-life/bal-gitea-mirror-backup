@@ -62,9 +62,9 @@
 | # | Decision |
 |---|----------|
 | D1 | QML part = update `QML_PLAN.md` document only; implementation later. |
-| D2 | Frames carry a small ASCII header (`BALQR1\|N\|i\|flags`) — import knows the total, auto-fills the grid, detects corrupt/duplicate/mismatched frames. Pure concatenation rejected. |
+| D2 | Frames carry a small **compact** ASCII header (`BAL1<total><index><flag>`, fixed 11 chars, base36 count fields) — import knows the total, auto-fills the grid, detects corrupt/duplicate/mismatched frames. Pure concatenation rejected. Legacy `BALQR1\|N\|i\|flags\|` export removed; legacy import kept. |
 | D3 | Payload = **serialized transaction strings only** (`str(wi.tx)`), NOT the JSON will dump. Loses statuses/metadata on purpose; import rebuilds items like `merge_single_transaction` does. |
-| D4 | Compression (zlib+base64 over the whole payload) = checkbox in the export dialog, **default OFF**, advertised via a frame flag. |
+| D4 | Compression (zlib+base64 over the whole payload) exported as **best-of**: `encode_transfer_best` ships compressed when it is shorter, plain otherwise; flag `0` = plain, `Z` = compressed. No user-facing checkbox. |
 | D5 | 4 standard size presets: **~150 / ~400 / ~900 / ~1800 bytes** of payload per QR (low-res cams → high-res cams). Error-correction level fixed **M**. Stored as plugin config default; selectable again inside the export dialog. |
 | D6 | After capture completes: **review + sign each tx one at a time** (show outputs, total outputs, total fees), then **propose export of the signed txs** (file and/or QR). Supersedes the earlier "WillDetailDialog preview" answer. |
 | D7 | Add an **audio-modem transfer path** gated on Electrum's `audio_modem` plugin being enabled and available (`amodem` importable). Same payload semantics as QR (transfer string of serialized txs), but NO BAL frame chunking — `amodem` handles transport framing internally. Buttons simply hidden when the plugin is absent/unavailable (info message pointing at `pip install amodem` when enabled-but-broken); graceful degradation, never a hard dependency. |
@@ -120,19 +120,30 @@ transfer_string = "\n".join( tx_str(tx) for tx in valid_txs_sorted_by_txid )
 
 ### 4.2 Frame layout (one frame = content of ONE QR code)
 
+Wire format v2 (compact, current export):
+
 ```
-BALQR1|<total>|<index>|<flags>|<payload>
+BAL1<TTT><iii><F><payload>
 ```
 
-- Magic+version literal `BALQR1` (reject anything else with a clear message;
-  keeps the door open for a future `BALQR2`).
-- `<total>` N, `<index>` i — integers, `1 ≤ i ≤ N`.
-- `<flags>`: subset of chars, today `` (empty ⇒ plain) or `Z` (compressed).
+- Magic+version literal `BAL1` (reject anything else with a clear message).
+- `<TTT>` = `<iii>` — **base36** zero-padded 3-char strings (`000`…`ZZZ`),
+  representing total N and index i, `1 ≤ i ≤ N ≤ 46655`. Fixed width means a
+  3-digit count field costs the same for a 1-frame or a 46655-frame transfer.
+- `<F>`: single flag char — `0` ⇒ plain, `Z` ⇒ zlib+base64 compressed.
 - `<payload>`: the i-th slice of `transfer_string`, exactly
-  `chunk_size` bytes each (last slice may be shorter).
-- Header overhead ≈ 16–20 bytes → effective payload = `chunk_size − overhead`;
-  the chunker slices the transfer string so that **header+payload ≤ preset
-  size**.
+  `chunk_size` bytes each (last slice may be shorter). No separators: both
+  base36 count fields are fixed-width, so the header is unambiguously 11
+  chars and the payload starts at offset 11.
+- Header overhead is a constant **11 bytes** → effective payload =
+  `chunk_size − 11`; the chunker slices the transfer string so that
+  **header+payload ≤ preset size**.
+
+Legacy frames `BALQR1|<total>|<index>|<flags>|<payload>` (variable-width
+decimal header, pipe-separated) are still **imported** by `parse_frame`
+(`_parse_v1`), so old exports keep working; the exporter emits v2 only.
+That is the one deliberate compatibility break: **v2 frames are not readable
+by builds older than this change.**
 
 ### 4.3 Size presets (D5)
 
@@ -173,12 +184,18 @@ def encode_transfer(tx_strings: list[str], compress: bool = False) -> str
     """Join -> optional zlib+base64 -> return transfer_string."""
 
 def split_frames(transfer_string: str, chunk_size: int) -> list[str]
-    """Slice into full frames 'BALQR1|N|i|flags|payload'. Raises
+    """Slice into frames 'BAL1<TTT><iii><F>payload' (v2) — header+payload <=
+    chunk_size. Raises QrTransferError over the 46655-frame base36 cap, or
     ValueError if chunk_size < MIN_CHUNK_SIZE."""
 
+def encode_transfer_best(tx_strings: list[str]) -> tuple[str, bool]
+    """-> (transfer_string, compressed); ships the shorter of plain vs
+    zlib+base64 so the export emits the densest frames."""
+
 def parse_frame(frame: str) -> tuple[int, int, bool, str]
-    """-> (total, index, compressed, payload); ValueError on bad magic/
-    version/arity/non-int fields."""
+    """-> (total, index, compressed, payload); accepts v2 'BAL1…' and legacy
+    'BALQR1|…' (wrapped as _parse_v1/_parse_v2); ValueError on bad magic/
+    version/arity/non-numeric fields."""
 
 def assemble(frames: dict[int, str]) -> str
     """Validate indices form exactly range(1..max_total) (taken from any
@@ -260,7 +277,7 @@ def get_audio_modem_plugin(self):        # on BalWindow
 Layout:
 
 ```
-[Size ▾ Small/Medium/Large/XL]   [x Compress (zlib+base64)]
+[Size ▾ Small/Medium/Large/XL]   ← compressed best-of automatically (no checkbox)
 [            QR image           ]   ← BalQrImage (see below)
 «i di N»        [◀ Prev] [Next ▶]
 [Save current QR as PNG…]  [Send via Audio Modem…]  [Close]
@@ -268,7 +285,7 @@ Layout:
 
 Behaviour:
 
-- On any control change: rebuild `split_frames(encode_transfer(...))`,
+- On any control change: rebuild `split_frames(encode_transfer_best(...))`,
   reset index to frame 1, refresh counter (owner requirement: "cambiare la
   risoluzione").
 - `BalQrImage(QWidget)` ≈ trimmed copy of `QRCodeWidget`

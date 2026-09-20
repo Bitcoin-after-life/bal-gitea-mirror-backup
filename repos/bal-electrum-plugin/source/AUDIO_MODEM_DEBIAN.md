@@ -47,7 +47,7 @@ sudo ln -s /usr/lib/x86_64-linux-gnu/libportaudio.so.2 \
 Verify:
 
 ```bash
-source /home/steal/devel/bal/electrum/env/bin/activate
+source "$BAL_HOME/electrum/env/bin/activate"
 python3 -c "import amodem.audio; print(amodem.audio.Interface(config=None).load('libportaudio.so').call('GetVersionText'))"
 # b'PortAudio V19...'  <-- success
 ```
@@ -68,11 +68,11 @@ is ever emitted**). Either pin NumPy < 2, or patch the single line in the
 installed package:
 
 ```bash
-source /home/steal/devel/bal/electrum/env/bin/activate
+source "$BAL_HOME/electrum/env/bin/activate"
 python3 -m pip install "numpy<2"   # option A (downgrade)
 # option B (patch; path depends on your site-packages):
 sed -i "s/sym.astype('int16').tostring()/sym.astype('int16').tobytes()/" \
-  /home/steal/devel/bal/electrum/env/lib/python3.11/site-packages/amodem/common.py
+  "$BAL_HOME/electrum/env/lib/python3.11/site-packages/amodem/common.py"
 ```
 
 > This must be done on **every** machine that receives/sends audio (both ends
@@ -93,7 +93,7 @@ These were applied on the current dev box and do NOT need to be re-done:
 Check them in one command:
 
 ```bash
-source /home/steal/devel/bal/electrum/env/bin/activate
+source "$BAL_HOME/electrum/env/bin/activate"
 python3 - <<'EOF'
 import amodem, ctypes, numpy, zlib
 print("amodem", amodem.__version__)
@@ -116,7 +116,7 @@ MON="$(pactl get-default-sink).monitor"; ORIG=$(pactl get-default-source)
 pactl set-default-source "$MON"
 
 # 2) run the round-trip (uses zlib-compressed payload like the plugin)
-source /home/steal/devel/bal/electrum/env/bin/activate
+source "$BAL_HOME/electrum/env/bin/activate"
 timeout 90 python3 /tmp/opencode/bal_audio_loopback.py
 #   expected: bitrate 1.0 kbps ... send done ... RECV OK
 

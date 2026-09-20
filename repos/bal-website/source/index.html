@@ -99,7 +99,8 @@ section{scroll-margin-top:72px}
 /* ---------- Hero ---------- */
 header.hero{padding:56px 0 40px;border-bottom:1px solid var(--line);background:
   radial-gradient(900px 300px at 80% -40%,var(--accent-soft),transparent 70%);}
-.hero .wrap{display:grid;grid-template-columns:1.4fr .9fr;gap:40px;align-items:center}
+/* stretch (not center) so the card's lower edge lines up with the text column */
+.hero .wrap{display:grid;grid-template-columns:1.4fr .9fr;gap:40px;align-items:stretch}
 .hero .badge{
   display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;
   color:var(--accent);background:var(--accent-soft);border:1px solid #cfe0fb;
@@ -133,15 +134,25 @@ header.hero{padding:56px 0 40px;border-bottom:1px solid var(--line);background:
 .fiat-bar .t{font-size:13.5px;line-height:1.6;color:var(--ink)}
 .fiat-bar .t strong{font-weight:600}
 .fiat-bar .t .m{color:var(--muted)}
+/* Latest-post pointer: same bar, accent icon instead of the Bitcoin glyph. */
+.fiat-bar.latest-post{margin-top:11px}
+.fiat-bar.latest-post .btc{font-size:17px;color:var(--accent)}
 
+/*
+  Flex column so the stats pin to the bottom (margin-top:auto), keeping the
+  card's lower edge level with the text column whatever height the art takes.
+*/
 .hero-card{
   background:var(--panel);border:1px solid var(--line);border-radius:14px;
-  box-shadow:var(--shadow-lg);padding:30px 28px;text-align:center;
+  box-shadow:var(--shadow-lg);padding:28px;text-align:center;
+  display:flex;flex-direction:column;
 }
-.hero-card img{width:138px;height:138px;margin:0 auto 14px;display:block}
+.hero-card .hero-art{
+  width:100%;height:auto;margin:0 auto 16px;display:block;border-radius:12px;
+}
 .hero-card .name{font-family:var(--display);font-weight:600;font-size:18px}
 .hero-card .tag{color:var(--muted);font-size:13px;margin-top:2px}
-.hero-card .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px}
+.hero-card .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto;padding-top:20px}
 .hero-card .stat{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px 8px}
 .hero-card .stat .n{font-family:var(--display);font-weight:600;font-size:20px;line-height:1}
 .hero-card .stat .l{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:6px}
@@ -180,6 +191,9 @@ header.hero{padding:56px 0 40px;border-bottom:1px solid var(--line);background:
   border:1px solid var(--line-strong);border-radius:5px;padding:3px 7px;
 }
 .card .more{font-size:13px;font-weight:600;color:var(--accent)}
+/* Blog cards: titles read as headings, like on blog.html, not as links. */
+.card h3 a{color:var(--ink)}
+.card h3 a:hover{color:var(--accent);text-decoration:none}
 
 /* ---------- Steps ---------- */
 .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -513,10 +527,20 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
         <span class="btc">₿</span>
         <span class="t"><strong>Open-source project.</strong> <span class="m">The BAL Protocol is built and funded exclusively with Bitcoin — no FIAT currencies were used.</span></span>
       </div>
+      <!--
+        Latest post pointer. When a new article goes live, update the title and
+        href here AND the three cards in the #blog section further down.
+      -->
+      <div class="fiat-bar latest-post">
+        <span class="btc">📄</span>
+        <span class="t"><strong>New on the blog:</strong>
+          <a href="blog/the-quietest-day.html">The Quietest Day — what really happens when your Bitcoin inheritance arrives</a></span>
+      </div>
     </div>
 
     <aside class="hero-card">
-      <img src="/pitura/logo/Logo_nero.svg" alt="Bitcoin After Life Protocol logo" width="138" height="138">
+      <img class="hero-art" src="/pitura/bal-hero-tree.webp" width="981" height="688"
+           alt="A tree of circuit branches growing from the Bitcoin After Life logo, with padlocks and an envelope at its tips and a clock behind it">
       <div class="name">BAL Protocol</div>
       <div class="tag">Electrum plugin + Will-Executor</div>
       <div class="stats">
@@ -754,6 +778,43 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
       <span class="k">📖</span>
       <p>Looking for something more specific — Check Alive, running a Will-Executor, wallet compatibility, and more? See the <strong>full FAQ in the manual</strong>. <a href="https://bitcoin-after.life/docs/faq.html">Browse the full FAQ →</a></p>
     </div>
+  </div>
+</section>
+
+<!-- ===== From the blog =====
+     The three most recent posts, newest first. When a new article goes live,
+     add it at the top here, drop the oldest, and update the latest-post
+     pointer in the hero. -->
+<section class="section" id="blog">
+  <div class="wrap">
+    <span class="eyebrow">From the blog</span>
+    <h2>Notes on inheritance, Bitcoin and sovereignty</h2>
+    <p class="sub">Essays and practical notes from the project — on why inheritance breaks down, and on what mathematics can guarantee that paperwork cannot.</p>
+    <div class="grid cols-3">
+
+      <article class="card">
+        <div class="chips"><span class="chip">19 September 2026</span></div>
+        <h3 style="margin-top:12px"><a href="blog/the-quietest-day.html">The quietest day: what really happens when your Bitcoin inheritance arrives</a></h3>
+        <p>A well-designed inheritance should be a non-event on the day it arrives. What the heir actually does, what to leave them years in advance, and why an address without a key is a tomb.</p>
+        <a class="more" href="blog/the-quietest-day.html">Read the article →</a>
+      </article>
+
+      <article class="card">
+        <div class="chips"><span class="chip">12 September 2026</span></div>
+        <h3 style="margin-top:12px"><a href="blog/liquid-network-and-why-we-trust-only-bedrock.html">Liquid Network's $320M lesson: why BAL only builds on bedrock</a></h3>
+        <p>A $320 million bug on a Bitcoin sidechain is a reminder of a rule we follow without exception: no sidechains, no Layer-2s, no experimental scripts — only Bitcoin's most tested primitives.</p>
+        <a class="more" href="blog/liquid-network-and-why-we-trust-only-bedrock.html">Read the article →</a>
+      </article>
+
+      <article class="card">
+        <div class="chips"><span class="chip">6 September 2026</span></div>
+        <h3 style="margin-top:12px"><a href="blog/what-a-will-executor-can-see.html">What can a Will-Executor actually see? Privacy in the BAL protocol</a></h3>
+        <p>A Will-Executor holds one signed, time-locked transaction — and nothing else. What it can see, what it cannot, and why that protection comes from architecture rather than from a privacy policy.</p>
+        <a class="more" href="blog/what-a-will-executor-can-see.html">Read the article →</a>
+      </article>
+
+    </div>
+    <p style="margin-top:22px"><a class="more" href="blog.html">All articles on the blog →</a></p>
   </div>
 </section>
 

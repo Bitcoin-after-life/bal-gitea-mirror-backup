@@ -100,9 +100,9 @@ def test_size_greater_than_payload():
 
 
 def test_exact_single_frame_boundary():
-    # A 138-byte payload exactly fills the 150-byte preset budget (the 12-char
-    # empty-flags header plus payload), so the encoded frame is exactly 150.
-    tx_strings = ["a" * 138]
+    # A 139-byte payload exactly fills the 150-byte preset budget (the 11-char
+    # compact header plus payload), so the encoded frame is exactly 150.
+    tx_strings = ["a" * 139]
     payload = encode_transfer(tx_strings)
     frames = split_frames(payload, 150)
     assert len(frames) == 1
@@ -155,6 +155,119 @@ def test_compressed_roundtrip_through_frames():
     assert total is not None
     decoded = decode_transfer(assemble(parsed, total), compressed=True)
     assert decoded == tx_strings
+
+
+# --------------------------------------------------------------------------- #
+# Compact v2 wire format ("BAL1")
+# --------------------------------------------------------------------------- #
+
+
+def test_v2_frame_header_structure():
+    frames = split_frames(encode_transfer(["11" * 10]), 150)
+    assert len(frames) == 1
+    frame = frames[0]
+    assert frame.startswith("BAL1")
+    # Fixed 11-char header: magic + 3-char total + 3-char index + 1 flag.
+    assert len(frame) > 11
+    magic, total_s, index_s, flag, payload = (
+        frame[:4],
+        frame[4:7],
+        frame[7:10],
+        frame[10],
+        frame[11:],
+    )
+    assert magic == "BAL1"
+    assert total_s == "001"
+    assert index_s == "001"
+    assert flag == "0"
+    assert payload == "11" * 10
+    total, index, compressed, p = parse_frame(frame)
+    assert (total, index, compressed) == (1, 1, False)
+    assert p == payload
+
+
+def test_v2_compressed_flag_is_z():
+    frames = split_frames(
+        encode_transfer(["11" * 10], compress=True), 150, compressed=True
+    )
+    assert frames[0][10] == "Z"
+    _t, _i, compressed, _p = parse_frame(frames[0])
+    assert compressed is True
+
+
+def test_v2_header_fixed_width_high_counts():
+    # A long transfer needs multi-digit counts; the v2 header stays exactly
+    # 11 chars no matter how many frames (3-char base36 zero-padded counts).
+    tx_strings = ["ab" * 300]  # 600 chars -> several frames at 150
+    frames = split_frames(encode_transfer(tx_strings), 150)
+    assert len(frames) > 1
+    for frame in frames:
+        # magic(4) + total(3) + index(3) + flag(1) = 11 chars, then payload.
+        assert len(frame) - len(frame[11:]) == 11
+
+
+def test_v2_max_frame_count():
+    # A transfer needing more than 46655 frames must be rejected (3-char
+    # base36 count fields cannot represent larger totals).
+    from bal.core.qrtransfer import _MAX_TOTAL
+
+    oversized = "A" * (_MAX_TOTAL * (150 - 11) + 1)
+    try:
+        split_frames(oversized, 150)
+    except QrTransferError:
+        pass
+    else:
+        raise AssertionError("expected QrTransferError above the frame cap")
+
+
+def test_v2_boundary_at_max_count():
+    from bal.core.qrtransfer import _MAX_TOTAL
+
+    # Exactly at the cap: must still produce (bounded) frames with 3-char
+    # counts "VVV" (46655) for the highest serialised part.
+    payload = "B" * (_MAX_TOTAL * (150 - 11))
+    frames = split_frames(payload, 150)
+    assert len(frames) == _MAX_TOTAL
+    total, index, _c, _p = parse_frame(frames[-1])
+    assert total == _MAX_TOTAL
+    assert index == _MAX_TOTAL
+    assert frames[-1][:10] == "BAL1" + "ZZZ" + "ZZZ"
+
+
+def test_encode_transfer_best():
+    from bal.core.qrtransfer import encode_transfer_best
+
+    # Redundant JSON-ish text compresses -> compressed (and longer source
+    # must round-trip unchanged).
+    txs = ['{"a": "%s"}' % ("x" * 300), '{"b": "%s"}' % ("y" * 300)]
+    transfer, compressed = encode_transfer_best(txs)
+    assert compressed is True
+    assert decode_transfer(transfer, compressed) == txs
+
+    # Already-compact input stays plain (never larger than the source).
+    txs_small = ["ab", "cd"]
+    transfer, compressed = encode_transfer_best(txs_small)
+    assert compressed is False
+    assert decode_transfer(transfer, compressed) == txs_small
+
+
+def test_v2_malformed_frames():
+    bad = (
+        "BAL1",                       # header only, no fields
+        "BAL1" + "001",               # truncated
+        "BAL1" + "G-1" + "001" + "Z" + "p",  # non-base36 total
+        "BAL1" + "001" + "G-1" + "Z" + "p",  # non-base36 index
+        "BAL1" + "000" + "001" + "Z" + "p",  # total 0
+        "BAL1" + "001" + "000" + "Z" + "p",  # index 0
+        "BAL1" + "001" + "002" + "Z" + "p",  # index beyond total
+        "BAL1" + "001" + "001" + "Q" + "p",  # unknown flag
+    )
+    for frame in bad:
+        try:
+            parse_frame(frame)
+        except QrTransferError:
+            continue
+        raise AssertionError("expected QrTransferError for: {!r}".format(frame))
 
 
 # --------------------------------------------------------------------------- #

@@ -5,7 +5,7 @@ Covers the locktime acceptance bounds, the RAW locktime sanitisation, and the
 percentage-or-amount field normalisation that the Qt editors wrap.
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     python3 tests/test_core_input_rules.py
 """
 

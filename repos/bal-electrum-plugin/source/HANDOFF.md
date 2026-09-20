@@ -102,22 +102,23 @@ HANDOFF.md                   <- this file.
 Two separate venvs — using the wrong one is the #1 mistake:
 
 - **Runtime env** (Electrum + PyQt6, has `electrum` importable):
-  `source /home/steal/devel/bal/electrum/env/bin/activate` — an editable
+  `source "$BAL_HOME/electrum/env/bin/activate"` — an editable
   install of the Electrum **4.8.0** checkout at
-  `/home/steal/devel/bal/electrum`. Use it for anything that imports
+  `$BAL_HOME/electrum`. Use it for anything that imports
   `electrum`, runs GUI code, or runs tests. The plugin's `bal/` directory is
   symlinked into `electrum/electrum/plugins/bal` (internal-plugin install used
   during dev).
 - **Lint venv** (repo-local `venv/`): ruff, black, flake8 only. It cannot
   import `electrum` or `PyQt6`. Do NOT use it to run tests.
 
-Run everything from `/home/steal/devel/bal/bal-electrum-plugin`.
+Run everything from the repo root (the checkout directory; set
+`BAL_HOME` to its parent to use `$BAL_HOME/electrum`).
 
 **Tests are standalone scripts (not pytest):** each `tests/test_*.py` runs its
 `test_*` functions from `if __name__ == "__main__"`. Run a file directly:
 
 ```bash
-source /home/steal/devel/bal/electrum/env/bin/activate
+source "$BAL_HOME/electrum/env/bin/activate"
 python3 tests/test_core_heirs.py        # core, no Qt needed
 QT_QPA_PLATFORM=offscreen python3 tests/test_gui_common.py   # GUI tests need offscreen
 ```
@@ -136,7 +137,7 @@ UTXO has no fee value, `bal/core/will.py:482`) and 1 collection error in
 
 **Lint (only NEW errors matter; ignore pre-existing noise):**
 ```bash
-/home/steal/devel/bal/bal-electrum-plugin/venv/bin/ruff check <files> \
+./venv/bin/ruff check <files> \
   | grep -oE "^[^ ]+\.py:[0-9]+:[0-9]+: [A-Z][0-9]+" | grep -vE "F401|F403|F405|F841"
 ```
 Ruff is NOT clean repo-wide (hundreds of pre-existing errors in `bal/` and

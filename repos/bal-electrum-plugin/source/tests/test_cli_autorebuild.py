@@ -21,7 +21,7 @@ The ``no_heirs`` and ``threshold_passed`` paths live in
 ``test_cli_controller_offline.py``.
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     python3 tests/test_cli_autorebuild.py
 """
 

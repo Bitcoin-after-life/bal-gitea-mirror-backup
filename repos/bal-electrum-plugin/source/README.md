@@ -94,7 +94,9 @@ exists, then enable it from **Tools → Plugins**.
 From the will list (**Export → QR Codes**) a will can be exported as a
 sequence of QR codes and imported on another device (**Import via QR**). The
 export offers All / Valid / Valid-NC filters plus a QR size preset
-(150–1800 bytes/frame); the import flow reviews and sign each transaction
+(150–1800 bytes/frame) and ships the default **BAL QR** format already
+compressed whenever that is smaller (best-of zlib, flag per frame); the import
+flow reviews and sign each transaction
 one at a time, then proposes exporting the signed transactions. When
 Electrum's `audio_modem` plugin is enabled (optional, requires `amodem` +
 PortAudio) Send/Receive audio buttons complement the QR channel. See

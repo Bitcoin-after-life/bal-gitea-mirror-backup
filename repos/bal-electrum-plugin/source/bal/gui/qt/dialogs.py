@@ -53,6 +53,7 @@ from ...core.qrtransfer import (
     QrTransferError,
     decode_transfer,
     encode_transfer,
+    encode_transfer_best,
     preset_index_for_chunk_size,
     split_frames,
 )
@@ -2799,6 +2800,12 @@ class BalQrExportWidget(QWidget):
         self.tx_strings = list(tx_strings)
         self._stop_auto()
         self.transfer = encode_transfer(self.tx_strings, compress=False)
+        # BAL QR now ships compact (best-of) compressed by default: smaller
+        # frames, and the importer reverses it via the per-frame flag. The
+        # other formats keep the raw transfer (they compress internally).
+        self._balqr_transfer, self._balqr_compressed = encode_transfer_best(
+            self.tx_strings
+        )
         self._refresh_frames()
         self._update_intro()
         self._render()
@@ -2810,7 +2817,9 @@ class BalQrExportWidget(QWidget):
     def _refresh_frames(self):
         if self.format == "balqr":
             self.frames = split_frames(
-                self.transfer, self.chunk_size, compressed=False
+                self._balqr_transfer,
+                self.chunk_size,
+                compressed=self._balqr_compressed,
             )
         else:
             self.frames = encode_animated_frames(

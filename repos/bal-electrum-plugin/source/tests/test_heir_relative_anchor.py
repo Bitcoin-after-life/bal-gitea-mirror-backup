@@ -25,7 +25,7 @@ heirs with ``"1y"``, a signed/pushed/checked item whose frozen tx.locktime is
 ``{"locktime": "2y", "threshold": "150d"}``.
 
 Run:
-    source /home/steal/devel/bal/electrum/env/bin/activate
+    source "$BAL_HOME/electrum/env/bin/activate"
     python3 tests/test_heir_relative_anchor.py
 """
 
