@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proof of Life Without Surveillance: How Your Wallet Tells the Protocol You're Still Here — Bitcoin After Life</title>
+<meta name="description" content="Bitcoin After Life never tries to detect death. How Check Alive works, why updating a will costs nothing while postponing it costs a transaction, and why the only proof of life the protocol sees is your own signature.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Bitcoin After Life">
+<meta property="og:title" content="Proof of Life Without Surveillance: How Your Wallet Tells the Protocol You're Still Here — Bitcoin After Life">
+<meta property="og:description" content="Bitcoin After Life never tries to detect death. How Check Alive works, why updating a will costs nothing while postponing it costs a transaction, and why the only proof of life the protocol sees is your own signature.">
+<meta property="og:url" content="https://bitcoin-after.life/blog/proof-of-life.html">
+<meta property="og:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@BitcoinAfterLif">
+<meta name="twitter:title" content="Proof of Life Without Surveillance: How Your Wallet Tells the Protocol You're Still Here — Bitcoin After Life">
+<meta name="twitter:description" content="Bitcoin After Life never tries to detect death. How Check Alive works, why updating a will costs nothing while postponing it costs a transaction, and why the only proof of life the protocol sees is your own signature.">
+<meta name="twitter:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta name="theme-color" content="#2d6cdf">
+<link rel="canonical" href="https://bitcoin-after.life/blog/proof-of-life.html">
+<link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/pitura/ico/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/pitura/ico/favicon-16.png">
+<script>
+/* Runs before first paint: removes the `nojs` class set on <html>, so the
+   mobile menu button is only shown when it can actually work. */
+document.documentElement.classList.remove('nojs');
+</script>
+<style>
+:root{
+  --maxw:1120px;
+  --radius:10px;
+  --bg:#eef1f4;
+  --panel:#ffffff;
+  --ink:#1a2027;
+  --muted:#5b6672;
+  --line:#dfe4ea;
+  --line-strong:#cbd2da;
+  --accent:#2d6cdf;
+  --accent-soft:#e6eefc;
+  --display:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(20,30,50,.05);
+  --shadow-lg:0 6px 20px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- Top bar (shared with home and manifesto) ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(150%) blur(8px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.topbar .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);
+  font-weight:600;color:var(--ink)}
+.topbar .logo img{width:30px;height:30px;display:block}
+.topbar .logo span{font-size:15px;letter-spacing:-.01em}
+.topbar nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:13px;padding:7px 11px;border-radius:7px}
+.topbar nav a:hover{color:var(--ink);background:var(--accent-soft);text-decoration:none}
+.topbar nav a.active{color:var(--accent);font-weight:600;border:1px solid #cfe0fb;
+  background:var(--accent-soft)}
+.topbar .x{color:var(--ink);font-weight:600}
+
+.navtoggle{
+  display:none;margin-left:auto;width:44px;height:44px;flex:none;
+  align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:9px;
+  color:var(--ink);cursor:pointer;padding:0;
+}
+.navtoggle:hover{border-color:var(--accent);color:var(--accent)}
+.navtoggle .bars{display:block;width:18px;height:2px;background:currentColor;position:relative}
+.navtoggle .bars::before,.navtoggle .bars::after{
+  content:"";position:absolute;left:0;width:18px;height:2px;background:currentColor}
+.navtoggle .bars::before{top:-6px}
+.navtoggle .bars::after{top:6px}
+.navtoggle[aria-expanded="true"] .bars{background:transparent}
+.navtoggle[aria-expanded="true"] .bars::before{top:0;transform:rotate(45deg)}
+.navtoggle[aria-expanded="true"] .bars::after{top:0;transform:rotate(-45deg)}
+
+/* ---------- Footer (shared) ---------- */
+footer{border-top:1px solid var(--line);margin-top:56px;padding:34px 0 40px;
+  color:var(--muted);font-size:14px;background:var(--panel)}
+footer .sig{font-family:var(--display);font-weight:600;color:var(--ink);font-size:16px}
+footer .links{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0}
+footer .built{font-size:13px;color:var(--muted);margin-top:8px}
+
+@media (max-width:900px){
+  .navtoggle{display:inline-flex}
+  .topbar nav{
+    position:absolute;top:100%;left:0;right:0;
+    margin-left:0;display:none;flex-direction:column;gap:2px;flex-wrap:nowrap;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    box-shadow:var(--shadow-lg);padding:10px 20px 16px;
+  }
+  .topbar nav.open{display:flex}
+  .topbar nav a{font-size:15.5px;padding:0 12px;min-height:44px;
+    display:flex;align-items:center;border-radius:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/*
+  Without JavaScript the panel cannot be toggled, so the links are shown
+  inline. On narrow screens they wrap under the logo and the bar is allowed
+  to grow, instead of being clipped by the fixed 60px height.
+*/
+.nojs .navtoggle{display:none}
+.nojs .topbar nav{position:static;display:flex;flex-direction:row;flex-wrap:wrap;
+  box-shadow:none;border-bottom:0;padding:0;margin-left:auto;background:transparent}
+@media (max-width:900px){
+  .nojs .topbar .wrap{height:auto;min-height:56px;flex-wrap:wrap;padding-bottom:8px;gap:10px}
+  .nojs .topbar nav{margin-left:0;width:100%;gap:4px 6px}
+  .nojs .topbar nav a{font-size:14.5px;min-height:40px;padding:0 10px;
+    display:flex;align-items:center;border:1px solid var(--line);border-radius:8px}
+}
+
+.post-head{padding:44px 0 30px;border-bottom:1px solid var(--line);
+  background:radial-gradient(820px 280px at 50% -40%,var(--accent-soft),transparent 70%)}
+.post-head .wrap{max-width:760px}
+.post-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+.post-head h1{font-family:var(--display);font-weight:600;font-size:40px;
+  letter-spacing:-.02em;line-height:1.12;margin:0 0 14px}
+.post-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  font-size:13px;color:var(--muted)}
+.post-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--line-strong)}
+
+.article{max-width:760px;margin:0 auto;padding:34px 20px 8px}
+.article p{font-size:17px;line-height:1.8;color:#36404b;margin:0 0 20px}
+.article p strong{color:var(--ink);font-weight:600}
+.article h2{font-family:var(--display);font-weight:600;font-size:25px;
+  letter-spacing:-.01em;margin:38px 0 14px;padding-bottom:10px;
+  border-bottom:1px solid var(--line-strong)}
+.article ol{padding-left:22px;margin:0 0 20px}
+.article li{font-size:17px;line-height:1.8;color:#36404b;margin-bottom:14px}
+.article li strong{color:var(--ink);font-weight:600}
+.article figure{margin:30px 0}
+.article figure img{width:100%;height:auto;display:block;border-radius:var(--radius);
+  border:1px solid var(--line);box-shadow:var(--shadow)}
+.article hr{border:0;border-top:1px solid var(--line-strong);margin:34px 0 22px}
+.article .disclaimer{font-size:14px;color:var(--muted);font-style:italic;line-height:1.7}
+
+/*
+  Table and diagram caption: the table reuses the treatment from the privacy
+  post; the wrapper scrolls on narrow screens so the page never scrolls sideways.
+*/
+.article .tablewrap{overflow-x:auto;margin:0 0 22px;-webkit-overflow-scrolling:touch}
+.article table{width:100%;border-collapse:collapse;font-size:15.5px;min-width:480px}
+.article th,.article td{text-align:left;padding:11px 14px;border:1px solid var(--line);
+  line-height:1.6;color:#36404b;vertical-align:top}
+.article th{font-family:var(--display);font-weight:600;color:var(--ink);
+  background:var(--accent-soft)}
+.article figcaption{font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
+
+/* Check Alive example: diagram on wide screens, readable table on phones. */
+.article .only-mobile{display:none}
+@media (max-width:700px){.article .only-desktop{display:none}.article .only-mobile{display:block}}
+
+.back{max-width:760px;margin:26px auto 0;padding:0 20px 8px}
+.back a{font-size:14px;font-weight:600}
+
+@media (max-width:700px){
+  .post-head{padding:30px 0 24px}
+  .post-head h1{font-size:29px}
+  .article{padding:28px 18px 8px}
+  .article h2{font-size:22px;margin-top:32px}
+  .article figure{margin:24px -18px}
+  .article figure img{border-radius:0;border-left:0;border-right:0}
+}
+@media (max-width:400px){
+  .post-head h1{font-size:25px}
+  .wrap{padding:0 15px}
+  .article{padding:24px 16px 8px}
+  .article figure{margin:22px -16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <a class="logo" href="../index.html"><img src="../pitura/logo/Logo_nero.svg" alt="Bitcoin After Life logo"><span translate="no">Bitcoin After Life</span></a>
+    <button class="navtoggle" id="navToggle" type="button"
+            aria-expanded="false" aria-controls="mainNav" aria-label="Open menu">
+      <span class="bars"></span>
+    </button>
+    <nav id="mainNav">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#how">How it works</a>
+      <a href="../index.html#plugin">Plugin</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a class="active" href="../blog.html">Blog</a>
+      <a href="../manifesto.html">Manifesto</a>
+      <a class="x" href="https://x.com/BitcoinAfterLif" title="@BitcoinAfterLif on X">@X</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+<header class="post-head">
+  <div class="wrap">
+    <span class="eyebrow">Blog</span>
+    <h1>Proof of Life Without Surveillance: How Your Wallet Tells the Protocol You're Still Here</h1>
+    <div class="post-meta">
+      <time datetime="2026-09-26">26 September 2026</time>
+      <span class="dot"></span>
+      <span translate="no">Bitcoin After Life</span>
+      <span class="dot"></span>
+      <span>8 min read</span>
+    </div>
+  </div>
+</header>
+
+<article class="article">
+<figure>
+<img src="img/proof-of-life-cover.webp" width="1600" height="900" loading="lazy" alt="A Bitcoin wallet linked by a heartbeat line to a clock and an hourglass">
+</figure>
+
+<p>Every inheritance protocol has to answer one question that Bitcoin, on its own, cannot: <strong>how does it know when you're gone?</strong></p>
+<p>Traditional systems answer it the traditional way. A death certificate. A hospital record. A family member who calls the lawyer. A court that opens probate. A chain of humans, each verifying the previous one, each an opportunity for error, delay, or abuse.</p>
+<p>For a protocol that has to survive decades, span jurisdictions, and never trust anyone, this is not an option. So <span translate="no">Bitcoin After Life</span> inverts the question. It never tries to detect death. It waits for you to show that you're alive — and if you stop, it eventually lets go.</p>
+<p>The mechanism that does this is called <strong>Check Alive</strong>. To understand it, you first need one idea that sits at the heart of the whole protocol: once a will is signed and handed to the Will-Executors, it cannot be taken back. It can only be <em>beaten</em>.</p>
+
+<h2>The wrong way to know</h2>
+<p>Before looking at how BAL does it, it's worth being honest about how it <em>doesn't</em>.</p>
+<p>A naive protocol would ask you to check in on a website. Every month, log into a dashboard, click a button, prove you're around. Miss too many check-ins and the inheritance executes.</p>
+<p>This is how many custodial "dead man's switch" services operate, and it has problems that disqualify it for Bitcoin-native inheritance:</p>
+<ul style="padding-left:22px">
+<li><strong>It requires an account.</strong> An identity, an email, a password, a server that knows who you are. Everything BAL was built to avoid.</li>
+<li><strong>It puts someone else in charge of the clock.</strong> The service sends the reminders, decides whether they were answered, and decides when you are presumed dead. It becomes a single point of failure — and of abuse.</li>
+<li><strong>It usually runs on a short leash.</strong> A monthly check-in means a hospital stay or a long trip can be enough to trigger an inheritance while you're still alive.</li>
+</ul>
+
+<h2>The right question</h2>
+<p>BAL asks something different. Not <em>"is this person dead?"</em> — impossible to answer without either surveillance or a trusted witness — but <em>"has the owner of this wallet come back and said: not yet?"</em></p>
+<p>And the only way to say "not yet" is with the one thing only you have: the keys to your wallet.</p>
+
+<h2>The rule everything depends on</h2>
+<p>An inheritance transaction is a normal Bitcoin transaction, fully signed by you, with a locktime: the network refuses it until the delivery date. Once you send it to your Will-Executors, it lives on independent servers you don't control. You can't recall it, and you can't make them forget it — nor should you have to trust them to.</p>
+<p>So there are only two ways to change a will that has already been handed out, and they are not symmetric.</p>
+<p><strong>Bringing the date closer is free.</strong> The plugin builds a new version of the will, dated one day <em>earlier</em> than the one the Will-Executors already hold, and asks you to sign it. Nothing is broadcast today. When the time comes, the newer transaction becomes valid first; a Will-Executor broadcasts it to earn its fee, and it spends the coins. The older transaction, dated a day later, now points at coins that no longer exist — and every node on the network rejects it. No server makes that decision. Bitcoin's rule against double-spending does.</p>
+<p>This is also how every ordinary change to a will is handled. Each time you close Electrum, the plugin checks your coins, your balance and your heirs. If anything has changed, it updates the will automatically — anticipated by one day — and you confirm it with your signature. That covers four situations:</p>
+<ul style="padding-left:22px">
+<li>you <strong>received funds</strong>, which the old will doesn't include;</li>
+<li>you <strong>spent funds</strong> — your payment has already moved some of the coins the old will pointed to, so that version could never be executed anyway;</li>
+<li>you <strong>added, removed or changed an heir</strong>, or the share assigned to one;</li>
+<li>you <strong>brought the delivery date forward</strong>.</li>
+</ul>
+<p>None of these needs an extra on-chain transaction from BAL. Only one thing does: pushing the date later.</p>
+<p><strong>Pushing the date further away costs a transaction.</strong> A later-dated will can never beat an earlier one: the old transaction would simply become valid first, and a Will-Executor still holding it would broadcast it. So before the date can move out, the old will has to be voided. The plugin's <strong>Invalidate</strong> command makes a real on-chain transaction that changes the coins the old will points to — which turns every copy of it into a worthless piece of data — and then a new will with the later date is signed and distributed. That invalidation is a normal Bitcoin transaction, and you pay a miner fee for it.</p>
+
+<figure class="diagram">
+<a href="img/proof-of-life-two-directions.webp" target="_blank" rel="noopener"><img src="img/proof-of-life-two-directions.webp" width="1440" height="1512" loading="lazy" alt="Diagram. Anticipate, to update the will: done automatically each time you close Electrum, after you receive or spend funds, change heirs or shares, or bring the date forward. A new will dated one day earlier is broadcast first and the old one is rejected by the network. Nothing on-chain, free. Postpone, to push delivery later: an on-chain Invalidate voids the old will, then a new will with a later date is signed and sent out. One on-chain transaction, with a miner fee."></a>
+<figcaption>Click or tap the diagram to open it full size.</figcaption>
+</figure>
+
+<p>Keep that asymmetry in mind, because it is exactly what Check Alive is built on.</p>
+
+<h2>How Check Alive actually works</h2>
+<p>Check Alive is a warning window <em>before</em> your delivery date, and you choose how long it is — six months, a year — or you set it as a fixed date. It's available in the plugin's advanced mode.</p>
+<p>Each time you close Electrum, the plugin checks where you stand. As long as today is before the start of that window, nothing special happens: ordinary changes are handled the usual way, anticipated by one day. Once you're inside it — the final stretch before delivery — the plugin tells you the Check Alive threshold has passed and prepares an Invalidate for you. Sign it, and the old will is voided on-chain and a new one, with a later date, is distributed.</p>
+<p>Here is how it plays out with a delivery date two years away and Check Alive set to six months — so the window opens after eighteen months:</p>
+<figure class="diagram only-desktop">
+<a href="img/proof-of-life-check-alive.webp" target="_blank" rel="noopener"><img src="img/proof-of-life-check-alive.webp" width="1440" height="1200" loading="lazy" alt="Check Alive example: delivery date two years away, Check Alive set to six months. For the first 18 months, closing Electrum only triggers routine updates anticipated by one day, free. In the last 6 months the threshold has passed: the plugin asks you to Invalidate the old will and push the date out, with a miner fee. If you stop using Electrum, the Will-Executors broadcast the will on the delivery date. Calendar reminders are spread across the window, the last one the day before delivery."></a>
+</figure>
+<div class="tablewrap only-mobile">
+<table>
+<thead>
+<tr><th>What you do</th><th>What happens</th></tr>
+</thead>
+<tbody>
+<tr><td>You use and close Electrum during the first 18 months</td><td>Nothing special — you're before the threshold; routine updates just anticipate the will by a day</td></tr>
+<tr><td>You close Electrum in the last 6 months before delivery</td><td>The threshold has passed: the plugin asks you to invalidate the old will and push the date out</td></tr>
+<tr><td>You stop using Electrum</td><td>Nothing postpones the will. On the delivery date, the Will-Executors broadcast it</td></tr>
+</tbody>
+</table>
+</div>
+<p>The plugin can also export calendar reminders spread across that final window, the last one the day before delivery — reminders that live in your own calendar, not on anyone's server.</p>
+<p>As long as you keep coming back and accept the prompt when the window opens, your will never executes. Stop coming back, and the last date you committed to stands.</p>
+<p>The plugin never does any of this on its own. It asks; you sign. Your "not yet" is a Bitcoin transaction signed with your own keys — about the hardest proof of life there is to forge.</p>
+
+<h2>What Check Alive is not</h2>
+<p>It is worth stating clearly what this mechanism does <em>not</em> claim to be.</p>
+<p><strong>It is not a definitive proof of life.</strong> If someone else gains control of your wallet, they could accept the prompt too — the protocol can't tell who is at the keyboard. It isn't detecting death; it's drawing an inference from the fact that someone holding your keys came back and said "not yet". That's why the security of your seed remains the foundation of everything.</p>
+<p><strong>It is not a legal document.</strong> No court will accept "the owner stopped postponing" as evidence of anything. The inheritance executes because the cryptography allows it, not because a judge has ruled on your fate.</p>
+<p><strong>It is not a substitute for a will in the traditional sense.</strong> If you have other assets, dependents, or legal obligations, you still need the normal legal instruments. BAL handles what it handles: the Bitcoin, cleanly, on time, without a custodian.</p>
+
+<h2>Why this matters more than it sounds</h2>
+<p>Every service that promises to "act on your death" faces the same choice: watch you, or trust someone to watch you. Watching you means surveillance — logins, heartbeats, biometrics, a growing dossier of your habits and health. Trusting a watcher means custody — a lawyer, a family member, a company, each a single point of failure and a single point of abuse.</p>
+<p>BAL refused both. The check happens inside your own wallet, on your own machine. No account knows you exist. No server tracks when you were last seen. The proof that you're still here is a Bitcoin transaction signed with your keys — public, tamper-proof, and revealing nothing about who you are, where you live, or how you're doing.</p>
+<p>You are not being watched. You are simply being <em>not-inferred-dead</em> — by a protocol that only learns you're alive when you choose to tell it.</p>
+
+<h2>The honest edge cases</h2>
+<ul style="padding-left:22px">
+<li><strong>Every postponement costs a fee.</strong> Each one is an on-chain transaction. With a short window and a close delivery date, you'll pay more often. The manual recommends a rolling deadline instead — for example "always five years from today" — renewed every two or three years. Anticipating is free; postponing again and again is not.</li>
+<li><strong>Every update brings delivery a day closer.</strong> Because each automatic refresh is anticipated by one day, years of normal use slowly pull the date in. The periodic renewal that moves it back out — a postponement — takes care of that.</li>
+<li><strong>Long silences need long settings.</strong> A holder who deliberately doesn't open their wallet for years must set the delivery date far enough out — Check Alive only speaks up in the final stretch before it. Set it too close and the will could execute while you're still around. That's a configuration choice — but it's yours to get right.</li>
+<li><strong>A locked-in delivery.</strong> Once you can no longer open your wallet, for any reason, the date freezes where you last left it. Set years ahead, your family may wait years; set months ahead, months. Choose deliberately.</li>
+<li><strong>One seed, one device.</strong> Spending even a single satoshi with the same seed from another device changes the coins the will points to, and the network will reject the inheritance when a Will-Executor tries to broadcast it. Keep the inheritance wallet on one device, with the plugin.</li>
+</ul>
+<p>None of these are surprises the protocol hides. They are the natural consequences of a mechanism that refuses to know more than it needs to.</p>
+
+<h2>The takeaway</h2>
+<p>Most inheritance systems answer "is this person dead?" by watching, by asking, or by trusting. BAL asks no one but you — and only you can answer, with your own signature.</p>
+<p>Bringing your delivery closer is free and silent. Pushing it away costs a transaction, because the only way to take back a promise you've already handed out is to move the coins it points to. Check Alive simply reminds you, from inside your own wallet, when it's time to decide.</p>
+<p>That is proof of life without surveillance. And it is, we think, one of the reasons a Bitcoin-native inheritance protocol was worth building in the first place.</p>
+
+<hr>
+<p class="disclaimer">Want the details? The manual covers <a href="https://bitcoin-after.life/docs/user-guide/check-alive.html" target="_blank" rel="noopener">Check Alive</a> and <a href="https://bitcoin-after.life/docs/user-guide/updating.html" target="_blank" rel="noopener">postponing vs anticipating</a>. <span translate="no">Bitcoin After Life</span> is open source and Bitcoin-only: explore the plugin and the server on <a href="https://bitcoin-after.life/gitea/bitcoinafterlife" target="_blank" rel="noopener">Gitea</a>.</p>
+</article>
+
+<div class="back">
+  <a href="../blog.html">← Back to the blog</a>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="sig">Svātantrya</div>
+    <div>Signed — <span translate="no">Bitcoin After Life</span> Protocol</div>
+    <div class="links">
+      <a href="https://bitcoin-after.life">bitcoin-after.life</a>
+      <a href="mailto:info@bitcoin-after.life">info@bitcoin-after.life</a>
+      <a href="https://x.com/BitcoinAfterLif">@BitcoinAfterLif</a>
+      <a href="https://bitcoin-after.life/pgp">PGP Key</a>
+      <a href="https://bitcoin-after.life/gitea/bitcoinafterlife">Source Code</a>
+    </div>
+    <div class="built">Built with ₿itcoin. No FIAT was used in the making of this protocol.</div>
+  </div>
+</footer>
+
+<script>
+/* Mobile menu toggle -- identical behaviour across all pages. */
+(function () {
+  const toggle = document.getElementById('navToggle');
+  const nav = document.getElementById('mainNav');
+  if (!toggle || !nav) return;
+
+  function setOpen(open) {
+    nav.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+
+  toggle.addEventListener('click', function () {
+    setOpen(!nav.classList.contains('open'));
+  });
+  nav.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') setOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+})();
+</script>
+</body>
+</html>
