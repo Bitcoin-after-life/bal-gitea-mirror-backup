@@ -2,11 +2,11 @@
 
 Source: `https://bitcoin-after.life/gitea/bitcoinafterlife`
 
-Last run (UTC): `2026-09-27 09:11:32`
+Last run (UTC): `2026-10-04 09:42:40`
 
 | Repository | Default branch | Last commit | Date |
 |---|---|---|---|
-| `bal-electrum-plugin` | `main` | 4a33116 fix: stop infinite RecursionError in will wizard (Da | 2026-09-19 17:42:11 -0400 |
+| `bal-electrum-plugin` | `main` | 5ec2b79 core+gui: BBQR-only QR transfer, disable Audio when  | 2026-10-03 13:00:23 -0400 |
 | `bal-server` | `main` | 6690343 refactor: unify client IP extraction into extract_re | 2026-08-19 03:13:01 -0400 |
 | `bal-pusher` | `main` | f7ccc29 release: bal-pusher-0.1.0 | 2025-04-21 21:47:48 -0400 |
 | `bal_plugin_manual_v0.1.0` | `main` | b7418f9 old email | 2025-04-14 11:28:45 -0400 |

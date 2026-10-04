@@ -20,6 +20,7 @@ Contents:
 
 from typing import TYPE_CHECKING
 
+from ...core.checkalive import resolve_relative_check_alive_date
 from ...core.heirs import get_op_return_hex, is_op_return_address
 from ...core.input_rules import (
     LockTimeEditor,
@@ -31,6 +32,7 @@ from ...core.reminders import build_ics_reminders, write_temp_ics
 from .calendar import BalCalendar, BalCalendarButton
 from .common import (
     DECIMAL_POINT,
+    N_,
     NLOCKTIME_BLOCKHEIGHT_MAX,
     NLOCKTIME_MAX,
     Any,
@@ -67,6 +69,7 @@ from .common import (
     _logger,
     char_width_in_lineedit,
     datetime,
+    format_status_history,
     getSaveFileName,
     log_error,
     os,
@@ -207,14 +210,18 @@ class BalTimeEditWidget(QWidget, _LockTimeEditor):
     current_index = None
     default_value = None
 
-    help_text = (
+    help_text = N_(
         "if you choose Raw, you can insert various options based on suffix:\n"
-        + " - d: number of days after current day(ex: 1d means tomorrow)\n"
-        + " - y: number of years after currrent day(ex: 1y means one year from today)\n"
+        " - d: number of days after current day(ex: 1d means tomorrow)\n"
+        " - y: number of years after currrent day(ex: 1y means one year from today)\n"
     )
     label_text = None
     tooltip_text = None
     base_field = None
+    # A leading "-" is accepted by the RAW editor only for the Check Alive
+    # field (its sign selects the anchor date); the delivery field never
+    # accepts a sign. Subclasses override this.
+    allow_negative_raw = False
 
     def __init__(self, bal_window, parent, default_locktime=None):
         super().__init__(parent)
@@ -225,7 +232,9 @@ class BalTimeEditWidget(QWidget, _LockTimeEditor):
         hbox.setContentsMargins(0, 0, 0, 0)
         hbox.setSpacing(0)
         self.setMinimumWidth(40 * char_width_in_lineedit())
-        self.locktime_raw_e = TimeRawEditWidget(self, time_edit=self)
+        self.locktime_raw_e = TimeRawEditWidget(
+            self, time_edit=self, allow_negative=self.allow_negative_raw
+        )
         self.locktime_date_e = LockTimeDateEdit(self, time_edit=self)
         self.editors = [self.locktime_raw_e, self.locktime_date_e]
         self.combo = QComboBox()
@@ -276,7 +285,9 @@ class BalTimeEditWidget(QWidget, _LockTimeEditor):
                     ]
                 )
         #hbox.addWidget(QLabel(self.label_text))
-        help_button=HelpButton(self.help_text)
+        # help_text and tooltip_text are class attributes marked with N_():
+        # translate them here, when shown.
+        help_button=HelpButton(_(self.help_text))
         help_button.setText(self.label_text)
         # Show a short label (e.g. "Delivery time" / "Check Alive") when the
         # user hovers the icon, so the emoji button is self-explanatory.
@@ -478,9 +489,9 @@ class TimeRawEditWidget(QWidget):
     def is_acceptable_locktime(self, value):
         return True
 
-    def __init__(self, parent, time_edit=None):
+    def __init__(self, parent, time_edit=None, allow_negative=False):
         super().__init__(parent)
-        self.editor = LockTimeRawEdit(parent, time_edit)
+        self.editor = LockTimeRawEdit(parent, time_edit, allow_negative=allow_negative)
         self.label = QLabel("")
         # Group C / C3: this trailing label shows the ABSOLUTE date computed
         # from the RAW value (e.g. "30d" -> "2027-06-23"), so it needs room for a
@@ -506,7 +517,7 @@ class TimeRawEditWidget(QWidget):
 
 
 class LockTimeRawEdit(QLineEdit, _LockTimeEditor):
-    def __init__(self, parent=None, time_edit=None):
+    def __init__(self, parent=None, time_edit=None, allow_negative=False):
         QLineEdit.__init__(self, parent)
         # Group C / C3: narrow the RAW input to roughly a third of its former
         # width. The accepted values are short relative durations such as "30d"
@@ -516,16 +527,22 @@ class LockTimeRawEdit(QLineEdit, _LockTimeEditor):
         self.textChanged.connect(self.numbify)
         self.isdays = False
         self.isyears = False
+        # The Check Alive field accepts a leading "-" (the sign selects the
+        # anchor date); the delivery field does not.
+        self.allow_negative = allow_negative
         self.time_edit = time_edit
 
     def numbify(self):
-        # Only digits plus the day ("d") and year ("y") suffixes are accepted.
-        # The block-height suffix ("b") was removed (A1): locktimes are always
-        # UNIX timestamps now, so block-relative input is no longer allowed.
+        # Only digits plus the day ("d") and year ("y") suffixes are accepted
+        # (and, for the Check Alive field, a single leading "-"). The
+        # block-height suffix ("b") was removed (A1): locktimes are always UNIX
+        # timestamps now, so block-relative input is no longer allowed.
         # The sanitisation itself lives in bal.core.input_rules.
         text = self.text().strip()
         pos = self.cursorPosition()
-        s, isdays, isyears, pos = normalize_locktime_raw_text(text, pos)
+        s, isdays, isyears, pos = normalize_locktime_raw_text(
+            text, pos, allow_negative=self.allow_negative
+        )
         self.isdays = isdays
         self.isyears = isyears
         self.blockSignals(True)
@@ -625,7 +642,7 @@ class LockTimeDateEdit(QDateTimeEdit, _LockTimeEditor):
 
 class ThresholdTimeWidget(BalTimeEditWidget):
     # rich_text=True is used by the HelpButton, so HTML tags (<b>, <br>) render.
-    help_text = (
+    help_text = N_(
         "<b>CHECK ALIVE</b><br><br>"
         "In DATA mode:<br>"
         "set the date for the \u201ccheck alive\u201d parameter.<br>"
@@ -639,13 +656,20 @@ class ThresholdTimeWidget(BalTimeEditWidget):
         "if you choose Raw, you can insert various options based on suffix:<br>"
         " - d: number of days after current day(ex: 1d means tomorrow)<br>"
         " - y: number of years after current day(ex: 1y means one year from today)<br>"
+        "The sign selects the reference date:<br>"
+        " - a NEGATIVE value (ex: -30d) counts backwards from the "
+        "<b>delivery</b> date (30 days before the delivery);<br>"
+        " - a POSITIVE value (ex: 30d) counts forward from the "
+        "<b>inheritance creation</b> date (30 days after the will was created).<br>"
         "<br><b>Note:</b> the date/time is expressed in your computer's "
         "<b>Local time</b> (not UTC time).<br>"
     )
     label_text = "🚨"
     #label_text = "Check Alive"
-    tooltip_text = "Check Alive"
+    tooltip_text = N_("Check Alive")
     base_field = "threshold"
+    # The Check Alive field accepts a signed value; the delivery field does not.
+    allow_negative_raw = True
 
     def __init__(self, bal_window, parent, init_value=None):
         if init_value is None:
@@ -659,7 +683,7 @@ class ThresholdTimeWidget(BalTimeEditWidget):
 
 class LockTimeWidget(BalTimeEditWidget):
     # rich_text=True is used by the HelpButton, so HTML tags (<b>, <br>) render.
-    help_text = (
+    help_text = N_(
         "<b>DELIVERY TIME</b><br><br>"
         "Set Locktime for transactions.<br>"
         "Any time is needed transaction will be anticipated by 1day<br><br>"
@@ -677,7 +701,7 @@ class LockTimeWidget(BalTimeEditWidget):
     #label_text = "Locktime"
     # Hover tooltip for the delivery-time icon; mirrors the style of the fee
     # icon tooltip ("..., click for more information") so the two are consistent.
-    tooltip_text = "Delivery Time, click for more information"
+    tooltip_text = N_("Delivery Time, click for more information")
     base_field = "locktime"
 
     def __init__(self, bal_window, parent, init_value=None):
@@ -1088,9 +1112,12 @@ class WillSettingsWidget(QWidget):
             basic_mode = self.bal_window.bal_plugin.is_basic_mode()
             if basic_mode:
                 # BASIC mode: use factory defaults (the hidden settings are
-                # ignored) and the fixed 30/10/1 offsets.
-                raw_description = self.bal_window.bal_plugin.EVENT_DESCRIPTION.default
-                raw_summary = self.bal_window.bal_plugin.EVENT_SUMMARY.default
+                # ignored) and the fixed 30/10/1 offsets. The defaults are in
+                # the GUI language (see BalConfig).
+                raw_description = (
+                    self.bal_window.bal_plugin.EVENT_DESCRIPTION.localized_default()
+                )
+                raw_summary = self.bal_window.bal_plugin.EVENT_SUMMARY.localized_default()
                 threshold = None
                 num_reminders = 3
             else:
@@ -1120,6 +1147,7 @@ class WillSettingsWidget(QWidget):
                 version=self.bal_window.bal_plugin.version,
                 num_reminders=num_reminders,
                 threshold=threshold,
+                reminder_suffix=_("(reminder {idx}/{total})"),
             )
         except Exception as e:
             _logger.error(f"failed to generate .ics: {e}")
@@ -1127,18 +1155,23 @@ class WillSettingsWidget(QWidget):
 
     def on_locktime_change(self):
         locktime = self.widgets["locktime"].get_value()
-        threshold = self.widgets["threshold"].get_value()
+        threshold_raw = self.widgets["threshold"].get_value()
         locktime = BalTimestamp(locktime)
-        threshold = BalTimestamp(threshold)
 
         min_locktime = min(
                 Will.get_min_locktime(self.bal_window.willitems, NLOCKTIME_MAX),
                 locktime.to_timestamp(),
         )
-        # Resolved Check Alive date. For relative values this counts BACKWARDS
-        # from the delivery time (reverse=True): "90d" means "90 days BEFORE the
-        # delivery", not "90 days from now".
-        td = threshold.to_date(min_locktime, True)
+        # Resolved Check Alive date. The SIGN of the RAW value selects the
+        # anchor: negative counts backwards from the delivery, positive counts
+        # forward from the inheritance creation date. The rule lives in
+        # ``bal.core.checkalive`` so this display matches every validity check.
+        resolved = resolve_relative_check_alive_date(
+            threshold_raw,
+            delivery_date=min_locktime,
+            creation_date=Will.get_creation_time(self.bal_window.willitems),
+        )
+        td = BalTimestamp._safe_fromtimestamp(resolved)
         self.widgets["threshold"].alarm=td
         self.bal_window.will_settings["real_threshold"]=td.timestamp()
         try:
@@ -1199,7 +1232,7 @@ class PercAmountEdit(BTCAmountEdit):
                 painter.drawText(
                     text_rect,
                     int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter),
-                    self.base_unit() + " or perc value",
+                    _("{} or perc value").format(self.base_unit()),
                 )
 
 
@@ -1317,11 +1350,12 @@ class WillWidget(QWidget):
                 creation = str(BalTimestamp(self.will[w].time))
 
                 def qlabel(title, value):
-                    label = "<b>" + _(str(title)) + f":</b>\t{str(value)}"
-                    return QLabel(label)
+                    # ``title`` is shown as it is: callers pass a translated
+                    # label, or data (an heir name, a will-executor URL).
+                    return QLabel("<b>{}:</b>\t{}".format(title, value))
 
-                detaillayout.addWidget(qlabel("Locktime", locktime))
-                detaillayout.addWidget(qlabel("Creation Time", creation))
+                detaillayout.addWidget(qlabel(_("Locktime"), locktime))
+                detaillayout.addWidget(qlabel(_("Creation Time"), creation))
                 try:
                     total_fees = (
                         self.will[w].tx.input_value() - self.will[w].tx.output_value()
@@ -1331,12 +1365,17 @@ class WillWidget(QWidget):
                 decoded_fees = total_fees
                 fee_per_byte = round(total_fees / self.will[w].tx.estimated_size(), 3)
                 fees_str = str(decoded_fees) + " (" + str(fee_per_byte) + " sats/vbyte)"
-                detaillayout.addWidget(qlabel("Transaction fees:", fees_str))
+                detaillayout.addWidget(qlabel(_("Transaction fees"), fees_str))
+                # The saved status history is English: translate it for display.
                 detaillayout.addWidget(
-                    qlabel("Status:", self.will[w].status + signature_suffix(self.will[w]))
+                    qlabel(
+                        _("Status"),
+                        format_status_history(self.will[w].status)
+                        + signature_suffix(self.will[w]),
+                    )
                 )
                 detaillayout.addWidget(QLabel(""))
-                detaillayout.addWidget(QLabel("<b>Heirs:</b>"))
+                detaillayout.addWidget(QLabel("<b>{}</b>".format(_("Heirs:"))))
                 for heir_name in self.will[w].heirs:
                     if 'w!ll3x3c"' in heir_name:
                         continue
@@ -1363,7 +1402,9 @@ class WillWidget(QWidget):
                         )
                 if self.will[w].we:
                     detaillayout.addWidget(QLabel(""))
-                    detaillayout.addWidget(QLabel(_("<b>Willexecutor:</b:")))
+                    detaillayout.addWidget(
+                        QLabel("<b>{}</b>".format(_("Willexecutor:")))
+                    )
                     decoded_amount = Util.decode_amount(
                         self.will[w].we["base_fee"], self._bal_parent.decimal_point
                     )

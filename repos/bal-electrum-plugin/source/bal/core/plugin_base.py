@@ -32,6 +32,8 @@ from electrum.plugin import BasePlugin
 from electrum.transaction import tx_from_any
 from electrum.util import classproperty
 
+from ..i18n import N_, _
+
 _logger = get_logger(__name__)
 
 
@@ -134,12 +136,20 @@ class BalConfig:
 
     Wraps ``config.get`` / ``config.set_key`` and supplies a default value
     when the key is missing.
+
+    ``translatable=True`` is for a default *text* (marked with ``N_()``) that
+    should follow the GUI language. The English default is what gets stored,
+    and :meth:`get` translates it when it is read, so the stored value never
+    depends on the GUI language. A text the user wrote is returned unchanged.
+    Only for texts that are shown: a text that is also used to recognise
+    stored data (e.g. ``HISTORY_LABEL``) must stay non-translatable.
     """
 
-    def __init__(self, config, name, default):
+    def __init__(self, config, name, default, translatable=False):
         self.config = config
         self.name = name
         self.default = default
+        self.translatable = translatable
 
     def get(self, default=None):
         """Return the stored value, falling back to ``default`` then ``self.default``."""
@@ -149,10 +159,20 @@ class BalConfig:
                 v = default
             else:
                 v = self.default
+        if self.translatable and v == self.default:
+            return _(v)
         return v
+
+    def localized_default(self):
+        """Return the default value, translated if the setting is translatable."""
+        return _(self.default) if self.translatable else self.default
 
     def set(self, value, save=True):
         """Persist ``value`` for this key."""
+        if self.translatable and value == self.localized_default():
+            # The translated default is stored as its English original, so
+            # it keeps following the GUI language (see get()).
+            value = self.default
         self.config.set_key(self.name, value, save=save)
 
 
@@ -243,6 +263,10 @@ class BalPlugin(BasePlugin):
         # the wallet's local history. May contain the "{willexecutor}" token,
         # which is replaced with the will-executor URL of each will item at
         # save time.
+        # Deliberately NOT translatable: Util._label_matches_history() uses
+        # this text to recognise BAL's own local transactions (stale-history
+        # cleanup, spendable UTXOs). A label that changed with the GUI
+        # language would no longer match the transactions saved before.
         self.HISTORY_LABEL = BalConfig(
             config,
             "bal_history_label",
@@ -281,11 +305,10 @@ class BalPlugin(BasePlugin):
         # stay display-only outside the wizard unless the user opts in.
         self.EDITABLE_DATES = BalConfig(config, "bal_editable_dates", False)
 
-        # QR_CHUNK_SIZE (will transfer via QR): payload budget, in bytes, used
-        # per QR frame when exporting/importing a will through the QR channel.
-        # The settings dialog offers the 4 standard presets of
-        # bal.core.qrtransfer.CHUNK_PRESETS; this stores the selected budget.
-        # Default 150 (small QR, low-resolution cameras).
+        # QR_CHUNK_SIZE (will transfer via QR): payload budget, in characters,
+        # used per QR frame when exporting/importing a will through the QR
+        # channel. The export dialog seeds its own size selector from this
+        # value (default 150, small QR, low-resolution cameras).
         self.QR_CHUNK_SIZE = BalConfig(config, "bal_qr_chunk_size", 150)
 
         # NUM_REMINDERS (Group D / D1): how many SEPARATE reminder events the
@@ -328,13 +351,20 @@ class BalPlugin(BasePlugin):
         self.WELIST_SERVER = BalConfig(
             config, "bal_welist_server", "https://welist.bitcoin-after.life/"
         )
+        # Calendar (.ics) texts: only shown, never used to recognise data, so
+        # their defaults follow the GUI language (translatable=True). The
+        # $tokens must survive translation.
         self.EVENT_DESCRIPTION = BalConfig(
             config,
             "bal_event_description",
-            "BAL will execution of $wallet_name\r\n heirs list:  \r\n$heirs_complete",
+            N_("BAL will execution of $wallet_name\r\n heirs list:  \r\n$heirs_complete"),
+            translatable=True,
         )
         self.EVENT_SUMMARY = BalConfig(
-            config, "bal_event_summary", "BAL -Will execution of $wallet_name"
+            config,
+            "bal_event_summary",
+            N_("BAL -Will execution of $wallet_name"),
+            translatable=True,
         )
 
         # Default will-executor servers, keyed by network.  These addresses are
@@ -467,22 +497,35 @@ class BalPlugin(BasePlugin):
 
     @staticmethod
     def default_will_settings_absolute():
-        """Convert the default relative dates into absolute timestamps (from today)."""
+        """Convert the default relative dates into absolute timestamps.
+
+        The Check Alive anchor follows its sign (see ``bal.core.checkalive``):
+        a negative default counts back from the delivery, a positive one counts
+        forward from today (the inheritance creation date).
+        """
         relative_dates = BalPlugin.default_will_settings_relative()
         today = datetime.now(tz=timezone.utc).date()
         dt = datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=timezone.utc)
-        threshold = (
-            dt + timedelta(days=BalTimestamp(relative_dates["threshold"]).duration_to_days())
-        ).timestamp()
-        locktime = (
-            dt + timedelta(days=BalTimestamp(relative_dates["locktime"]).duration_to_days())
-        ).timestamp()
-        return {"threshold": threshold, "locktime": locktime}
+        locktime_dt = dt + timedelta(
+            days=BalTimestamp(relative_dates["locktime"]).duration_to_days()
+        )
+        threshold = BalTimestamp(relative_dates["threshold"])
+        if threshold.unit is not None and threshold.value < 0:
+            anchor_dt = locktime_dt
+        else:
+            anchor_dt = dt
+        threshold_dt = anchor_dt + timedelta(days=threshold.duration_to_days())
+        return {"threshold": threshold_dt.timestamp(), "locktime": locktime_dt.timestamp()}
 
     @staticmethod
     def default_will_settings_relative():
-        """Default relative dates: 30 days threshold, 1 year locktime."""
-        return {"threshold": "30d", "locktime": "1y"}
+        """Default relative dates: 30 days BEFORE the delivery, 1 year locktime.
+
+        The Check Alive default is NEGATIVE on purpose: it keeps counting back
+        from the delivery date, preserving the historical "check alive 30 days
+        before delivery" behaviour.
+        """
+        return {"threshold": "-30d", "locktime": "1y"}
 
 
 class BalTimestamp:

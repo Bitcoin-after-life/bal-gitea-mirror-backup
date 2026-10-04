@@ -20,12 +20,15 @@ import threading
 from electrum.util import MyEncoder
 
 from ...core.checkalive import (
+    CheckAliveAfterDeliveryError,
     CheckAliveError,
-    check_alive_expired,
+    ensure_check_alive_valid,
     resolve_date_to_check,
+    resolve_delivery_date,
     resolve_guard_threshold,
 )
 from .common import (
+    N_,
     OP_RETURN_PREFIX,
     AmountException,
     BalPlugin,
@@ -282,12 +285,12 @@ class BalWindow:
 
     def new_heir_dialog(self, heir_key=None):
         heir = self.heirs.get(heir_key)
-        title = "New heir"
+        title = _("New heir")
         if heir:
-            title = f"Edit: {heir_key}"
+            title = _("Edit: {}").format(heir_key)
 
         d = BalDialog(
-            self.window, self.bal_plugin, self.bal_plugin.get_window_title(_(title))
+            self.window, self.bal_plugin, self.bal_plugin.get_window_title(title)
         )
 
         vbox = QVBoxLayout(d)
@@ -491,6 +494,7 @@ class BalWindow:
                 self.bal_plugin.is_basic_mode(),
                 self.will_settings,
                 built_locktime=_new_locktime,
+                creation_date=Will.get_creation_time(self.willitems),
             )
         will = {}
         # willtodelete = []
@@ -739,6 +743,7 @@ class BalWindow:
                 self.bal_plugin.is_basic_mode(),
                 self.will_settings,
                 built_locktime=Will.get_min_locktime(self.willitems),
+                creation_date=Will.get_creation_time(self.willitems),
             )
             # found = False
             # NOTE: block-height tracking removed (A1) - locktimes are always
@@ -749,19 +754,20 @@ class BalWindow:
             self.willexecutors = Willexecutors.get_willexecutors(
                 self.bal_plugin, update=True, bal_window=self, task=False
             )
-            # SIMPLE / ADVANCED: in BASIC mode the "Check Alive" parameter must
-            # behave AS IF IT DID NOT EXIST. The check-alive threshold drives
-            # the "you are alive -> postpone the inheritance" prompt; raising
-            # CheckAliveError here is what triggers that postpone/invalidate
-            # flow. In BASIC we therefore SKIP this check entirely, so a passed
-            # check-alive date never forces a postpone/rewrite of the will. The
-            # delivery time (locktime) is unaffected and still fully enforced.
-            # The BASIC/ADVANCED rule lives in
-            # ``bal.core.checkalive.check_alive_expired``.
-            if check_alive_expired(
-                self.bal_plugin.is_basic_mode(), self.date_to_check
-            ):
-                raise CheckAliveError(self.date_to_check)
+            # The Check Alive must be strictly after today and strictly before
+            # the delivery. In BASIC mode the single validity gate below is a
+            # no-op (see ``bal.core.checkalive.ensure_check_alive_valid``), so a
+            # passed check-alive date never forces a postpone/rewrite; the
+            # delivery time (locktime) stays fully enforced.
+            delivery_date = resolve_delivery_date(
+                self.will_settings,
+                built_locktime=Will.get_min_locktime(self.willitems),
+            )
+            ensure_check_alive_valid(
+                self.bal_plugin.is_basic_mode(),
+                self.date_to_check,
+                delivery_date=delivery_date,
+            )
 
             self.init_heirs_to_locktime(self.bal_plugin.ENABLE_MULTIVERSE.get())
 
@@ -786,7 +792,9 @@ class BalWindow:
         """
         locktime = Util.parse_locktime_string(self.will_settings["locktime"])
         threshold_ts = resolve_guard_threshold(
-            self.bal_plugin.is_basic_mode(), self.will_settings
+            self.bal_plugin.is_basic_mode(),
+            self.will_settings,
+            creation_date=Will.get_creation_time(self.willitems),
         )
         if threshold_ts is not None:
             return locktime < threshold_ts
@@ -828,12 +836,19 @@ class BalWindow:
             except AmountException as e:
                 self.show_warning(
                     _(
-                        f"In the inheritance process, the entire wallet will always be fully emptied. Your settings require an adjustment of the amounts.{e}"
-                    )
+                        "In the inheritance process, the entire wallet will always be fully emptied. Your settings require an adjustment of the amounts.{}"
+                    ).format(e)
                 )
             except WillExecutorFeeTooHighException as e:
                 self.show_error(
-                    _(f"Will-executor fee too high: {e}")
+                    _("Will-executor fee too high: {}").format(e)
+                )
+                return
+            except CheckAliveAfterDeliveryError:
+                self.show_error(
+                    _(
+                        "Check Alive must be after today and before the delivery date, please update it"
+                    )
                 )
                 return
             except CheckAliveError:
@@ -919,27 +934,27 @@ class BalWindow:
                 _logger.info("{}:{}".format(type(e), e))
                 message = False
                 if isinstance(e, HeirChangeException):
-                    message = "Heirs changed:"
+                    message = _("Heirs changed:")
                 elif isinstance(e, WillExecutorNotPresent):
-                    message = "Will-Executor not present:"
+                    message = _("Will-Executor not present:")
                 elif isinstance(e, WillexecutorChangeException):
-                    message = "Will-Executor changed"
+                    message = _("Will-Executor changed")
                 elif isinstance(e, TxFeesChangedException):
-                    message = "Txfees are changed"
+                    message = _("Txfees are changed")
                 elif isinstance(e, HeirNotFoundException):
                     # Task #01b: replace the misleading "Heir not found" text.
                     # This branch is most often hit because the delivery date
                     # was anticipated, not because an heir is missing, so we use
                     # a clear message that covers both the DATE and the HEIRS
                     # cases (kept consistent with dialogs.py / the CHECK window).
-                    message = (
+                    message = _(
                         "Found CHANGES to the DATE or the HEIRS,\n"
                         "a NEW WILL must be prepared."
                     )
 
                 if message:
                     self.show_message(
-                        f"{_(message)}:\n {e}\n{_('will have to be built')}"
+                        "{}:\n {}\n{}".format(message, e, _("will have to be built"))
                     )
 
                 _logger.info("build will")
@@ -959,7 +974,7 @@ class BalWindow:
                     self.invalidate_will()
                 except NotCompleteWillException as e:
                     self.show_error(
-                        "Error:{}\n {}".format(
+                        _("Error:{}\n {}").format(
                             str(e),
                             _("Please, check your heirs, locktime and threshold!"),
                         )
@@ -1019,7 +1034,9 @@ class BalWindow:
         except SerializationError as e:
             _logger.error("unable to deserialize the transaction")
             parent.show_critical(
-                _("Electrum was unable to deserialize the transaction:") + "\n" + str(e)
+                "{}\n{}".format(
+                    _("Electrum was unable to deserialize the transaction:"), e
+                )
             )
         else:
             # Electrum's own TxDialog: keep it in front of the main window.
@@ -1087,8 +1104,8 @@ class BalWindow:
                 def get_message():
                     msg = ""
                     if signed:
-                        msg = _(f"signed: {signed}\n")
-                    return msg + _(f"signing: {tosign}")
+                        msg = _("signed: {}").format(signed) + "\n"
+                    return msg + _("signing: {}").format(tosign)
 
                 if txids is not None:
                     targets = [
@@ -1295,6 +1312,12 @@ class BalWindow:
             #    means the old will must be invalidated on-chain.
             try:
                 self.init_class_variables()
+            except CheckAliveAfterDeliveryError:
+                _logger.info(
+                    "auto rebuild: check-alive not before the delivery, "
+                    "nothing to rebuild/invalidate"
+                )
+                return False
             except CheckAliveError:
                 _logger.info("auto rebuild: check-alive threshold passed -> invalidate")
                 self._auto_invalidate_will()
@@ -1610,7 +1633,7 @@ class BalWindow:
         willexecutors = Willexecutors.get_willexecutor_transactions(willitems, force=force)
 
         def getMsg(willexecutors):
-            msg = "Broadcasting Transactions to Will-Executors:\n"
+            msg = _("Broadcasting Transactions to Will-Executors:") + "\n"
             for url in willexecutors:
                 msg += f"{url}:\t{willexecutors[url]['broadcast_status']}\n"
             return msg
@@ -1664,8 +1687,8 @@ class BalWindow:
                 if self.waiting_dialog._stopping:
                     return
                 self.waiting_dialog.update(
-                    "checking {} - {} : {}".format(
-                        willitems[wid].we["url"], wid, "Waiting"
+                    _("checking {} - {} : {}").format(
+                        willitems[wid].we["url"], wid, _("Waiting")
                     )
                 )
                 w = willitems[wid]
@@ -1673,7 +1696,7 @@ class BalWindow:
                     Willexecutors.check_transaction(wid, w.we["url"])
                 )
                 self.waiting_dialog.update(
-                    "checked {} - {} : {}".format(
+                    _("checked {} - {} : {}").format(
                         willitems[wid].we["url"],
                         wid,
                         willitems[wid].get_status("CHECKED"),
@@ -2142,7 +2165,7 @@ class BalWindow:
 
     # Simple, user-facing message shown when the download fails for any reason
     # (the technical cause is in the Electrum log).
-    DOWNLOAD_FAILED_MESSAGE = (
+    DOWNLOAD_FAILED_MESSAGE = N_(
         "Could not download the will-executors list.\n\n"
         "This is usually caused by your internet connection or a firewall, "
         "not by the plugin. Please check your connection (a VPN often helps) "
@@ -2152,7 +2175,7 @@ class BalWindow:
     # Shown when the download fails while Electrum is connected through Tor:
     # the most common cause is a slow Tor connection, so guide the user
     # accordingly instead of the generic message above.
-    DOWNLOAD_FAILED_TOR_MESSAGE = (
+    DOWNLOAD_FAILED_TOR_MESSAGE = N_(
         "Could not download the will-executors list over Tor.\n\n"
         "Electrum is connected through Tor and the connection is taking too "
         "long. Your Tor connection may be slow. Please try again, or use a VPN "
@@ -2225,27 +2248,27 @@ class BalWindow:
                 if err.url and err.reason == "empty response":
                     # Server reached but returned no data for this chain.
                     self.show_warning(_(
-                        f"No active will-executor servers found for the "
-                        f"{err.chain} network.\n\n"
-                        f"The welist server at {err.url} responded but "
-                        f"returned no will-executors for this chain."
-                    ))
+                        "No active will-executor servers found for the "
+                        "{chain} network.\n\n"
+                        "The welist server at {url} responded but "
+                        "returned no will-executors for this chain."
+                    ).format(chain=err.chain, url=err.url))
                 elif err.url:
                     # Advanced mode with a non-empty error (network issue).
                     self.show_warning(_(
-                        f"Could not reach the configured welist server.\n\n"
-                        f"Server: {err.url}\n"
-                        f"Error: {err.reason}\n\n"
-                        f"Please verify the welist server URL in the plugin "
-                        f"settings."
-                    ))
+                        "Could not reach the configured welist server.\n\n"
+                        "Server: {url}\n"
+                        "Error: {reason}\n\n"
+                        "Please verify the welist server URL in the plugin "
+                        "settings."
+                    ).format(url=err.url, reason=err.reason))
                 else:
                     # Basic mode: the server responded but has no data for this
                     # chain.
                     self.show_warning(_(
-                        f"No active will-executor found for the "
-                        f"{err.chain} network."
-                    ))
+                        "No active will-executor found for the "
+                        "{chain} network."
+                    ).format(chain=err.chain))
             else:
                 # Tor-aware: a generic failure/timeout while on Tor is most
                 # likely a slow Tor connection.

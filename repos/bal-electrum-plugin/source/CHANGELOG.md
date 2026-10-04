@@ -3327,3 +3327,225 @@ densest frames possible.
   the base36 count fields are 3 chars regardless of how many frames exist.
 
 **Outcome:** DONE.
+
+## 58. i18n phase 1: BAL translation layer (Electrum first, then BAL)
+
+**Date:** 2026-09-26 (branch `feature/i18n`, see `PLAN_I18N.md`)
+
+**Goal (owner request):** make the whole plugin translatable, starting with
+Italian, so that BAL follows the language chosen in Electrum. This phase adds
+the mechanism only: nothing visible changes yet.
+
+**What changed:**
+
+- New `bal/i18n.py`, BAL's own gettext layer (domain `bal`, catalogs in
+  `bal/locale/<lang>/LC_MESSAGES/bal.mo`, read with `plugin.read_file()` so it
+  works from the zip and from a development checkout):
+  - `_()` looks a text up in Electrum's catalog first, then in BAL's, then
+    returns the English source (owner's decision D7: BAL reads like Electrum,
+    and Electrum's translations would take over if BAL ever became an internal
+    plugin). BAL translations whose `{}` fields differ from the source are
+    rejected with the same rules as Electrum's.
+  - `N_()` marks texts defined at import time, translated when shown.
+  - `init_from_config()` repeats Electrum's own language choice (Preferences >
+    Language, else the supported system language, else English) once, in the
+    Qt `Plugin.__init__`. A missing or broken catalog never stops the plugin.
+- `common.py`, `theme.py`, `core/will.py`, `core/willexecutors.py` now import
+  `_` from `bal.i18n`. The CLI keeps Electrum's translator and stays English,
+  like Electrum's own CLI.
+
+**Verification:** new `tests/test_i18n.py`; results in entry 59.
+
+**Outcome:** DONE (delivered in one test ZIP together with entry 59).
+
+## 59. i18n phase 2: translatable texts and language-neutral stored data
+
+**Date:** 2026-09-26 (branch `feature/i18n`, see `PLAN_I18N.md`)
+
+**Goal:** make every user-visible text of the Qt GUI extractable and
+translatable, without changing the English UI, and make sure no stored data
+depends on the GUI language.
+
+**What changed:**
+
+- Texts built with f-strings or `.format()` inside `_()`, or glued together
+  from pieces, are now whole sentences with `{}` fields (Ruff INT clean).
+- Class-level texts (list headers, wizard titles/messages, help texts,
+  download error messages, status labels) are marked with `N_()` and
+  translated when shown: class bodies run before the catalog is loaded.
+- Helpers no longer translate their argument (`add_widget`, `get_window_title`,
+  `msg_set_status`, the will-detail `qlabel`): callers pass translated text.
+  This also stops heir names and URLs from going through the translator.
+- Newly translatable: the settings help texts, the wizard download options,
+  the build report rows, the Ping/Select menu buttons, the QR size presets
+  (marked in `common.QR_PRESET_LABELS`: `core/qrtransfer.py` stays free of
+  Electrum imports because the Android reader ships a copy of it), and the
+  "(reminder i/n)" suffix of the calendar events (`build_ics_reminders` gained
+  `reminder_suffix`, English by default for the CLI).
+- **Stored status history:** `WillItem.set_status` now always writes the
+  English label; the new `format_status_history()` translates it for display
+  (lists and will detail) and keeps unknown tokens as they are, so histories
+  saved by older versions (e.g. `New.Firmato.Pushed`) still display fine.
+- **Calendar defaults:** `EVENT_SUMMARY` / `EVENT_DESCRIPTION` defaults follow
+  the GUI language (`BalConfig(..., translatable=True)`), while the English
+  original is what gets stored; a text written by the user is kept as it is.
+- **Not translated on purpose:** `HISTORY_LABEL` (used by
+  `Util._label_matches_history` to recognise BAL's own local transactions),
+  the "BAL Invalidate/Inheritance transaction" wallet labels,
+  `heirs.TRANSACTION_LABEL` and the will-executor "info" fallback stored in the
+  config.
+- Two small visible fixes: the will detail showed "Transaction fees::" and
+  "Status::" with a double colon.
+- `pyproject.toml`: Ruff now also checks the `INT` (gettext) rules.
+
+**Verification (Electrum 4.8.2, Python 3.14, offscreen):**
+
+- `tests/test_i18n.py`: 20 passed (lookup order, rejected `{}` fields,
+  missing/broken catalogs, language fallback, English status storage and its
+  display translation, translatable config defaults, reminder suffix, QR
+  preset labels).
+- Release-gate batch (as `make-release.sh`): 403 passed, 1 failed; the other
+  offline test files: 213 passed. Identical to the baseline taken before the
+  change; the only failures are pre-existing (`test_e5` and
+  `test_reproduce_none_type` need the local `tests/karen7` wallet,
+  `test_import_start_stop_scan_signal_wiring` fails on `main` too,
+  `test_gui_export_dialogs.py` hangs on `main` too).
+- `smoke_test.py`, `build_zip.py` and `external_zip_test.py`: OK.
+- Ruff: INT clean; no new errors (the only one left is the pre-existing
+  `dialogs.py` I001).
+- Babel extraction (GUI + core): 424 strings (about 3,000 words), was 323.
+
+**Outcome:** DONE, pending the owner's test of the ZIP.
+
+## 60. i18n phase 3: Italian catalog
+
+**Date:** 2026-09-26 (branch `feature/i18n`, see `PLAN_I18N.md`)
+
+**Goal (owner request):** with Electrum set to Italian, BAL shows in Italian.
+
+**What changed:**
+
+- `babel.cfg` (extraction mapping, CLI and wallet_util excluded),
+  `bal/locale/bal.pot` (template, 424 texts) and the Italian catalog
+  `bal/locale/it_IT/LC_MESSAGES/bal.po`: 43 entries copied from Electrum's
+  own it_IT catalog (same English text), the others drafted following the
+  owner's glossary (D1). Draft to be reviewed by the owner (D2).
+- `build_zip.py` compiles every `bal.po` into `bal.mo` inside the zip
+  (Babel required, the build stops without it); `.po`/`.pot` are not
+  shipped and `*.mo` is ignored by git (D4).
+- New `tests/test_translations.py`: every catalog compiles; `{}` fields and
+  `$tokens` match the English text; no Bitcoin address, e-mail, URL or long
+  letters-and-digits word that the English text does not have (patterns from
+  Electrum's `electrum-locale/update.py`).
+- `AGENTS.md`: how to update the catalogs, add a language, compile for the
+  development install.
+
+**Verification (Electrum 4.8.2, offscreen):** `tests/test_translations.py`
+OK (it_IT: 424 translated, 0 untranslated, 0 fuzzy); all offline tests 640
+passed, only the pre-existing failures of entry 59; the built zip contains
+only `bal/locale/it_IT/LC_MESSAGES/bal.mo` for the translations and
+`external_zip_test.py` loads it; Ruff: no new errors.
+
+**Outcome:** DONE, pending the owner's review of the Italian texts and test
+of the ZIP.
+## 61. Signed relative Check Alive (negative = before delivery, positive = after creation)
+
+**Date:** 2026-10-01
+
+**Goal:** Change the meaning of a RELATIVE Check Alive value so that its SIGN
+selects the anchor date:
+
+- NEGATIVE (`-30d` / `-1y`): counted BACKWARDS from the delivery date
+  (`delivery + N days`; `-30d` = 30 days BEFORE the delivery). This preserves
+  the historical meaning of a relative threshold.
+- POSITIVE (`30d` / `1y`): counted FORWARD from the inheritance creation date
+  (`min(WillItem.time)` over the VALID will items, frozen in the wallet DB).
+- When the anchor is unknown (no built will yet, or imported items without a
+  `time`), the reference falls back to *now*.
+
+No migration: existing stored positive values switch to the new meaning. The
+Check Alive must always be strictly AFTER today and strictly BEFORE the
+delivery; when it is not, the plugin raises an explicit error (see below).
+
+**What changed:**
+
+- `bal/core/checkalive.py` (centralised, GUI-free):
+  - new `resolve_delivery_date(will_settings, now, built_locktime)` — the single
+    source of the delivery reference (absolute locktime as-is; relative locktime
+    resolved forward from *now* unless a built will freezes it).
+  - new `resolve_relative_check_alive_date(threshold_raw, delivery_date,
+    creation_date, now)` — the SINGLE calculation rule (sign selects the anchor;
+    `BalTimestamp.to_date` is used forward on both anchors, no more
+    `reverse=True`).
+  - new `is_check_alive_date_valid(date_to_check, delivery_date, now)` and
+    `ensure_check_alive_valid(is_basic_mode, date_to_check, delivery_date, now)`
+    — the SINGLE validity gate: `now < date_to_check < delivery`. BASIC mode is
+    a no-op (Check Alive is inert).
+  - `resolve_date_to_check` / `resolve_guard_threshold`: gain a `creation_date`
+    parameter and delegate to the shared rule; `resolve_guard_threshold` still
+    resolves the delivery from the stored settings alone (no built anchor).
+  - `check_alive_expired` removed (superseded by `ensure_check_alive_valid`).
+  - new `CheckAliveAfterDeliveryError` (a SIBLING of `CheckAliveError`, not a
+    subclass): raised when the Check Alive is on/after the delivery. It must not
+    reuse the `except CheckAliveError` handlers, which invalidate the will
+    on-chain; this is a configuration error that only aborts the action.
+    `CheckAliveError` gained an optional `reason`.
+- `bal/core/will.py`: new `Will.get_creation_time(will)` — the oldest
+  `WillItem.time` among VALID items (`None` when unknown).
+- `bal/core/input_rules.py`: `normalize_locktime_raw_text(..., allow_negative)`
+  keeps a single leading `-` (Check Alive field only).
+- `bal/gui/qt/widgets.py`: the Check Alive RAW editor accepts `-`
+  (`ThresholdTimeWidget.allow_negative_raw`); `on_locktime_change` uses the
+  shared resolver for `real_threshold`; updated help text.
+- `bal/gui/qt/window.py`, `bal/gui/qt/dialogs.py`, `bal/cli/controller.py`: pass
+  `creation_date=Will.get_creation_time(...)`, call
+  `ensure_check_alive_valid`, and handle `CheckAliveAfterDeliveryError` by
+  aborting (never invalidating). The wizard .ics provider and the CLI guard use
+  the shared resolver too.
+- `bal/core/plugin_base.py`: the default relative Check Alive is now `"-30d"`
+  (30 days BEFORE the 1-year delivery), preserving the historical default; the
+  absolute default threshold follows the same sign rule.
+
+**Tests:**
+
+- `tests/test_core_checkalive.py` rewritten (both signs, delivery/creation
+  resolution, validity gate, new exceptions, `Will.get_creation_time`).
+- Updated `tests/test_group_i_basic_checkalive.py`, `tests/test_core_will.py`,
+  `tests/test_gui_will_flows.py`, `tests/test_cli_controller_offline.py`,
+  `tests/test_core_plugin_base.py`, `tests/test_core_input_rules.py`.
+
+**Outcome:** DONE.
+
+## 62. Remove BALQR and BC-UR v1/v2 — keep only BBQR
+
+**Date:** 2026-10-03
+
+**Goal:** Drop the BALQR, BC-UR v1 and BC-UR v2 QR wire formats and keep only
+**BBQR** for will transfer.
+
+**What changed:**
+
+- `bal/core/animated_qr.py`: removed the BC32, bytewords-minimal, CRC-32,
+  CBOR, xoshiro256/fountain codecs and the BALQR / UR v1 / UR v2 receive
+  sessions; the module now implements only the BBQR codec plus the
+  `AnimatedQrSession` facade and `detect_format` / `parse_for_detection`
+  (BBQR-only).
+- `bal/core/qrtransfer.py`: removed the BALQR framing helpers (`split_frames`,
+  `parse_frame`, `assemble`, `encode_transfer_best`, the frame errors);
+  kept the transfer-string codec (`encode_transfer` / `decode_transfer`) and
+  the QR-size presets.
+- `bal/gui/qt/dialogs.py`: the export widget no longer shows a Format selector
+  and always emits BBQR; the import widget treats BBQR indexes as 0-based.
+- Removed the "QR Code Size" setting from the plugin settings dialog; the
+  QR-size selector now lives only in the export dialog, and its chosen value
+  is remembered (persisted to `QR_CHUNK_SIZE`) for the next export.
+- Android reader: `bal/core/*` copies re-synced, `bal/encoder.py` and the
+  Kotlin bridges (`BalDecoder`, `QrEncoder`, `QrSendActivity`, `MainActivity`,
+  `strings.xml`) reduced to BBQR; `tools/emitter.py` and
+  `test_chain/verify_chain.py` updated.
+- Tests: `test_core_animated_qr.py`, `test_core_qr_transfer.py` and
+  `test_gui_qr_transfer.py` rewritten for BBQR only.
+- Docs: README, COMPATIBILITY, HANDOFF and android/README updated; translation
+  catalogs refreshed (removed format strings marked obsolete).
+
+**Outcome:** DONE.
