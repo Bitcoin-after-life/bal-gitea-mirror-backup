@@ -27,7 +27,7 @@ Each stage below has a matching label and colour in the WILL tab, shown in brack
 1. **Prepare.** The plugin builds a transaction spending the wallet's UTXOs, with outputs to your heirs and one extra output paying the Will-Executor's fee. One transaction per selected Will-Executor. *[`New`]*{: #stage-prepare }
 2. **Sign.** Electrum signs with your key. The plugin never signs on your behalf. *[`Signed`]*{: #stage-sign }
 3. **Distribute.** Each signed transaction goes to its Will-Executor, which stores it. *[`Pushed`, then `Checked` once the server confirms it holds the copy — or `Failed` if it cannot be reached]*{: #stage-distribute }
-4. **Wait.** You keep using your wallet. Balance changes trigger a refresh; [Check Alive](../user-guide/check-alive.md) offers to postpone the date while you are around. *[`Invalidated` or `Replaced` if the will no longer matches the wallet]*{: #stage-wait }
+4. **Wait.** You keep using your wallet. Balance changes trigger a refresh; [Check Alive](../user-guide/check-alive.md) asks you to renew the will once its date has passed, so you can postpone delivery while you are around. *[`Invalidated` or `Replaced` if the will no longer matches the wallet]*{: #stage-wait }
 5. **Execute.** On the delivery date, each Will-Executor holding a copy broadcasts. The first one to get its transaction confirmed collects the fee; the heirs receive the funds. *[`Pending`, then `Confirmed`]*{: #stage-execute }
 
 ## Why one transaction per Will-Executor

@@ -3,23 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>What Can a Will-Executor Actually See? Privacy in the BAL Protocol — Bitcoin After Life</title>
-<meta name="description" content="A Will-Executor holds one signed, time-locked transaction — nothing else. Exactly what it can see, what it cannot, and why privacy here comes from architecture, not from a policy.">
+<title>Bitcoin Inheritance Privacy: What a Will-Executor Sees — Bitcoin After Life</title>
+<meta name="description" content="A Will-Executor holds one signed, time-locked transaction and nothing else. What it can see, what it cannot, and why privacy comes from architecture.">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Bitcoin After Life">
-<meta property="og:title" content="What Can a Will-Executor Actually See? Privacy in the BAL Protocol — Bitcoin After Life">
-<meta property="og:description" content="A Will-Executor holds one signed, time-locked transaction — nothing else. Exactly what it can see, what it cannot, and why privacy here comes from architecture, not from a policy.">
+<meta property="og:title" content="Bitcoin Inheritance Privacy: What a Will-Executor Sees — Bitcoin After Life">
+<meta property="og:description" content="A Will-Executor holds one signed, time-locked transaction and nothing else. What it can see, what it cannot, and why privacy comes from architecture.">
 <meta property="og:url" content="https://bitcoin-after.life/blog/what-a-will-executor-can-see.html">
-<meta property="og:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta property="og:image" content="https://bitcoin-after.life/pitura/og-share.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@BitcoinAfterLif">
-<meta name="twitter:title" content="What Can a Will-Executor Actually See? Privacy in the BAL Protocol — Bitcoin After Life">
-<meta name="twitter:description" content="A Will-Executor holds one signed, time-locked transaction — nothing else. Exactly what it can see, what it cannot, and why privacy here comes from architecture, not from a policy.">
-<meta name="twitter:image" content="https://bitcoin-after.life/pitura/og-default.png">
+<meta name="twitter:title" content="Bitcoin Inheritance Privacy: What a Will-Executor Sees — Bitcoin After Life">
+<meta name="twitter:description" content="A Will-Executor holds one signed, time-locked transaction and nothing else. What it can see, what it cannot, and why privacy comes from architecture.">
+<meta name="twitter:image" content="https://bitcoin-after.life/pitura/og-share.png">
 <meta name="theme-color" content="#2d6cdf">
 <link rel="canonical" href="https://bitcoin-after.life/blog/what-a-will-executor-can-see.html">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "What Can a Will-Executor Actually See? Privacy in the BAL Protocol",
+  "description": "A Will-Executor holds one signed, time-locked transaction and nothing else. What it can see, what it cannot, and why privacy comes from architecture.",
+  "image": "https://bitcoin-after.life/blog/img/what-a-will-executor-can-see-cover.webp",
+  "datePublished": "2026-09-06T09:00:00+02:00",
+  "dateModified": "2026-09-06T09:00:00+02:00",
+  "author": {
+    "@type": "Organization",
+    "name": "Bitcoin After Life",
+    "url": "https://bitcoin-after.life/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Bitcoin After Life",
+    "url": "https://bitcoin-after.life/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://bitcoin-after.life/pitura/logo/Logo_nero.svg"
+    }
+  },
+  "mainEntityOfPage": "https://bitcoin-after.life/blog/what-a-will-executor-can-see.html",
+  "inLanguage": "en"
+}
+</script>
 <link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="/pitura/ico/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/pitura/ico/favicon-16.png">
@@ -271,6 +298,16 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
 <p>A Will-Executor sees one signed transaction: some addresses, some amounts, a date. It does not know who you are, what else you own, or who your heirs are — and the cryptography guarantees it can do nothing harmful even with what little it sees.</p>
 <p>Compare that with the alternative: a folder in a lawyer's cabinet containing your name, your family's names, and the full list of what you own.</p>
 <p>Inheritance used to require giving up your privacy to be safe. We built BAL so you could keep both.</p>
+
+<aside class="related">
+<h2>Keep reading</h2>
+<ul style="padding-left:22px">
+<li><a href="run-a-will-executor.html">Run a Will-Executor: Earn Bitcoin Fees by Powering Decentralized Inheritance</a></li>
+<li><a href="proof-of-life.html">Proof of Life Without Surveillance: How Your Wallet Tells the Protocol You're Still Here</a></li>
+<li><a href="liquid-network-and-why-we-trust-only-bedrock.html">Liquid Network's $320M Lesson: Why BAL Only Builds on Bedrock</a></li>
+</ul>
+<p>New to Bitcoin After Life? Read the <a href="https://bitcoin-after.life/docs/">user manual</a> or <a href="../index.html#plugin">get the Electrum plugin</a>.</p>
+</aside>
 
 <p><em>Want the technical detail? The full protocol walkthrough is in the <a href="https://bitcoin-after.life/docs/protocol/how-it-works.html" target="_blank" rel="noopener">manual</a>, and both the <a href="https://bitcoin-after.life/gitea/bitcoinafterlife/bal-electrum-plugin" target="_blank" rel="noopener">plugin</a> and the <a href="https://bitcoin-after.life/gitea/bitcoinafterlife/bal-server" target="_blank" rel="noopener">server</a> are open source — verify, don't trust.</em></p>
 </article>

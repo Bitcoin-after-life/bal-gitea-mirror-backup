@@ -3,7 +3,7 @@
 The plugin ships with a **guided wizard** that walks you through the whole setup. You only need two decisions: *who inherits* and *when*.
 
 !!! tip "Do a dry run first"
-    Set a delivery time a few hours away on a test wallet, and watch the transaction move through the states in the [WILL tab](../user-guide/will-tab.md). On such a short horizon, remember to disable or back-date [Check Alive](../user-guide/check-alive.md) so it doesn't interfere.
+    Set a delivery time a few hours away on a test wallet, and watch the transaction move through the states in the [WILL tab](../user-guide/will-tab.md). On such a short horizon, use **basic mode**, where [Check Alive](../user-guide/check-alive.md) is inactive. In advanced mode a Check Alive date in the past makes the prompt appear immediately.
 
 ## Step 1 — Start the wizard
 
@@ -54,7 +54,7 @@ Once signed, the wills are sent to the selected Will-Executors and appear in the
 ## What happens from now on
 
 - Keep using Electrum normally. The plugin watches your balance and asks you to refresh the will when it changes — see [Keeping the will up to date](../user-guide/updating.md).
-- If you enabled [Check Alive](../user-guide/check-alive.md) (advanced mode), opening your wallet after the threshold prompts you to postpone the delivery date.
+- If you enabled [Check Alive](../user-guide/check-alive.md) (advanced mode), once the Check Alive date has passed, the plugin prompts you to invalidate your old will and postpone the delivery date (for example when you close the wallet).
 - If you stop opening Electrum, the Will-Executors broadcast the inheritance on the date you set.
 
 ---

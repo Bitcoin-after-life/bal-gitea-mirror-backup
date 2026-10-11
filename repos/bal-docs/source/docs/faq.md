@@ -44,7 +44,7 @@
     Not strictly required, but renewing every **2–3 years** is recommended. A rolling deadline — "always five years from today" — refreshed periodically keeps newer Will-Executors in your selection and picks up protocol improvements.
 
 ??? question "What is Check Alive?"
-    A period of inactivity after which the plugin asks whether to postpone your delivery date. Available in **advanced mode** — see [Check Alive](user-guide/check-alive.md).
+    A date you set, earlier than your delivery date. Once it has passed, the plugin asks you to invalidate your old will so that a new one, with a later delivery date, can replace it. Available in **advanced mode** — see [Check Alive](user-guide/check-alive.md).
 
 ## Will-Executors
 

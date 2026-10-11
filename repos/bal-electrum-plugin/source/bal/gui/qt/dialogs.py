@@ -358,7 +358,8 @@ class BalWizardWidget(QWidget):
 class BalWizardHeirsWidget(BalWizardWidget):
     title = N_("Bitcoin After Life Heirs")
     message = N_(
-        "Please add your heirs\n remember that 100% of wallet balance will be spent"
+        "Please add your heirs\n"
+        " remember that the wallet balance will be spent at 100%"
     )
 
     def get_content(self):
