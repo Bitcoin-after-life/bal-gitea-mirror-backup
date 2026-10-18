@@ -31,31 +31,7 @@ export BAL_SERVER_REGTEST_FIXED_FEE=1000
 export BAL_SERVER_DB_BACKEND="postgresql"
 
 if [ "$BAL_SERVER_DB_BACKEND" = "postgresql" ]; then
-    PG_CONTAINER="bal-pg"
-    PG_DSN="${BAL_SERVER_PG_DSN:-postgres://bal:balpass@localhost:5432/baldb}"
-
-    docker rm -f "$PG_CONTAINER" 2>/dev/null || true
-    echo_i "Starting PostgreSQL container..."
-    docker run -d --name "$PG_CONTAINER" \
-        -e POSTGRES_USER=bal \
-        -e POSTGRES_PASSWORD=balpass \
-        -e POSTGRES_DB=baldb \
-        -p 5432:5432 postgres:16-alpine
-
-    echo_i "Waiting for PostgreSQL..."
-    until docker exec "$PG_CONTAINER" pg_isready -U bal >/dev/null 2>&1; do
-        sleep 1
-    done
-    echo_i "PostgreSQL ready at $PG_DSN"
-    export BAL_SERVER_PG_DSN="$PG_DSN"
-
-
-    cleanup() {
-        echo_i "Stopping PostgreSQL container..."
-        docker stop "$PG_CONTAINER" >/dev/null 2>&1
-        docker rm "$PG_CONTAINER" >/dev/null 2>&1
-    }
-    trap cleanup EXIT
+    . "$SCRIPT_DIR/pg-server.sh"
 fi
 
 cargo run --bin=bal-server

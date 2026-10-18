@@ -26,9 +26,11 @@ The status flags themselves (the source of truth) stay here; only the mapping
 "status -> colour" now lives in the GUI layer.  No behaviour changed.
 """
 
+import math
 from datetime import datetime, timezone
 
 from electrum.address_synchronizer import TX_HEIGHT_FUTURE, TX_HEIGHT_LOCAL
+from electrum.fee_policy import FeePolicy
 from electrum.logging import Logger, get_logger
 from electrum.transaction import (
     PartialTransaction,
@@ -50,6 +52,18 @@ from .willexecutors import Willexecutors
 
 MIN_LOCKTIME = 1
 MIN_BLOCK = 1
+# Confirmation target (in blocks) for the on-chain INVALIDATION transaction.
+# WHY: the invalidation is sent TODAY (it spends the will's coins so the old
+# pre-signed inheritance txs become unusable), so it must pay the CURRENT
+# network fee for a quick confirmation - not ``baltx_fees``, which is a
+# deliberately high rate reserved for inheritance txs that may be broadcast
+# years from now. 2 blocks is Electrum's own default target (owner decision).
+INVALIDATION_FEE_ETA_BLOCKS = 2
+# Default fee policy for the invalidation tx, as an Electrum ``FeePolicy``
+# descriptor ("<method>:<value>"). The user can change it from the plugin's
+# graphical settings, which uses Electrum's standard fee slider (Feerate / ETA /
+# Mempool). "eta:2" = fee estimated for confirmation within 2 blocks.
+INVALIDATION_FEE_POLICY_DEFAULT = f"eta:{INVALIDATION_FEE_ETA_BLOCKS}"
 _logger = get_logger(__name__)
 
 
@@ -68,6 +82,22 @@ class Will:
     # build a tree with parent transactions
     @staticmethod
     def add_willtree(will):
+        """(Re)build the parent/child links between the will transactions.
+
+        Every item gets ``children`` (the will txs spending its outputs) and,
+        when it spends the output of another will tx, a ``father``.
+
+        WHY the reset below: ``father`` is persisted in the wallet (the
+        ``"Father"`` field of ``WillItem.to_dict``) and was only ever set,
+        never cleared. When the father tx was later removed from the will
+        (rebuild, merge, replacement) the child kept pointing to a txid that
+        no longer exists, and ``check_invalidated`` crashed with a
+        ``KeyError`` on that txid (reported on a real wallet: the Check
+        wizard and the window refresh both failed). The tree is therefore
+        always recomputed from scratch from the transactions themselves.
+        """
+        for willid in will:
+            will[willid].father = None
         for willid in will:
             will[willid].children = Will.get_children(will, willid)
             for child in will[willid].children:
@@ -439,60 +469,219 @@ class Will:
         return out
 
     @staticmethod
+    def get_invalidation_fee_rate(
+        wallet, fallback_fee_per_byte, fee_policy_descriptor=None
+    ):
+        """Return ``(fee_rate, source)`` for the on-chain invalidation tx.
+
+        ``fee_rate`` is in sat/vbyte. ``source`` names where the rate came from:
+        the ``FeeMethod`` used by the policy (``"feerate"``, ``"eta"``,
+        ``"mempool"``) or ``"fallback"`` when no usable rate was available.
+
+        WHY: the invalidation is broadcast NOW, so it pays the current network
+        fee according to the user's chosen ``FeePolicy`` (default ``"eta:2"``,
+        i.e. a confirmation within 2 blocks). The will's ``baltx_fees`` is kept
+        only as a fallback, used when no estimate is available (offline wallet,
+        estimates not received yet, server error), which is exactly the
+        behaviour of previous versions.
+
+        The rate is computed by Electrum's own ``FeePolicy`` (the module behind
+        the standard fee slider), so the graphical settings can offer Feerate /
+        ETA / Mempool. It returns sat/kvbyte and already clamps dynamic
+        estimates between Electrum's conservative minimum relay fee and its
+        maximum dynamic fee; a fixed "feerate" policy needs no network at all.
+        This method never raises.
+
+        Args:
+            wallet: The Electrum wallet (its ``network`` may be ``None``).
+            fallback_fee_per_byte: Rate (sat/vbyte) used when there is no
+                usable rate - normally the will's ``baltx_fees``.
+            fee_policy_descriptor: Electrum fee policy descriptor (e.g.
+                ``"eta:2"``). ``None`` uses ``INVALIDATION_FEE_POLICY_DEFAULT``.
+        """
+        descriptor = fee_policy_descriptor or INVALIDATION_FEE_POLICY_DEFAULT
+        # FeePolicy.parse handles malformed descriptors internally (it logs a
+        # warning and falls back to "eta:2"), so this never raises.
+        policy = FeePolicy(descriptor)
+        network = getattr(wallet, "network", None) if wallet else None
+        fee_per_kb = None
+        try:
+            fee_per_kb = policy.fee_per_kb(network)
+        except Exception as e:
+            _logger.warning(f"invalidation fee: no estimate ({e!r})")
+            fee_per_kb = None
+        # Accept only a real positive integer (Electrum's type for sat/kvbyte);
+        # ``bool`` is excluded explicitly because it is a subclass of ``int``.
+        if (
+            isinstance(fee_per_kb, int)
+            and not isinstance(fee_per_kb, bool)
+            and fee_per_kb > 0
+        ):
+            return fee_per_kb / 1000, policy.method.name.lower()
+        return fallback_fee_per_byte, "fallback"
+
+    @staticmethod
+    def _invalidation_age_key(utxo):
+        """Sort key for invalidation coins: smaller = in the wallet longest.
+
+        "Oldest" is approximated by the funding transaction's confirmation
+        height (confirmed coins with the lowest height were received first).
+        Unconfirmed, local or unknown-height coins have no mined position and
+        are treated as the newest. Deterministic tie-breakers: position within
+        the block, then the prevout string.
+        """
+        height = getattr(utxo, "block_height", None)
+        if isinstance(height, int) and height > 0:
+            txpos = getattr(utxo, "block_txpos", 0) or 0
+            return (0, height, txpos, utxo.prevout.to_str())
+        return (1, 0, 0, utxo.prevout.to_str())
+
+    @staticmethod
     def invalidate_will(will, wallet, fees_per_byte, history_label=None,
-                        will_locktime=None):
+                        will_locktime=None, fee_policy_descriptor=None):
+        """Build the (unsigned) on-chain invalidation transaction.
+
+        The transaction spends, per will transaction, only the OLDEST funding
+        coin (the one that has been in the wallet longest): spending a single
+        input already makes the pre-signed transaction unspendable, while the
+        newer coins stay available for the rebuilt (postponed) will. Both VALID
+        and REPLACED will items are considered, because a REPLACED item's
+        pre-signed transaction may have been pushed to the will-executors and
+        may spend different coins. The outputs go back to one of the wallet's
+        own change addresses. When the chosen coins would not cover the fee
+        while leaving a change output at or above the dust threshold, additional
+        (newer) candidate coins are added as fallback inputs; if the change
+        still cannot clear dust once the coins are exhausted, no invalidation
+        transaction is returned.
+
+        Fee: the CURRENT network fee according to the user's fee policy
+        (``fee_policy_descriptor``, default ``"eta:2"``; see
+        :meth:`get_invalidation_fee_rate`). ``fees_per_byte`` (the will's
+        ``baltx_fees``) is only the FALLBACK used when no usable rate is
+        available. RBF stays enabled, so the fee can still be raised from
+        Electrum's History ("Increase fee") if the transaction gets stuck.
+
+
+        Returns the ``PartialTransaction``, or ``None`` when there is nothing
+        to invalidate or the balance does not cover the fee.
+        """
         _logger.debug("invalidate tx in will module")
-        will_only_valid = Will.only_valid_list(will)
-        inputs = Will.get_all_inputs(will_only_valid)
+        # Invalidating only the VALID items is not enough. A will rebuilt after
+        # an heir change (or a rebuild) supersedes the previously signed
+        # transaction: the old item is kept but marked REPLACED, which CLEARS
+        # VALID (see set_status). That old transaction may have been pushed to
+        # the will-executors and may spend DIFFERENT coins than the current
+        # valid one, so its funding UTXOs must be spent too, otherwise a
+        # will-executor could still broadcast it from a UTXO left unspent.
+        # REPLACED items therefore join the VALID ones; inputs that are already
+        # spent are naturally dropped by the wallet-UTXO filter below.
+        will_to_invalidate = {
+            wid: wi
+            for wid, wi in will.items()
+            if wi.get_status("VALID") or wi.get_status("REPLACED")
+        }
         if history_label is not None and will_locktime is not None:
             utxos = Util.get_available_utxos(wallet, history_label, will_locktime)
         else:
             utxos = wallet.get_utxos()
-        filtered_inputs = []
-        prevout_to_spend = []
         current_height = Util.get_current_height(wallet.network)
-        for prevout_str, ws in inputs.items():
-            for w in ws:
-                if w[0] not in filtered_inputs:
-                    filtered_inputs.append(w[0])
-                    if prevout_str not in prevout_to_spend:
-                        prevout_to_spend.append(prevout_str)
-        balance = 0
-        utxo_to_spend = []
+        utxo_by_prevout = {}
         for utxo in utxos:
             if utxo.is_coinbase_output() and utxo.block_height < current_height+100:
                 _logger.debug("is not mature coinbase output")
                 continue
-            utxo_str = utxo.prevout.to_str()
-            if utxo_str in prevout_to_spend:
-                balance += utxo.value_sats()
-                utxo_to_spend.append(utxo)
+            utxo_by_prevout[utxo.prevout.to_str()] = utxo
+        # Candidate coins: the wallet UTXOs that fund one of the will txs.
+        candidates = []
+        seen = set()
+        for wi in will_to_invalidate.values():
+            for txin in wi.tx.inputs():
+                prevout_str = txin.prevout.to_str()
+                if prevout_str in seen or prevout_str not in utxo_by_prevout:
+                    continue
+                seen.add(prevout_str)
+                candidates.append(utxo_by_prevout[prevout_str])
+        # Spend, per will transaction, only its OLDEST funding coin (the one
+        # that has been in the wallet longest): spending a single input is
+        # enough to make the pre-signed transaction unspendable, and the newer
+        # coins stay available for the rebuilt (postponed) will.
+        chosen = {}  # prevout_str -> UTXO, one (the oldest) per will transaction
+        for wi in will_to_invalidate.values():
+            item_candidates = [
+                utxo_by_prevout[txin.prevout.to_str()]
+                for txin in wi.tx.inputs()
+                if txin.prevout.to_str() in utxo_by_prevout
+            ]
+            if item_candidates:
+                oldest = min(item_candidates, key=Will._invalidation_age_key)
+                chosen[oldest.prevout.to_str()] = oldest
+        utxo_to_spend = list(chosen.values())
+        balance = sum(u.value_sats() for u in utxo_to_spend)
         _logger.debug("utxo to spend: {}".format(utxo_to_spend))
         if len(utxo_to_spend) > 0:
             change_addresses = wallet.get_change_addresses_for_new_transaction()
-            out = PartialTxOutput.from_address_and_value(change_addresses[0], balance)
-            out.is_change = True
             locktime = current_height
-            tx = PartialTransaction.from_io(
-                utxo_to_spend, [out], locktime=locktime, version=2
+            fee_rate, fee_source = Will.get_invalidation_fee_rate(
+                wallet, fees_per_byte, fee_policy_descriptor
             )
-            tx.set_rbf(True)
-            fee = tx.estimated_size() * fees_per_byte
-            if balance - fee > 0:
-                out = PartialTxOutput.from_address_and_value(
-                    change_addresses[0], balance - fee
-                )
+            _logger.info(
+                f"invalidation fee: {fee_rate} sat/vbyte ({fee_source})"
+            )
+            # The change output must stay at or above the dust threshold,
+            # otherwise the invalidation transaction would be non-standard and
+            # could not be relayed.
+            try:
+                dust = int(wallet.dust_threshold())
+            except (TypeError, ValueError):
+                dust = 0
+            # Remaining candidate coins, oldest first, for the fee fallback.
+            remaining = sorted(
+                (c for c in candidates if c.prevout.to_str() not in chosen),
+                key=Will._invalidation_age_key,
+            )
+            while True:
+                # The network rate can be fractional (e.g. 1.5 sat/vbyte): round
+                # the total fee UP to whole satoshis so the output value is an
+                # integer and the rate is never below the one requested.
+                out = PartialTxOutput.from_address_and_value(change_addresses[0], balance)
+                out.is_change = True
                 tx = PartialTransaction.from_io(
                     utxo_to_spend, [out], locktime=locktime, version=2
                 )
                 tx.set_rbf(True)
+                fee = int(math.ceil(tx.estimated_size() * fee_rate))
+                if balance - fee >= dust:
+                    out = PartialTxOutput.from_address_and_value(
+                        change_addresses[0], balance - fee
+                    )
+                    tx = PartialTransaction.from_io(
+                        utxo_to_spend, [out], locktime=locktime, version=2
+                    )
+                    tx.set_rbf(True)
 
-                _logger.debug(f"invalidation tx: {tx}")
-                return tx
+                    _logger.debug(f"invalidation tx: {tx}")
+                    return tx
 
-            else:
-                _logger.debug(f"balance({balance}) - fee({fee}) <=0")
-                pass
+                # The selected coins cannot cover the fee while leaving a
+                # spendable (non-dust) change: keep spending the next-oldest
+                # will coin until the invalidation is economically viable or no
+                # coin is left.
+                if not remaining:
+                    _logger.debug(
+                        "balance({})-fee({})<dust({}), no more will coins".format(
+                            balance, fee, dust
+                        )
+                    )
+                    break
+                extra = remaining.pop(0)
+                _logger.debug(
+                    "balance({})-fee({})<dust({}): adding {}".format(
+                        balance, fee, dust, extra.prevout.to_str()
+                    )
+                )
+                chosen[extra.prevout.to_str()] = extra
+                utxo_to_spend = list(chosen.values())
+                balance += extra.value_sats()
         else:
             _logger.debug("len utxo_to_spend <=0")
             pass
@@ -562,9 +751,15 @@ class Will:
     def set_invalidate(wid, will=None):
         will = will if will is not None else {}
         will[wid].set_status("INVALIDATED", True)
-        if will[wid].children:
-            for c in will[wid].children.items():
-                Will.set_invalidate(c[0], will)
+        children = will[wid].children or []
+        # add_willtree builds a LIST of [child_id, input_idx, prevout_idx];
+        # a dict keyed by child id is still accepted (older data / tests).
+        child_ids = children.keys() if isinstance(children, dict) else [
+            c[0] for c in children
+        ]
+        for child_id in child_ids:
+            if child_id in will:
+                Will.set_invalidate(child_id, will)
 
     @staticmethod
     def check_tx_height(tx, wallet):
@@ -575,10 +770,15 @@ class Will:
     @staticmethod
     def check_invalidated(willtree, utxos_list, wallet):
         for wid, w in willtree.items():
+            # Defensive: a father that is not (or no longer) part of the will
+            # is treated as "no father" instead of raising KeyError, so the
+            # item's inputs are checked against the wallet UTXOs like any
+            # root transaction. See add_willtree for the root cause.
+            father = willtree.get(w.father) if w.father else None
             if (
-                not w.father
-                or willtree[w.father].get_status("CONFIRMED")
-                or willtree[w.father].get_status("MEMPOOL")
+                father is None
+                or father.get_status("CONFIRMED")
+                or father.get_status("MEMPOOL")
             ):
                 for inp in w.tx.inputs():
                     inp_str = Util.utxo_to_str(inp)
@@ -623,11 +823,19 @@ class Will:
         for utxo in all_utxos:
             wallet_balance += utxo.value_sats()
 
-        if fixed_amount >= wallet_balance:
+        if fixed_amount > 0 and fixed_amount >= wallet_balance:
+            # Only a REAL fixed amount needs to be funded: with no fixed heirs
+            # (all percentages) fixed_amount is 0 and ``0 >= 0`` would wrongly
+            # flag an empty/fully-committed wallet as an amount error.
             raise FixedAmountException(
                 f"Fixed amount({fixed_amount}) >= {wallet_balance}"
             )
-        if perc_amount != 100:
+        if perc_heirs and perc_amount != 100:
+            # Percentages only have to add up to 100% when the will actually
+            # uses percentage heirs. A will made ONLY of fixed-amount heirs has
+            # no percentages, so perc_amount is 0 - which used to raise here and
+            # left "Checking variables" stuck on "Wait" for every fixed-only
+            # will (the build normalises the fixed shares anyway).
             raise PercAmountException(f"Perc amount({perc_amount}) =! 100%")
 
         for url, wex in willexecutors.items():
@@ -635,7 +843,7 @@ class Will:
                 if max_fee is not None and int(wex["base_fee"]) > max_fee:
                     raise WillExecutorFeeTooHighException(wex, max_fee)
                 temp_balance = wallet_balance - int(wex["base_fee"])
-                if fixed_amount >= temp_balance:
+                if fixed_amount > 0 and fixed_amount >= temp_balance:
                     raise FixedAmountException(
                         f"Willexecutor{url} excess base fee({wex['base_fee']}), {fixed_amount} >={temp_balance}"
                     )

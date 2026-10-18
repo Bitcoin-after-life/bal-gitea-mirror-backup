@@ -47,7 +47,7 @@ BAL_SERVER_INFO="$info"
 EOF
 )
 bal_pusher_conf=$(cat << EOF
-BAL_PUSHER_DB_FILE=/home/bal/bal.db
+BAL_SERVER_DB_FILE=/home/bal/bal.db
 BAL_PUSHER_BITCOIN_COOKIE_FILE=/home/bitcoin/.bitcoin/.cookie
 
 EOF

@@ -88,6 +88,27 @@ def _user_facing(e):
         return UserFacingException(_("Will-Executor not present"))
     if isinstance(e, will_mod.NoWillExecutorNotPresent):
         return UserFacingException(_("No backup transaction or will-executor selected"))
+    if isinstance(e, will_mod.HeirChangeException):
+        return UserFacingException(_("The heirs changed: a new will must be prepared."))
+    if isinstance(e, will_mod.WillexecutorChangeException):
+        return UserFacingException(
+            _("A will-executor changed: a new will must be prepared.")
+        )
+    if isinstance(e, will_mod.NotCompleteWillException):
+        # ``WillException.__init__`` stores the detail in ``self.msg`` but calls
+        # ``Exception.__init__(self)`` without it, so ``e.args`` is always empty;
+        # the default sentinel message is "WillException".
+        detail = getattr(e, "msg", None)
+        if detail and detail != "WillException":
+            return UserFacingException(
+                _(
+                    "The wallet contains funds that the current will does not "
+                    "cover yet: a new will must be prepared."
+                )
+            )
+        return UserFacingException(
+            _("The will contains no valid transaction: a new will must be prepared.")
+        )
     if isinstance(e, will_mod.AmountException):
         return UserFacingException(
             _(
@@ -119,6 +140,21 @@ def _user_facing(e):
             _(
                 "CheckAlive is in the past: update it to a date in the future "
                 "but less than the locktime"
+            )
+        )
+    if isinstance(e, Willexecutors.NoServersForChainError):
+        if e.url:
+            return UserFacingException(
+                _(
+                    "Could not reach the configured welist server.\n\n"
+                    "Server: {url}\n"
+                    "Error: {reason}\n\n"
+                    "Please verify the welist server URL in the plugin settings."
+                ).format(url=e.url, reason=e.reason or "empty response")
+            )
+        return UserFacingException(
+            _("No active will-executor found for the {chain} network.").format(
+                chain=e.chain
             )
         )
     return e
@@ -352,6 +388,7 @@ class BalController:
             self.date_to_check = resolve_date_to_check(
                 self.plugin.is_basic_mode(), self.will_settings,
                 built_locktime=_new_locktime,
+                creation_date=Will.get_creation_time(self.willitems),
             )
         self.willexecutors = Willexecutors.get_willexecutors(
             self.plugin, update=False, task=False
@@ -417,6 +454,7 @@ class BalController:
             will_locktime=Will.get_min_locktime(
                 willitems, default_value=self.date_to_check
             ),
+            fee_policy_descriptor=self.plugin.INVALIDATION_FEE_POLICY.get(),
         )
         if tx is not None:
             try:
@@ -471,6 +509,11 @@ class BalController:
                 self.wallet.dust_threshold(),
                 max_fee=self.plugin.MAX_WILLEXECUTOR_FEE.get(),
             )
+        except will_mod.AmountException as e:
+            # Mirror the GUI (BalWindow.build_inheritance_transaction): an
+            # amount mismatch is only a WARNING here, the flow continues (the
+            # rebuild/normalisation below reconciles the shares).
+            _logger.warning(f"prepare will: check_amounts: {e}")
         except Exception as e:
             raise _user_facing(e) from e
 
@@ -948,6 +991,8 @@ class BalController:
             heir.append(locktime)
         else:
             heir.append(self.will_settings["locktime"])
+        if not self.plugin.ENABLE_MULTIVERSE.get():
+            heir[3] = self.will_settings["locktime"]
         if is_op_return_address(address):
             heir[2] = "0"
         return Heirs.validate_heir(heir[0], heir[1:])
@@ -1033,7 +1078,7 @@ class BalController:
         return self.willexecutors_show(url)
 
     def willexecutors_update(self, url, address=None, base_fee=None, info=None,
-                             rename_to=None):
+                             promo_code=None, rename_to=None):
         if url not in self.willexecutors:
             raise UserFacingException(_("Will-Executor not found: {}").format(url))
         we = self.willexecutors[url]
@@ -1044,6 +1089,8 @@ class BalController:
             we["base_fee"] = int(base_fee)
         if info is not None:
             we["info"] = info.strip() or "New Will Executor"
+        if promo_code is not None:
+            we["promo_code"] = promo_code
         if rename_to and rename_to != url:
             if rename_to in self.willexecutors:
                 raise UserFacingException(
@@ -1064,17 +1111,38 @@ class BalController:
         Willexecutors.save(self.plugin, self.willexecutors)
         return {"deleted": deleted}
 
-    def willexecutors_select(self, urls=None, select=True):
-        """Select/deselect one, many or all will-executors."""
-        selected = {}
-        targets = urls if urls is not None else list(self.willexecutors)
+    def willexecutors_select(self, urls=None, select=True, only_valid=False):
+        """Select or deselect will-executors.
+
+        Mirrors the GUI's single-toggle and ``set_select_all(select,
+        only_valid)`` bulk actions.  ``urls`` is the set of records to act on
+        (all of them when omitted); with ``only_valid`` the selection is
+        restricted by validity: selecting sets the valid ones to True and the
+        invalid ones to False, while deselecting only clears the invalid ones.
+        """
+        targets = (
+            list(self.willexecutors)
+            if urls is None
+            else [url for url in urls if url in self.willexecutors]
+        )
         for url in targets:
-            if url not in self.willexecutors:
-                continue
-            self.willexecutors[url]["selected"] = bool(select)
-            selected[url] = bool(select)
+            we = self.willexecutors[url]
+            if only_valid:
+                is_valid = Willexecutors.is_valid(
+                    we,
+                    max_fee=self.plugin.MAX_WILLEXECUTOR_FEE.get(),
+                    dust=self.wallet.dust_threshold(),
+                )
+                if select:
+                    we["selected"] = bool(is_valid)
+                elif not is_valid:
+                    we["selected"] = False
+            else:
+                we["selected"] = bool(select)
         Willexecutors.save(self.plugin, self.willexecutors)
-        return selected
+        return {
+            url: bool(self.willexecutors[url].get("selected")) for url in targets
+        }
 
     def willexecutors_ping(self, urls=None):
         """Ping the (selected) will-executor servers and refresh their info.
@@ -1124,10 +1192,12 @@ class BalController:
 
         result = {}
         last_error = None
+        any_server_reached = False
         try:
             resp = Willexecutors.send_request(
                 "get", url, timeout=10, max_retries=1, retry_sleep=1
             )
+            any_server_reached = True
             if not isinstance(resp, dict):
                 last_error = "invalid response format"
                 _logger.warning(
@@ -1153,12 +1223,17 @@ class BalController:
             last_error = str(e)
             _logger.error(f"fetch_will_executors_list: {url} -> {type(e).__name__}: {e}")
 
-        if not result and not basic:
-            raise UserFacingException(
-                _("Could not reach the configured welist server.\nServer: {}\nError: {}").format(
-                    url, last_error or "empty response"
+        if not result:
+            if not basic:
+                # Advanced mode: always raise with full details.
+                raise Willexecutors.NoServersForChainError(
+                    chainname,
+                    url=url,
+                    reason=last_error or "empty response",
                 )
-            )
+            if any_server_reached:
+                # Basic mode: the server answered but has no data for this chain.
+                raise Willexecutors.NoServersForChainError(chainname)
         return result
 
     def willexecutors_download(self):
@@ -1178,18 +1253,41 @@ class BalController:
                 raise UserFacingException(
                     _("Invalid entry {} in will-executors file").format(url)
                 )
-            if url not in self.willexecutors:
-                we = dict(we)
-                we.setdefault("selected", False)
-                we.setdefault("status", "New")
-                we.setdefault("promo_code", None)
-                self.willexecutors[url] = we
+            # Mirror the GUI import (``willexecutors_list.update(data)``):
+            # existing URLs are overwritten with the imported record, missing
+            # fields get sane defaults.
+            we = dict(we)
+            we.setdefault("selected", False)
+            we.setdefault("status", "New")
+            we.setdefault("promo_code", None)
+            self.willexecutors[url] = we
         Willexecutors.save(self.plugin, self.willexecutors)
         return {"imported": len(data), "total": len(self.willexecutors)}
 
-    def willexecutors_export(self, path):
-        write_json_file(path, self.willexecutors)
-        return {"exported": len(self.willexecutors), "path": path}
+    def willexecutors_export(self, path, subset=None):
+        """Export the will-executors to ``path``.
+
+        ``subset`` mirrors the GUI export filter: ``"selected"`` writes only
+        the selected records, ``"valid"`` only the valid ones, anything else
+        (or ``None``) writes every record.
+        """
+        data = self.willexecutors
+        if subset == "selected":
+            data = {
+                url: we for url, we in data.items() if Willexecutors.is_selected(we)
+            }
+        elif subset == "valid":
+            data = {
+                url: we
+                for url, we in data.items()
+                if Willexecutors.is_valid(
+                    we,
+                    max_fee=self.plugin.MAX_WILLEXECUTOR_FEE.get(),
+                    dust=self.wallet.dust_threshold(),
+                )
+            }
+        write_json_file(path, data)
+        return {"exported": len(data), "path": path}
 
     # ------------------------------------------------------------------ #
     # Settings
@@ -1289,11 +1387,3 @@ class BalController:
                 )
             return value
         return str(raw)
-
-
-def get_decimal_point(plugin):
-    """Standalone helper returning Electrum's configured BTC decimal point."""
-    try:
-        return plugin.config.BTC_AMOUNTS_DECIMAL_POINT
-    except AttributeError:
-        return 8

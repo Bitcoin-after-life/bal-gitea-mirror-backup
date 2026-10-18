@@ -1,10 +1,11 @@
 """
-Tests for ``BalBuildWillDialog._sync_locktime_to_built_txs``.
+Tests for ``BalBuildWillDialog._sync_locktime_to_built_txs`` and the
+"Building your will" row of ``BalBuildWillDialog._build_success_report``.
 
-This is the post-build sync that keeps the plugin's stored delivery date
-(WILL_SETTINGS["locktime"]) in lockstep with the BUILT transactions' fixed
-locktime when the core AUTOMATICALLY anticipates it (one day earlier than
-stored).
+``_sync_locktime_to_built_txs`` is the post-build sync that keeps the plugin's
+stored delivery date (WILL_SETTINGS["locktime"]) in lockstep with the BUILT
+transactions' fixed locktime when the core AUTOMATICALLY anticipates it (one
+day earlier than stored).
 
 RELATIVE recipes ("90d" / "1y") are now PRESERVED: the daily-drift problem
 that once forced freezing them to absolute timestamps is solved at the root by
@@ -14,8 +15,14 @@ anchoring every relative recipe against the built transactions
 timestamp).  Only a genuine automatic anticipation on an ABSOLUTE stored date
 moves the stored value.
 
-The method is exercised with a lightweight fake ``self`` (no Qt event loop, no
-Electrum wallet) by calling it as an unbound method.
+WHY THE FLAG IS NOT SET HERE ANY MORE: because a relative recipe is anchored to
+the built tx, a stored-vs-built comparison cannot detect the anticipation for
+it.  ``_build_success_report`` therefore detects it by comparing the will's
+minimum locktime BEFORE the rebuild with the one AFTER it (see there), which
+works for both absolute and relative recipes.
+
+The methods are exercised with a lightweight fake ``self`` (no Qt event loop,
+no Electrum wallet) by calling them as unbound methods.
 
 Run:
     source "$BAL_HOME/electrum/env/bin/activate"
@@ -35,10 +42,12 @@ from bal.gui.qt.dialogs import BalBuildWillDialog  # noqa: E402  (path insert ab
 # ------------------------------------------------------------------ #
 
 def _fake_willitem(tx_locktime):
-    """Minimal stand-in for a WillItem: enough for Will.get_min_locktime."""
+    """Minimal stand-in for a WillItem: enough for Will.get_min_locktime and
+    the heir listing in _build_success_report."""
     return SimpleNamespace(
         tx=SimpleNamespace(locktime=tx_locktime),
         get_status=lambda name: True,
+        heirs={},
     )
 
 
@@ -57,7 +66,6 @@ def _make_dialog(will_settings, tx_locktimes, recorded):
             will_settings=will_settings,
             update_setting_widgets=update_setting_widgets,
         ),
-        _date_was_anticipated=False,
     )
 
 
@@ -83,7 +91,6 @@ def test_relative_locktime_preserved():
     assert fake.bal_window.will_settings["locktime"] == "90d"
     assert fake.bal_window.will_settings["threshold"] == "30d"
     assert recorded == [], "a relative recipe must never be rewritten"
-    assert fake._date_was_anticipated is False
 
 
 def test_relative_threshold_preserved():
@@ -108,12 +115,13 @@ def test_absolute_locktime_unchanged_on_equal():
         recorded,
     )
     assert fake.bal_window.will_settings["locktime"] == tx_locktime
-    assert fake._date_was_anticipated is False
+    assert fake.bal_window.will_settings["threshold"] == 1_700_000_000
 
 
-def test_anticipation_sets_flag_and_moves_earlier():
+def test_anticipation_moves_stored_date_earlier():
     """A real automatic anticipation of an ABSOLUTE stored date (built earlier
-    than stored) still moves the date earlier and flags the sign prompt."""
+    than stored) moves the stored date earlier so the next Check does not
+    mistake it for a postpone."""
     tx_locktime = 1_700_000_000
     recorded = []
     fake = _call_sync(
@@ -122,7 +130,6 @@ def test_anticipation_sets_flag_and_moves_earlier():
         recorded,
     )
     assert fake.bal_window.will_settings["locktime"] == tx_locktime
-    assert fake._date_was_anticipated is True
 
 
 def test_stored_earlier_than_built_never_moved_later():
@@ -137,7 +144,6 @@ def test_stored_earlier_than_built_never_moved_later():
         recorded,
     )
     assert fake.bal_window.will_settings["locktime"] == stored
-    assert fake._date_was_anticipated is False
 
 
 def test_multiple_txs_uses_minimum_locktime():
@@ -180,6 +186,76 @@ def test_relative_locktime_stays_coherent_via_anchor():
         ).timestamp()
     )
     assert drifted > tx_locktime
+
+
+# ------------------------------------------------------------------ #
+# _build_success_report: the "Building your will" row
+# ------------------------------------------------------------------ #
+
+def _make_report_dialog(new_locktimes, previous_min_locktime):
+    """Fake ``self`` for _build_success_report (no Qt event loop).
+
+    ``_sync_locktime_to_built_txs`` is stubbed (it is exercised separately), so
+    the test drives the AFTER-build locktimes and the captured BEFORE-build
+    locktime directly; the message helpers capture what would be written on the
+    "Building your will" row.
+    """
+    captured = {}
+
+    def _set_building(status=None, row=None, color=None):
+        captured["build_status"] = status
+
+    fake = SimpleNamespace(
+        bal_window=SimpleNamespace(
+            willitems={
+                f"tx{i}": _fake_willitem(lt)
+                for i, lt in enumerate(new_locktimes)
+            },
+            wallet=SimpleNamespace(set_label=lambda *a, **k: None),
+        ),
+        _previous_min_locktime=previous_min_locktime,
+        _sync_locktime_to_built_txs=lambda: None,
+        msg_set_building=_set_building,
+        msg_set_status=lambda *a, **k: None,
+        msg_alert=lambda e: "ALERT:{}".format(e),
+        msg_ok=lambda e=None: "OK",
+    )
+    return fake, captured
+
+
+def test_build_report_shows_anticipated_warning():
+    """When the rebuild moved the delivery one day earlier than the previous
+    will, the "Building your will" row shows a warning naming the NEW delivery
+    date instead of a plain "Ok"."""
+    previous = 1_800_000_000  # 2027-01-15 (UTC)
+    rebuilt = previous - 86_400  # anticipated one day earlier
+    fake, captured = _make_report_dialog([rebuilt], previous)
+    BalBuildWillDialog._build_success_report(fake)
+    assert fake._date_was_anticipated is True
+    assert fake._anticipated_locktime == rebuilt
+    assert captured["build_status"] == (
+        "ALERT:Anticipated - new delivery date: 2027-01-14"
+    )
+
+
+def test_build_report_shows_ok_when_not_anticipated():
+    """Without anticipation the row keeps the plain "Ok" and the state stays
+    clean."""
+    previous = 1_800_000_000
+    fake, captured = _make_report_dialog([previous], previous)
+    BalBuildWillDialog._build_success_report(fake)
+    assert fake._date_was_anticipated is False
+    assert fake._anticipated_locktime is None
+    assert captured["build_status"] == "OK"
+
+
+def test_build_report_first_build_is_not_anticipated():
+    """A first build (no previous will) is never flagged as anticipated."""
+    fake, captured = _make_report_dialog([1_800_000_000], None)
+    BalBuildWillDialog._build_success_report(fake)
+    assert fake._date_was_anticipated is False
+    assert fake._anticipated_locktime is None
+    assert captured["build_status"] == "OK"
 
 
 if __name__ == "__main__":

@@ -46,9 +46,9 @@ struct MyConfig {
 impl Default for MyConfig {
     fn default() -> Self {
         MyConfig {
-            db_backend: env::var("BAL_PUSHER_DB_BACKEND").unwrap_or("sqlite".to_string()),
-            db_file: env::var("BAL_PUSHER_DB_FILE").unwrap_or("bal.db".to_string()),
-            pg_dsn: env::var("BAL_PUSHER_PG_DSN").unwrap_or_default(),
+            db_backend: env::var("BAL_SERVER_DB_BACKEND").unwrap_or("sqlite".to_string()),
+            db_file: env::var("BAL_SERVER_DB_FILE").unwrap_or("bal.db".to_string()),
+            pg_dsn: env::var("BAL_SERVER_PG_DSN").unwrap_or_default(),
             bitcoin_dir: env::var("BAL_PUSHER_BITCOIN_DIR").unwrap_or("".to_string()),
             regtest: get_network_params_default(Network::Regtest),
             testnet: get_network_params_default(Network::Testnet),
@@ -59,7 +59,7 @@ impl Default for MyConfig {
                 .unwrap_or("false".to_string())
                 .parse::<bool>()
                 .unwrap_or(false),
-            url: env::var("BAL_SERVER_URL").unwrap_or("http://localhost/".to_string()),
+            url: env::var("BAL_SERVER_URL").unwrap_or("http://127.0.0.1:9133".to_string()),
             ssl_key_path: env::var("SSL_KEY_PATH").unwrap_or("privkey.pem".to_string()),
         }
     }
@@ -388,7 +388,13 @@ async fn send_stats_report(
             cfg.url, chain, bcinfo.blocks, bcinfo.median_time, bcinfo.best_block_hash
         );
         trace!("message to be sent: {}", message);
-        let sign = sign_message(cfg.ssl_key_path.as_str(), message.as_str());
+        let sign = match sign_message(cfg.ssl_key_path.as_str(), message.as_str()) {
+            Ok(signature) => signature,
+            Err(e) => {
+                error!("Cannot sign stats report, skipping: {}", e);
+                return Ok(());
+            }
+        };
         let response = client
             .post(url)
             .header("User-Agent", format!("bal-pusher/{}", VERSION))
@@ -414,22 +420,22 @@ async fn send_stats_report(
     }
     Ok(())
 }
-fn sign_message(private_key_path: &str, message: &str) -> String {
-    let signing_key =
-        SigningKey::read_pkcs8_pem_file(private_key_path).expect("failed to parse private key PEM");
+fn sign_message(private_key_path: &str, message: &str) -> Result<String, Box<dyn StdError>> {
+    let signing_key = SigningKey::read_pkcs8_pem_file(private_key_path)
+        .map_err(|e| format!("failed to parse private key PEM at {private_key_path}: {e}"))?;
     let signature = signing_key.sign(message.as_bytes());
 
-    general_purpose::STANDARD.encode(signature.to_bytes())
+    Ok(general_purpose::STANDARD.encode(signature.to_bytes()))
 }
 
 fn parse_env(cfg: &mut MyConfig) {
-    if let Ok(value) = env::var("BAL_PUSHER_DB_BACKEND") {
+    if let Ok(value) = env::var("BAL_SERVER_DB_BACKEND") {
         cfg.db_backend = value;
     }
-    if let Ok(value) = env::var("BAL_PUSHER_DB_FILE") {
+    if let Ok(value) = env::var("BAL_SERVER_DB_FILE") {
         cfg.db_file = value;
     }
-    if let Ok(value) = env::var("BAL_PUSHER_PG_DSN") {
+    if let Ok(value) = env::var("BAL_SERVER_PG_DSN") {
         cfg.pg_dsn = value;
     }
     cfg.regtest = parse_env_netconfig(cfg, "regtest");
@@ -561,12 +567,12 @@ async fn main() -> std::io::Result<()> {
             );
         }
         consecutive_timeouts = 0;
-        let topic = message[0].clone();
-        let body = message[1].clone();
-        debug!(
-            "ZMQ:GET TOPIC: {}",
-            String::from_utf8(topic.clone()).expect("invalid topic")
-        );
+        let Some(topic) = message.first().cloned() else {
+            warn!("ZMQ: received empty multipart message, skipping");
+            continue;
+        };
+        let body = message.get(1).cloned().unwrap_or_default();
+        debug!("ZMQ:GET TOPIC: {}", String::from_utf8_lossy(&topic));
         trace!("ZMQ:GET BODY: {}", hex::encode(&body));
         if topic == b"hashblock" {
             info!("NEW BLOCK: {}", hex::encode(&body));

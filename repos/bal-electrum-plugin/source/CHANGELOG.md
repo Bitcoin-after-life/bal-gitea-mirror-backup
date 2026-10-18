@@ -3612,3 +3612,211 @@ deselected executor) are not part of it and will be proposed separately.
   none new.
 
 **Outcome:** DONE (pending Truman's review).
+
+---
+
+## 64. Invalidation pays the current network fee, configurable via a fee-policy setting
+
+**Date:** 2026-10-10
+
+**Goal (owner request):** the will's `baltx_fees` (default 20 sat/vbyte) is
+deliberately high because the inheritance transactions may be broadcast by the
+will-executors years from now, when network fees may be much higher. The
+on-chain INVALIDATION, instead, is sent TODAY: it spends the will's coins back
+to the wallet so the old pre-signed inheritance transactions become unusable.
+It must therefore pay the current network fee, not the inheritance rate. After
+the invalidation the plugin rebuilds the new inheritance with `baltx_fees` as
+before (unchanged). The fee policy is exposed as an ADVANCED-only setting.
+
+**What changed:**
+
+- `bal/core/will.py`
+  - New constants `INVALIDATION_FEE_ETA_BLOCKS = 2` and
+    `INVALIDATION_FEE_POLICY_DEFAULT = "eta:2"` (owner decision: confirm within
+    2 blocks, Electrum's own default target).
+  - New `Will.get_invalidation_fee_rate(wallet, fallback_fee_per_byte,
+    fee_policy_descriptor=None)`: builds an Electrum `FeePolicy` from the
+    descriptor (Feerate / ETA / Mempool) and returns its rate in sat/vbyte,
+    together with the `FeeMethod` name (`"feerate"` / `"eta"` / `"mempool"`) or
+    `"fallback"`. The fallback (the will's `baltx_fees`, i.e. the previous
+    behaviour) is used when no usable rate is available: offline wallet,
+    estimates not received yet, network error or an invalid rate value. A
+    malformed stored descriptor is handled by Electrum's `FeePolicy`, which
+    falls back to the default `eta:2` policy (network rate), not to
+    `baltx_fees`. Never raises.
+  - `Will.invalidate_will` gained a `fee_policy_descriptor` argument and uses
+    that rate; the total fee is rounded UP to whole satoshis (network rates can
+    be fractional); it logs the chosen rate and its source. `fees_per_byte` is
+    now only the fallback, so every caller keeps working. The change output must
+    stay at or above the wallet dust threshold: coins are appended until the
+    change clears dust, and if it never does the invalidation returns `None`
+    (instead of an unrelayable sub-dust output). Docstrings added.
+- `bal/core/plugin_base.py`: new `INVALIDATION_FEE_POLICY` BalConfig
+  (`bal_invalidation_fee_policy`, default `"eta:2"`).
+- `bal/gui/qt/plugin.py`: new ADVANCED-only row 16 in the settings dialog,
+  reusing Electrum's standard fee widget (`FeeSlider` + `FeeComboBox`) for the
+  Feerate / ETA / Mempool choice, with a Help button and a per-row reset. The
+  chosen descriptor is persisted; the dialog-wide "Reset to Default Setting"
+  also restores it.
+- `bal/gui/qt/window.py`, `bal/gui/qt/dialogs.py`, `bal/cli/controller.py`:
+  every `Will.invalidate_will` call site passes
+  `fee_policy_descriptor=...INVALIDATION_FEE_POLICY.get()`, so the Tools →
+  Invalidate action, the wizard postpone/expired paths, the automatic
+  invalidation and the CLI (`bal_will_invalidate`) all get the new behaviour.
+- `bal/locale/bal.pot` and the `es_ES` / `it_IT` catalogs refreshed
+  (`pybabel extract` / `update`, Babel 2.10.3 to match the existing template) so
+  the new settings-dialog strings are translatable.
+
+**Why no special case for an already-expired will:** discussed with the owner
+and intentionally left out. Before its locktime the old inheritance tx cannot
+enter a block or the mempool, so the invalidation has no competitor. RBF stays
+enabled on the invalidation, so its fee can be raised from Electrum's History
+("Increase fee") if it ever gets stuck.
+
+**Verification:**
+
+- `tests/test_core_invalidation_fee.py` (new, 17 tests): rate selection
+  (2-block target, network value used as is also above `baltx_fees`, fractional
+  rates, fallback when offline / no estimate / error / invalid values / invalid
+  descriptor / no wallet) and the fee actually deducted by `invalidate_will`
+  (network vs fallback, fixed feerate offline, rounding up).
+- `tests/test_settings_invalidation_fee.py` (new, 7 tests): the row is hidden
+  in BASIC and visible in ADVANCED; choosing a Feerate / ETA policy persists
+  the descriptor; "Reset to Default Setting" restores `"eta:2"`.
+- `tests/test_core_will_invalidate.py`: its mock wallet now has `network=None`
+  so the pure fee arithmetic (`fee = size * fees_per_byte`) still exercises the
+  fallback path; the policy-based selection is covered by the new file. Four new
+  tests cover the dust guard: sub-dust change returns `None`, change exactly at
+  the threshold is accepted, the fallback stops when the change is still dust,
+  and it succeeds once the change clears dust.
+- Selected suite (core + GUI + settings + translations): 423 passed.
+- `ruff check` on the touched files: no new violations (only the pre-existing
+  I001 in `dialogs.py`).
+
+**Outcome:** DONE (pending the owner's test of the release ZIP).
+
+---
+
+## 65. Check crashed with `KeyError: '<txid>'` (stale "father" link in the will tree)
+
+**Date:** 2026-10-10
+
+**Symptom (owner's mainnet wallet, Electrum 4.8.x):** the Check wizard stopped
+at "Checking your will" with `Error: 'a65a682f…'`, and the window refresh
+logged "error while updating window" with the same txid:
+
+```
+File "bal/core/will.py", line 657, in check_invalidated
+    or willtree[w.father].get_status("CONFIRMED")
+KeyError: 'a65a682f2975f0dffd9eccce9392833f227badf617fc67815674736d594d4115'
+```
+
+**Root cause:** `father` is persisted in the wallet (the `"Father"` field of
+`WillItem.to_dict`) and was only ever set, never cleared. When the father tx was
+later removed from the will (rebuild, merge, replacement) the child kept
+pointing to a txid that no longer exists, and `check_invalidated` crashed with a
+`KeyError` on that txid (the Check wizard and the window refresh both failed).
+
+**What changed:**
+
+- `bal/core/will.py`
+  - `Will.add_willtree`: clears `father` on every item before rebuilding the
+    links, so the tree is always recomputed from scratch from the transactions
+    themselves. Docstring added explaining WHY.
+  - `Will.check_invalidated`: a father that is not (or no longer) part of the
+    will is treated as "no father" instead of raising `KeyError`.
+- `tests/test_core_willtree_father.py` (new, 7 tests): stale father discarded /
+  replaced by the real parent, no crash in `check_invalidated` (with and
+  without the tree rebuild), real parent/child link built, child of an
+  unconfirmed parent still skipped, and the `set_invalidate` cascade (see #66).
+
+**Verification:** the new test file plus the core/CLI suites pass; `ruff check`
+clean on the touched files.
+
+**Outcome:** DONE (pending the owner's test of the ZIP).
+
+---
+
+## 66. Invalidation cascade crashed on real will trees (`children` is a list)
+
+**Date:** 2026-10-10
+
+**Problem (found while fixing #65, reproduced on real data):**
+`Will.set_invalidate` iterated `children.items()`, but `Will.add_willtree`
+builds `children` as a LIST of `[child_id, input_idx, prevout_idx]`, so
+invalidating a will tx that has child will txs raised
+`AttributeError: 'list' object has no attribute 'items'`. The existing tests in
+`test_core_will_invalidate.py` set `children` to dicts by hand, so they never
+saw it.
+
+**What changed:** `bal/core/will.py` - `set_invalidate` accepts both shapes
+(the list from `add_willtree`, a dict from older data/tests) and only recurses
+into children that are still present in the will.
+`tests/test_core_willtree_father.py`: new test
+`test_set_invalidate_cascades_to_children_built_by_add_willtree`.
+
+**Verification:** `tests/test_core_willtree_father.py` passes; `ruff check`
+clean on the touched files.
+
+**Outcome:** DONE.
+
+---
+
+## 67. "Checking variables" stuck on "Wait" + redundant amount-adjustment wording
+
+**Date:** 2026-10-14
+
+**Symptom (owner report):** in the "Building Will" dialog the "Checking
+variables" row always stayed on "Wait" and never became "Ok", even though the
+will itself was fine ("Checking your will" showed "Ok"). It should show its
+result before the "Checking your will" row is written.
+
+**Root cause (two bugs):**
+
+1. UI - when `Will.check_amounts` raised `AmountException` /
+   `WillExecutorFeeTooHighException`, `BalBuildWillDialog.task_phase1` wrote the
+   warning to the **"Checking your will"** row (`msg_set_checking(...)`) and the
+   very next `self.msg_set_checking()` call immediately overwrote it. So on an
+   amount warning the warning was lost AND the "Checking variables" row kept its
+   initial "Wait" forever (the success path set "Ok" only when the amount check
+   passed).
+2. Core - `Will.check_amounts` had two false positives that made perfectly valid
+   wills raise:
+   - `fixed_amount >= wallet_balance` also fired when `fixed_amount == 0`
+     (all-percentage or empty/fully-committed wallet: `0 >= 0`);
+   - `perc_amount != 100` also fired when the will has NO percentage heirs at
+     all (a fixed-only will reports `perc_amount == 0`).
+
+**What changed:**
+
+- `bal/gui/qt/dialogs.py` (`task_phase1`, AmountException branch): the warning is
+  now written on the **"Checking variables"** row itself with `COLOR_WARNING`, so
+  the row always reaches a real outcome and the warning is never lost. The
+  wording was also reduced to the first sentence only - "In the inheritance
+  process, the entire wallet will always be fully emptied." - dropping
+  "Your settings require an adjustment of the amounts" (owner request).
+- `bal/gui/qt/window.py` (`build_inheritance_transaction`, AmountException
+  branch): same message reduction; the appended exception detail (`.format(e)`)
+  was removed with the sentence it belonged to.
+- `bal/core/will.py` (`check_amounts`): the fixed-amount checks now only apply
+  when `fixed_amount > 0`, and the 100% check only when the will actually has
+  percentage heirs (`perc_heirs`). Valid fixed-only / empty-wallet wills no
+  longer raise.
+- i18n catalogs refreshed (`pybabel extract` + `update`); the new unified msgid
+  "In the inheritance process, the entire wallet will always be fully emptied."
+  is translated in `it_IT` and `es_ES`; the old
+  "...adjustment of the amounts.{}" entry is now obsolete.
+
+**Verification:**
+
+- `Will.check_amounts` matrix (fixed-only/percentage/empty wallet) behaves as
+  expected; core/offline suites plus `test_gui_prepare_will_history.py`,
+  `test_sync_locktime_built_txs.py`, `test_rebuild_on_close_setting.py`,
+  `test_translations.py` and the smoke test pass.
+- Offscreen repro of `task_phase1`: "Checking variables" shows green "Ok" on
+  success and the (shortened) warning on the row on `AmountException` - never
+  "Wait".
+- `py_compile` clean; `ruff check` adds no new violations (only the pre-existing
+  `I001` in `dialogs.py`).
+
+**Outcome:** DONE (pending the owner's test of the ZIP).

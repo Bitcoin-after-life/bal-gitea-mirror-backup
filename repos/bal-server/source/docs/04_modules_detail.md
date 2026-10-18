@@ -201,7 +201,7 @@ This is the async daemon that monitors the blockchain and pushes pending transac
 
 ### Configuration
 All configuration is via environment variables (no config files):
-- `BAL_PUSHER_DB_FILE`: Path to SQLite database.
+- `BAL_SERVER_DB_FILE`: Path to SQLite database.
 - `BAL_PUSHER_BITCOIN_DIR`: Bitcoin data directory (for cookie file path).
 - `BAL_PUSHER_SEND_STATS`: Enable/disable remote stats reporting.
 - `BAL_SERVER_URL`: URL of the bal-server for internal communication.

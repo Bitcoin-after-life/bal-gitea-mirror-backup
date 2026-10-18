@@ -143,7 +143,7 @@ If no network is specified, defaults to `bitcoin`.
 
 | Variable | Description | Default |
 | --- | --- | --- |
-| `BAL_PUSHER_DB_FILE` | Path to the SQLite3 database file. | `bal.db` |
+| `BAL_SERVER_DB_FILE` | Path to the SQLite3 database file. | `bal.db` |
 | `BAL_PUSHER_SEND_STATS` | Send stats to welist server. | `false` |
 | `BAL_SERVER_URL` | URL of bal-server (for stats reporting). | - |
 | `SSL_KEY_PATH` | Ed25519 private key for signing stats reports. | `private_key.pem` |

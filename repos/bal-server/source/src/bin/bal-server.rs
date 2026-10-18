@@ -1,8 +1,11 @@
-use actix_governor::{Governor, GovernorConfigBuilder, KeyExtractor, SimpleKeyExtractionError};
-use actix_web::dev::ServiceRequest;
-use actix_web::middleware;
+use actix_governor::{
+    Governor, GovernorConfig, GovernorConfigBuilder, KeyExtractor, SimpleKeyExtractionError,
+};
+use actix_web::body::MessageBody;
+use actix_web::dev::{ServiceRequest, ServiceResponse};
+use actix_web::middleware::{self, Next};
 use actix_web::web::Bytes;
-use actix_web::{App, HttpResponse, HttpServer, Responder, web};
+use actix_web::{App, Error, HttpResponse, HttpServer, Responder, web};
 use bitcoin::{Network, Transaction, consensus};
 use chrono::Utc;
 use hex_conservative::FromHex;
@@ -13,6 +16,7 @@ use std::env;
 use std::fs;
 use std::net::IpAddr;
 use std::str::FromStr;
+use std::time::Duration;
 
 use bal_server::db::{
     DatabasePool, InsertInpData, InsertOutData, InsertTxData, check_duplicate_txids,
@@ -123,7 +127,6 @@ pub struct StatsResponse {
 }
 
 #[derive(Debug, Clone)]
-#[expect(dead_code)]
 struct ActixConfig {
     max_body_size: usize,
     timeout_secs: u64,
@@ -284,6 +287,44 @@ impl KeyExtractor for RealIpKeyExtractor {
                     })
                 }),
         }
+    }
+}
+
+/// Concrete governor configuration type used by all rate-limited routes.
+///
+/// `NoOpMiddleware` is the default `actix-governor` middleware; it is only used
+/// here as a type parameter so a single helper can build every route's config.
+type GovernorConfigType =
+    GovernorConfig<RealIpKeyExtractor, actix_governor::governor::middleware::NoOpMiddleware>;
+
+/// Build a rate-limiter configuration keyed by the real client IP.
+///
+/// A period of zero is rejected by `actix-governor`, so the values are clamped
+/// to a minimum of one to avoid a `None` result.
+fn build_governor_config(per_sec: u64, burst: u32) -> Result<GovernorConfigType, String> {
+    GovernorConfigBuilder::default()
+        .seconds_per_request(per_sec.max(1))
+        .burst_size(burst.max(1))
+        .key_extractor(RealIpKeyExtractor)
+        .finish()
+        .ok_or_else(|| "invalid rate limiter configuration".to_string())
+}
+
+/// Middleware that aborts a request with `408 Request Timeout` if the inner
+/// handler (including request body reading) exceeds the configured duration.
+///
+/// The duration is read from the `web::Data<u64>` app data registered in `main`.
+async fn request_timeout<B>(
+    timeout_secs: web::Data<u64>,
+    req: ServiceRequest,
+    next: Next<B>,
+) -> Result<ServiceResponse<B>, Error>
+where
+    B: MessageBody,
+{
+    match tokio::time::timeout(Duration::from_secs(**timeout_secs), next.call(req)).await {
+        Ok(result) => result,
+        Err(_) => Err(actix_web::error::ErrorRequestTimeout("request timeout")),
     }
 }
 
@@ -464,6 +505,7 @@ fn parse_request_transactions(
     known_addresses: &HashSet<String>,
 ) -> Vec<(ParsedTx, String, u64)> {
     let mut result: Vec<(ParsedTx, String, u64)> = Vec::new();
+    let mut seen_txids: HashSet<String> = HashSet::new();
 
     for line in strbody.split('\n') {
         if line.is_empty() {
@@ -489,6 +531,10 @@ fn parse_request_transactions(
         };
 
         let txid = tx.compute_txid().to_string();
+        if !seen_txids.insert(txid.clone()) {
+            trace!("duplicate txid {} in request body, skipping", txid);
+            continue;
+        }
         let ntxid = tx.compute_ntxid();
         let wtxid = tx.compute_wtxid();
         let locktime = tx.lock_time.to_string();
@@ -750,7 +796,10 @@ fn parse_env_netconfig(cfg: &mut MyConfig, chain: &str) {
     if let Ok(value) = env::var(format!("BAL_SERVER_{}_ADDRESS", chain.to_uppercase())) {
         debug!("BAL_SERVER_{}_ADDRESS: {}", chain.to_uppercase(), value);
         c.address = value;
-        if c.address.len() > 5 && &c.address[1..4] == "pub" {
+        let is_xpub = ["xpub", "ypub", "zpub", "tpub", "vpub", "upub"]
+            .iter()
+            .any(|prefix| c.address.starts_with(prefix));
+        if is_xpub {
             c.xpub = true;
             trace!("is_xpub");
         }
@@ -813,12 +862,26 @@ async fn main() -> std::io::Result<()> {
     let bind_address = data.cfg.bind_address.clone();
     let bind_port = data.cfg.bind_port;
 
-    let governor_conf = GovernorConfigBuilder::default()
-        .seconds_per_request(actix_cfg.rate_limit_pushtxs.0)
-        .burst_size(actix_cfg.rate_limit_pushtxs.1)
-        .key_extractor(RealIpKeyExtractor)
-        .finish()
-        .unwrap();
+    // One shared limiter per endpoint class: all workers clone the same
+    // underlying state, so the rate limit is global per real client IP.
+    let governor_pushtxs = build_governor_config(
+        actix_cfg.rate_limit_pushtxs.0,
+        actix_cfg.rate_limit_pushtxs.1,
+    )
+    .map_err(std::io::Error::other)?;
+    let governor_searchtx = build_governor_config(
+        actix_cfg.rate_limit_searchtx.0,
+        actix_cfg.rate_limit_searchtx.1,
+    )
+    .map_err(std::io::Error::other)?;
+    let governor_info =
+        build_governor_config(actix_cfg.rate_limit_info.0, actix_cfg.rate_limit_info.1)
+            .map_err(std::io::Error::other)?;
+    let governor_default = build_governor_config(
+        actix_cfg.rate_limit_default.0,
+        actix_cfg.rate_limit_default.1,
+    )
+    .map_err(std::io::Error::other)?;
 
     println!("Starting server on http://{}:{}", bind_address, bind_port);
 
@@ -827,16 +890,45 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::PayloadConfig::default().limit(actix_cfg.max_body_size))
             .app_data(data.clone())
             .app_data(web::Data::new(actix_cfg.trusted_proxy))
+            .app_data(web::Data::new(actix_cfg.timeout_secs))
             .wrap(middleware::Logger::default())
             .wrap(middleware::Compress::default())
-            .wrap(Governor::new(&governor_conf))
-            .service(web::resource("/").route(web::get().to(echo_home)))
-            .service(web::resource("/.pub_key.pem").route(web::get().to(echo_pub_key)))
-            .service(web::resource("/version").route(web::get().to(echo_version)))
-            .service(web::resource("/{network}/info").route(web::get().to(echo_info)))
-            .service(web::resource("/{network}/stats").route(web::get().to(echo_stats)))
-            .service(web::resource("/{network}/pushtxs").route(web::post().to(echo_push)))
-            .service(web::resource("/searchtx").route(web::post().to(echo_search)))
+            .wrap(middleware::from_fn(request_timeout))
+            .service(
+                web::resource("/")
+                    .wrap(Governor::new(&governor_default))
+                    .route(web::get().to(echo_home)),
+            )
+            .service(
+                web::resource("/.pub_key.pem")
+                    .wrap(Governor::new(&governor_default))
+                    .route(web::get().to(echo_pub_key)),
+            )
+            .service(
+                web::resource("/version")
+                    .wrap(Governor::new(&governor_default))
+                    .route(web::get().to(echo_version)),
+            )
+            .service(
+                web::resource("/{network}/info")
+                    .wrap(Governor::new(&governor_info))
+                    .route(web::get().to(echo_info)),
+            )
+            .service(
+                web::resource("/{network}/stats")
+                    .wrap(Governor::new(&governor_info))
+                    .route(web::get().to(echo_stats)),
+            )
+            .service(
+                web::resource("/{network}/pushtxs")
+                    .wrap(Governor::new(&governor_pushtxs))
+                    .route(web::post().to(echo_push)),
+            )
+            .service(
+                web::resource("/searchtx")
+                    .wrap(Governor::new(&governor_searchtx))
+                    .route(web::post().to(echo_search)),
+            )
     })
     .workers(actix_cfg.workers)
     .max_connections(actix_cfg.max_connections)

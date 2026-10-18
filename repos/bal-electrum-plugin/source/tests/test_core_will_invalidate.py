@@ -47,6 +47,24 @@ _VALID_TX_HEX = (
 # The prevout string that _VALID_TX_HEX spends (input 0).
 _PREVOUT_STR = "3140eb24b43386f35ba69e3875eb6c93130ac66201d01c58f598defc949a5c2a:0"
 
+# A second transaction identical to _VALID_TX_HEX but spending a DIFFERENT
+# prevout. It stands for a superseded (REPLACED) will transaction that commits
+# different coins than the current valid one.
+_REPLACED_TX_HEX = "0100000001ff" + _VALID_TX_HEX[len("01000000012a"):]
+_REPLACED_PREVOUT_STR = _PREVOUT_STR[:-4] + "ff:0"
+
+# A 2-input transaction: version 2 with two parallel inputs. Built from
+# _VALID_TX_HEX by duplicating its (298-hex) input with a DIFFERENT prevout
+# (first byte "ff", so the second input spends _REPLACED_PREVOUT_STR) and
+# keeping the unchanged outputs.
+_INPUT_LEN = 298
+_TWO_INPUT_TX_HEX = (
+    "0100000002"
+    + _VALID_TX_HEX[10:10 + _INPUT_LEN]
+    + "ff" + _VALID_TX_HEX[10 + 2:10 + _INPUT_LEN]
+    + _VALID_TX_HEX[10 + _INPUT_LEN:]
+)
+
 # Change address for the invalidation output.
 _CHANGE_ADDR = "14CHYaaByjJZpx4oHBpfDMdqhTyXnZ3kVs"
 
@@ -55,8 +73,9 @@ _CHANGE_ADDR = "14CHYaaByjJZpx4oHBpfDMdqhTyXnZ3kVs"
 # Helpers
 # ------------------------------------------------------------------ #
 
-def _make_willitem(value_sats=1000000, valid=True, extra_heirs=None):
-    """Create a WillItem from _VALID_TX_HEX with a known input value.
+def _make_willitem(value_sats=1000000, valid=True, extra_heirs=None,
+                   tx_hex=_VALID_TX_HEX):
+    """Create a WillItem from ``tx_hex`` with a known input value.
 
     The input's ``_trusted_value_sats`` is set so that
     ``invalidate_will`` can read the balance from it.
@@ -65,7 +84,7 @@ def _make_willitem(value_sats=1000000, valid=True, extra_heirs=None):
     if extra_heirs:
         heirs.update(extra_heirs)
     item = WillItem({
-        "tx": _VALID_TX_HEX,
+        "tx": tx_hex,
         "heirs": heirs,
         "willexecutor": None,
         "status": "",
@@ -93,16 +112,24 @@ def _make_utxo(prevout_str=None, value_sats=1000000, is_coinbase=False):
     utxo.prevout.to_str.return_value = prevout_str
     utxo.is_coinbase_output.return_value = is_coinbase
     utxo.block_height = 1
+    utxo.block_txpos = 0
     utxo.value_sats.return_value = value_sats
     return utxo
 
 
 def _mock_wallet(utxos, change_addr=_CHANGE_ADDR):
-    """Create a mock wallet with the given UTXOs and change address."""
+    """Create a mock wallet with the given UTXOs and change address.
+
+    ``network`` is left ``None`` so ``Will.invalidate_will`` uses the
+    ``fees_per_byte`` FALLBACK instead of Electrum's live estimate: these tests
+    exercise the pure fee arithmetic (``fee = size * fees_per_byte``). The
+    policy-based rate selection has its own tests in
+    ``tests/test_core_invalidation_fee.py``.
+    """
     wallet = MagicMock()
     wallet.get_utxos.return_value = utxos
     wallet.get_change_addresses_for_new_transaction.return_value = [change_addr]
-    wallet.network = MagicMock()
+    wallet.network = None
     return wallet
 
 
@@ -292,6 +319,77 @@ class TestInvalidateWill:
         second_call_value = mock_out.call_args_list[1][0][1]
         assert second_call_value == 998000
 
+    def test_replaced_item_inputs_are_invalidated(self):
+        """A REPLACED (superseded) item's funding UTXO is also spent.
+
+        Regression: a will rebuilt after an heir change supersedes the old
+        signed transaction, which is kept but marked REPLACED (VALID cleared).
+        The old transaction may have been pushed to the will-executors and may
+        spend DIFFERENT coins than the current valid one, so its UTXO must be
+        included in the invalidation. Otherwise it would stay unspent and a
+        will-executor could still broadcast the superseded transaction.
+        """
+        valid_item = _make_willitem(value_sats=1000000)
+        replaced_item = _make_willitem(
+            value_sats=2000000, tx_hex=_REPLACED_TX_HEX
+        )
+        replaced_item.set_status("REPLACED", True)
+        assert replaced_item.get_status("VALID") is False
+
+        will = {"valid": valid_item, "replaced": replaced_item}
+        wallet = _mock_wallet([
+            _make_utxo(),
+            _make_utxo(prevout_str=_REPLACED_PREVOUT_STR, value_sats=2000000),
+        ])
+
+        result, mock_from_io, _ = _run_invalidate(will, wallet)
+
+        assert result is not None
+        spent = [u.prevout.to_str() for u in mock_from_io.call_args[0][0]]
+        assert _PREVOUT_STR in spent
+        assert _REPLACED_PREVOUT_STR in spent
+
+    def test_replaced_item_contributes_balance(self):
+        """The balance of a REPLACED item is included in the invalidation."""
+        valid_item = _make_willitem(value_sats=1000000)
+        replaced_item = _make_willitem(
+            value_sats=2000000, tx_hex=_REPLACED_TX_HEX
+        )
+        replaced_item.set_status("REPLACED", True)
+
+        will = {"valid": valid_item, "replaced": replaced_item}
+        wallet = _mock_wallet([
+            _make_utxo(),
+            _make_utxo(prevout_str=_REPLACED_PREVOUT_STR, value_sats=2000000),
+        ])
+
+        _, _, mock_out = _run_invalidate(will, wallet, fees_per_byte=10)
+
+        # Balance = 1000000 + 2000000 = 3000000, fee = 200 * 10 = 2000
+        second_call_value = mock_out.call_args_list[1][0][1]
+        assert second_call_value == 2998000
+
+    def test_invalidated_item_inputs_are_not_invalidated(self):
+        """A purely INVALIDATED item (already neutralised) is still excluded."""
+        valid_item = _make_willitem(value_sats=1000000)
+        invalid_item = _make_willitem(
+            value_sats=2000000, tx_hex=_REPLACED_TX_HEX, valid=False
+        )
+        assert invalid_item.get_status("INVALIDATED") is True
+
+        will = {"valid": valid_item, "invalid": invalid_item}
+        wallet = _mock_wallet([
+            _make_utxo(),
+            _make_utxo(prevout_str=_REPLACED_PREVOUT_STR, value_sats=2000000),
+        ])
+
+        result, mock_from_io, _ = _run_invalidate(will, wallet)
+
+        assert result is not None
+        spent = [u.prevout.to_str() for u in mock_from_io.call_args[0][0]]
+        assert _PREVOUT_STR in spent
+        assert _REPLACED_PREVOUT_STR not in spent
+
     def test_first_from_io_uses_full_balance(self):
         """The first from_io call uses the full balance (before fee deduction)
         to estimate the fee."""
@@ -352,6 +450,152 @@ class TestInvalidateWill:
         # Output value = balance - 0 = 1000000
         second_call_value = mock_out.call_args_list[1][0][1]
         assert second_call_value == 1000000
+
+    def test_invalidation_spends_oldest_input_per_tx(self):
+        """For each will tx, only its OLDEST funding coin is spent.
+
+        A will item whose transaction has two inputs (old and new coin) must
+        spend only the coin that has been in the wallet longest, leaving the
+        newer coin unspent for the rebuilt (postponed) will.
+        """
+        item = _make_willitem(value_sats=1000000, tx_hex=_TWO_INPUT_TX_HEX)
+        will = {"willtxid1": item}
+        old_utxo = _make_utxo(prevout_str=_PREVOUT_STR, value_sats=1000000)
+        old_utxo.block_height = 1
+        new_utxo = _make_utxo(prevout_str=_REPLACED_PREVOUT_STR, value_sats=2000000)
+        new_utxo.block_height = 500  # newer than the old coin
+        wallet = _mock_wallet([old_utxo, new_utxo])
+
+        result, mock_from_io, _ = _run_invalidate(will, wallet)
+
+        assert result is not None
+        spent = [u.prevout.to_str() for u in mock_from_io.call_args[0][0]]
+        assert spent == [_PREVOUT_STR]
+
+    def test_invalidation_fallback_appends_next_oldest(self):
+        """If the oldest coin cannot cover the fee, the next-oldest is appended.
+
+        The invalidation must not be dropped just because the single oldest
+        coin is small: it keeps adding will coins, oldest first, until the
+        balance covers the estimated fee.
+        """
+        item = _make_willitem(value_sats=1000000, tx_hex=_TWO_INPUT_TX_HEX)
+        will = {"willtxid1": item}
+        old_utxo = _make_utxo(prevout_str=_PREVOUT_STR, value_sats=1000)
+        old_utxo.block_height = 1
+        new_utxo = _make_utxo(prevout_str=_REPLACED_PREVOUT_STR, value_sats=1000000)
+        new_utxo.block_height = 500
+        wallet = _mock_wallet([old_utxo, new_utxo])
+
+        # estimated_size (200) * fees_per_byte (10) = 2000 > balance (1000)
+        result, mock_from_io, mock_out = _run_invalidate(will, wallet, fees_per_byte=10)
+
+        assert result is not None
+        spent = [u.prevout.to_str() for u in mock_from_io.call_args[0][0]]
+        assert _PREVOUT_STR in spent
+        assert _REPLACED_PREVOUT_STR in spent
+        # balance = 1000 + 1000000, fee = 2000
+        final_value = mock_out.call_args[0][1]
+        assert final_value == 999000
+
+    def test_invalidation_treats_unconfirmed_as_newest(self):
+        """An unconfirmed (unknown-height) coin is never chosen as the oldest."""
+        item = _make_willitem(value_sats=1000000, tx_hex=_TWO_INPUT_TX_HEX)
+        will = {"willtxid1": item}
+        confirmed = _make_utxo(prevout_str=_PREVOUT_STR, value_sats=1000000)
+        confirmed.block_height = 10
+        unconfirmed = _make_utxo(prevout_str=_REPLACED_PREVOUT_STR, value_sats=2000000)
+        unconfirmed.block_height = None
+        wallet = _mock_wallet([unconfirmed, confirmed])
+
+        result, mock_from_io, _ = _run_invalidate(will, wallet)
+
+        assert result is not None
+        spent = [u.prevout.to_str() for u in mock_from_io.call_args[0][0]]
+        assert spent == [_PREVOUT_STR]
+
+    def test_invalidation_same_height_order_is_deterministic(self):
+        """Coins at the same height are ordered by block position, not list order."""
+        item = _make_willitem(value_sats=1000000, tx_hex=_TWO_INPUT_TX_HEX)
+        will = {"willtxid1": item}
+        later = _make_utxo(prevout_str=_PREVOUT_STR, value_sats=1000000)
+        later.block_height = 10
+        later.block_txpos = 5
+        earlier = _make_utxo(prevout_str=_REPLACED_PREVOUT_STR, value_sats=2000000)
+        earlier.block_height = 10
+        earlier.block_txpos = 1
+        wallet = _mock_wallet([later, earlier])
+
+        result, mock_from_io, _ = _run_invalidate(will, wallet)
+
+        assert result is not None
+        spent = [u.prevout.to_str() for u in mock_from_io.call_args[0][0]]
+        assert spent == [_REPLACED_PREVOUT_STR]  # block_txpos 1 < 5 => older
+
+    def test_sub_dust_change_returns_none(self):
+        """A change output below the dust limit is never created.
+
+        Regression: previously any positive change (balance - fee > 0) was
+        accepted, which could produce a non-standard (unrelayable) output and
+        leave the will un-invalidated.
+        """
+        item = _make_willitem(value_sats=2200)
+        will = {"willtxid1": item}
+        wallet = _mock_wallet([_make_utxo(value_sats=2200)])
+        wallet.dust_threshold.return_value = 546
+
+        # fee = estimated_size (200) * fees_per_byte (10) = 2000;
+        # balance - fee = 200 < dust (546) -> no transaction.
+        result, _, _ = _run_invalidate(will, wallet, fees_per_byte=10)
+
+        assert result is None
+
+    def test_change_equal_to_dust_is_allowed(self):
+        """Change exactly at the dust threshold is accepted (>= comparison)."""
+        item = _make_willitem(value_sats=2546)
+        will = {"willtxid1": item}
+        wallet = _mock_wallet([_make_utxo(value_sats=2546)])
+        wallet.dust_threshold.return_value = 546
+
+        # balance - fee = 2546 - 2000 = 546 == dust -> transaction.
+        result, _, mock_out = _run_invalidate(will, wallet, fees_per_byte=10)
+
+        assert result is not None
+        assert mock_out.call_args_list[1][0][1] == 546
+
+    def test_fallback_stops_when_change_still_dust(self):
+        """Coins are appended until the change clears dust; else returns None."""
+        item = _make_willitem(value_sats=1000000, tx_hex=_TWO_INPUT_TX_HEX)
+        will = {"willtxid1": item}
+        old_utxo = _make_utxo(prevout_str=_PREVOUT_STR, value_sats=1000)
+        old_utxo.block_height = 1
+        new_utxo = _make_utxo(prevout_str=_REPLACED_PREVOUT_STR, value_sats=1200)
+        new_utxo.block_height = 500
+        wallet = _mock_wallet([old_utxo, new_utxo])
+        wallet.dust_threshold.return_value = 546
+
+        # fee = 2000; total balance = 1000 + 1200 = 2200;
+        # change = 200 < dust (546) and no coin is left -> None.
+        result, _, _ = _run_invalidate(will, wallet, fees_per_byte=10)
+
+        assert result is None
+
+    def test_fallback_succeeds_once_change_clears_dust(self):
+        """Appending the next coin yields a change above dust -> transaction."""
+        item = _make_willitem(value_sats=1000000, tx_hex=_TWO_INPUT_TX_HEX)
+        will = {"willtxid1": item}
+        old_utxo = _make_utxo(prevout_str=_PREVOUT_STR, value_sats=1000)
+        old_utxo.block_height = 1
+        new_utxo = _make_utxo(prevout_str=_REPLACED_PREVOUT_STR, value_sats=2546)
+        new_utxo.block_height = 500
+        wallet = _mock_wallet([old_utxo, new_utxo])
+        wallet.dust_threshold.return_value = 546
+
+        # fee = 2000; total balance = 3546; change = 1546 >= dust -> transaction.
+        result, _, mock_out = _run_invalidate(will, wallet, fees_per_byte=10)
+
+        assert result is not None
+        assert mock_out.call_args_list[-1][0][1] == 1546
 
 
 # ================================================================== #

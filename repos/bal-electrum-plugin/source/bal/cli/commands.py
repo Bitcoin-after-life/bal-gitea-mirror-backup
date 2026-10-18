@@ -238,24 +238,26 @@ async def willexecutors_update(
         wallet,
         "willexecutors_update",
         url,
-        address,
-        base_fee,
-        info,
-        promo_code,
-        rename_to,
+        address=address,
+        base_fee=base_fee,
+        info=info,
+        promo_code=promo_code,
+        rename_to=rename_to,
     )
 
 
 @plugin_command("nw", plugin_name)
 async def willexecutors_select(
-    self, url, value=True, wallet=None, plugin=None
+    self, url=None, value=True, only_valid=False, wallet=None, plugin=None
 ):
-    """Select (or deselect) a will-executor.
+    """Select (or deselect) a will-executor, or bulk-apply a selection.
 
-    arg:str:url:The will-executor URL.
+    arg:str:url:The will-executor URL; omit to act on every executor.
     arg:bool:value:True to select, False to deselect.
+    arg:bool:only_valid:When selecting/deselecting all, only change the valid executors (the invalid ones are deselected/left alone).
     """
-    return _call(plugin, wallet, "willexecutors_select", [url], value)
+    urls = [url] if url is not None else None
+    return _call(plugin, wallet, "willexecutors_select", urls, value, only_valid)
 
 
 @plugin_command("nw", plugin_name)
@@ -298,12 +300,13 @@ async def willexecutors_import(self, path, wallet=None, plugin=None):
 
 
 @plugin_command("nw", plugin_name)
-async def willexecutors_export(self, path, wallet=None, plugin=None):
+async def willexecutors_export(self, path, subset=None, wallet=None, plugin=None):
     """Export the will-executors to a JSON file.
 
     arg:str:path:Destination file path.
+    arg:str:subset:Optional filter: ``selected`` (only selected executors) or ``valid`` (only valid ones); omit to export all.
     """
-    return _call(plugin, wallet, "willexecutors_export", path)
+    return _call(plugin, wallet, "willexecutors_export", path, subset)
 
 
 # --------------------------------------------------------------------------- #

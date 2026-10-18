@@ -251,6 +251,24 @@ class BalPlugin(BasePlugin):
         self.TX_FEES = BalConfig(config, "bal_tx_fees", 100)
         self.INVALIDATE = BalConfig(config, "bal_invalidate", True)
         self.ASK_INVALIDATE = BalConfig(config, "bal_ask_invalidate", True)
+
+        # INVALIDATION_FEE_POLICY (advanced): the fee rate the on-chain
+        # INVALIDATION transaction pays. It is expressed as an Electrum
+        # ``FeePolicy`` descriptor "<method>:<value>", the same format Electrum
+        # uses for its own ``FEE_POLICY`` setting, so the standard fee slider
+        # (Feerate / ETA / Mempool) can edit it directly:
+        #   * "eta:2"     - fee estimated for confirmation within 2 blocks
+        #                   (the default: Electrum's own default target);
+        #   * "mempool:N" - fee targeting a depth of N vbytes in the mempool;
+        #   * "feerate:N" - a fixed rate of N sat/kvbyte (works offline).
+        # WHY it is separate from the will's ``baltx_fees``: the will is built
+        # with a deliberately high rate because the will-executors may broadcast
+        # the inheritance years from now, while the invalidation is sent TODAY
+        # and must pay the current network fee. ``baltx_fees`` remains only the
+        # fallback used when no estimate is available.
+        self.INVALIDATION_FEE_POLICY = BalConfig(
+            config, "bal_invalidation_fee_policy", "eta:2"
+        )
         self.PREVIEW = BalConfig(config, "bal_preview", True)
         self.SAVE_TXS = BalConfig(config, "bal_save_txs", True)
 

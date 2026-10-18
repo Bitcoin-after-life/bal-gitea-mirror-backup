@@ -8,7 +8,7 @@
 
 ## Database Technology
 - **Engine:** `sqlite` (Rust `sqlite` crate, version 0.34.0)
-- **File:** `bal.db` (default, configurable via `BAL_SERVER_DB_FILE` / `BAL_PUSHER_DB_FILE`)
+- **File:** `bal.db` (default, configurable via `BAL_SERVER_DB_FILE`)
 - **Connection Management:** Shared `Arc<Mutex<Connection>>` in `bal-server`, single connection in `bal-pusher`.
 - **WAL Mode:** Enabled via `PRAGMA journal_mode=WAL` with retry logic (up to 5 attempts) for concurrent access safety.
 - **Busy Timeout:** Set to 5000ms via `PRAGMA busy_timeout=5000`.

@@ -691,11 +691,22 @@ class BalBuildWillDialog(BalDialog):
         # Manual next-steps hint (Sign / Broadcast) shown to the user after the
         # dialog finishes; None when nothing is left to do.
         self._next_steps_hint = None
-        # Set to True by _sync_locktime_to_built_txs when the delivery date was
-        # automatically anticipated during a rebuild. Used to explain to the
-        # user WHY signing is being requested (otherwise the sign prompt appears
-        # without any reason, as the owner reported).
+        # Set to True by _build_success_report when the rebuild moved the
+        # delivery date one day earlier than the previous will. Used both to
+        # show the "Anticipated" warning on the "Building your will" row and to
+        # explain WHY signing is being requested (otherwise the sign prompt
+        # appears without any reason, as the owner reported).
         self._date_was_anticipated = False
+        # The anticipated locktime (UNIX timestamp) captured by
+        # _build_success_report, formatted into the "Anticipated - new
+        # delivery date: ..." warning. None when the last build did not
+        # anticipate the delivery.
+        self._anticipated_locktime = None
+        # The will's minimum locktime captured BEFORE the rebuild (see
+        # task_phase1). _build_success_report compares it with the rebuilt one
+        # to tell whether the delivery was anticipated by one day. None when no
+        # build ran yet.
+        self._previous_min_locktime = None
         # Set to True right after we broadcast an automatic invalidation
         # transaction (the "postpone" path). On the very next phase-1 re-check
         # Electrum may not have seen the invalidation tx yet, so it would still
@@ -747,6 +758,7 @@ class BalBuildWillDialog(BalDialog):
                     self.bal_window.willitems,
                     default_value=self.bal_window.date_to_check,
                 ),
+                fee_policy_descriptor=self.bal_window.bal_plugin.INVALIDATION_FEE_POLICY.get(),
             )
             if tx:
                 _logger.debug(
@@ -788,18 +800,32 @@ class BalBuildWillDialog(BalDialog):
             _logger.debug("variables ok")
             self.msg_set_status(_("Checking variables"), varrow, _("Ok"), self.COLOR_OK)
         except AmountException:
-            self.msg_set_checking(
-                self.msg_warning(
-                    _(
-                        "In the inheritance process, "
-                        "the entire wallet will always be fully emptied. \n"
-                        "Your settings require an adjustment of the amounts"
-                    )
-                )
+            # The amount check is a WARNING, not a hard failure: the build can
+            # still normalise the shares (see BalWindow.build_inheritance_
+            # transaction, which shows the same warning and continues).  Report
+            # it on the "Checking variables" row itself, with the warning colour.
+            # Previously this was routed to msg_set_checking(), i.e. the
+            # "Checking your will" row, and then immediately overwritten by the
+            # msg_set_checking() call below - so the warning was lost AND the
+            # "Checking variables" row stayed stuck on its initial "Wait".
+            self.msg_set_status(
+                _("Checking variables"),
+                varrow,
+                _(
+                    "In the inheritance process, "
+                    "the entire wallet will always be fully emptied."
+                ),
+                self.COLOR_WARNING,
             )
         except WillExecutorFeeTooHighException as e:
-            self.msg_set_checking(
-                self.msg_warning(_("Will-executor fee too high: {}").format(e))
+            # Same reasoning as the AmountException branch above: show the
+            # warning on the "Checking variables" row so it is neither lost nor
+            # left stuck on "Wait".
+            self.msg_set_status(
+                _("Checking variables"),
+                varrow,
+                _("Will-executor fee too high: {}").format(e),
+                self.COLOR_WARNING,
             )
 
         self.msg_set_checking()
@@ -842,6 +868,7 @@ class BalBuildWillDialog(BalDialog):
                     self.bal_window.willitems,
                     default_value=self.bal_window.date_to_check,
                 ),
+                fee_policy_descriptor=self.bal_window.bal_plugin.INVALIDATION_FEE_POLICY.get(),
             )
         except NoHeirsException:
             _logger.debug("no heirs")
@@ -895,6 +922,18 @@ class BalBuildWillDialog(BalDialog):
 
         if have_to_build:
             self.msg_set_building()
+            # Capture the delivery date of the CURRENT (previous) will BEFORE
+            # the rebuild overwrites it, so _build_success_report can tell
+            # whether the rebuild ANTICIPATED the delivery by one day. The core
+            # anticipates by moving the rebuilt txs one day EARLIER than the
+            # previous will that spends the same coins (Will.check_anticipate /
+            # Will.search_anticipate), so comparing the two is the only reliable
+            # signal: a relative recipe ("1y"/"30d") is anchored to the built tx,
+            # which is why comparing the built locktime with the STORED value
+            # (see _sync_locktime_to_built_txs) misses the anticipation.
+            self._previous_min_locktime = Will.get_min_locktime(
+                self.bal_window.willitems
+            )
             try:
                 txs = self.bal_window.build_will()
                 if not txs:
@@ -1083,7 +1122,40 @@ class BalBuildWillDialog(BalDialog):
         # auto-anticipated) transactions, otherwise the next Check would wrongly
         # ask to invalidate. See _sync_locktime_to_built_txs for the full why.
         self._sync_locktime_to_built_txs()
-        self.msg_set_building(self.msg_ok())
+        # Detect an automatic anticipation by comparing the will's delivery date
+        # BEFORE the rebuild (captured in task_phase1) with the one AFTER it:
+        # the core anticipates by moving the rebuilt txs one day earlier than
+        # the previous will that spends the same coins (Will.check_anticipate).
+        # This is format-agnostic: it works whether the stored recipe is an
+        # absolute timestamp or a relative "1y"/"30d" recipe (anchoring makes a
+        # relative recipe unusable for a stored-vs-built comparison).
+        new_min_locktime = Will.get_min_locktime(self.bal_window.willitems)
+        previous_min_locktime = self._previous_min_locktime
+        self._date_was_anticipated = (
+            previous_min_locktime is not None
+            and new_min_locktime is not None
+            and int(new_min_locktime) < int(previous_min_locktime)
+        )
+        self._anticipated_locktime = (
+            int(new_min_locktime) if self._date_was_anticipated else None
+        )
+        # Owner request: when the rebuild anticipated the delivery, do NOT show
+        # a plain "Ok" on the "Building your will" row - show a warning that
+        # names the anticipation and the NEW delivery date, so the user is told
+        # the inheritance will be delivered one day earlier. The sign step then
+        # explains WHY signing is requested on its OWN row ("Signing your
+        # will"), leaving this warning visible.
+        if self._anticipated_locktime is not None:
+            new_date = BalTimestamp._safe_fromtimestamp(
+                self._anticipated_locktime
+            ).strftime("%Y-%m-%d")
+            self.msg_set_building(
+                self.msg_alert(
+                    _("Anticipated - new delivery date: {}").format(new_date)
+                )
+            )
+        else:
+            self.msg_set_building(self.msg_ok())
         # List EACH heir on its OWN line, green + bold (owner request: revert the
         # one-line "Heirs: a, b, c" form of v0.4.6). Heir names can be long, and
         # now that the report area scrolls (allegato1) there is no need to cram
@@ -1175,10 +1247,10 @@ class BalBuildWillDialog(BalDialog):
                     f"sync delivery date to built tx locktime: "
                     f"{current} -> {min_locktime}"
                 )
-                # Remember that we anticipated the date, so the later sign
-                # prompt can explain WHY signing is needed
-                # (see on_success_phase1).
-                self._date_was_anticipated = True
+                # NOTE: this only SYNCS the stored date. Whether the rebuild
+                # ANTICIPATED the delivery is decided in _build_success_report
+                # by comparing the previous and the rebuilt locktimes (the only
+                # format-agnostic signal, see there).
                 # update_setting_widgets stores the value, persists it and
                 # refreshes the date widgets in all panels/wizard (the .ics
                 # calendar too).
@@ -1622,19 +1694,18 @@ class BalBuildWillDialog(BalDialog):
                 # If the will was rebuilt with an automatically anticipated
                 # delivery date, explain WHY we are now asking to sign:
                 # otherwise the sign prompt appears with no reason (owner
-                # feedback). The note is shown on the "Building your will"
-                # row (orange warning) before the modal password prompt
-                # opens, so the user can read it.
+                # feedback). This note goes on its OWN "Signing your will" row
+                # so it does NOT overwrite the "Anticipated - new delivery
+                # date" warning already shown on the "Building your will" row,
+                # and it is readable before the modal password prompt opens.
                 if self._date_was_anticipated:
-                    self.msg_set_building(
-                        "<b>{}</b>".format(
-                            _(
-                                "The delivery date was automatically moved "
-                                "one day earlier so the updated will can "
-                                "correctly replace the previous one.\n"
-                                "Please sign (and broadcast) to confirm "
-                                "the change."
-                            )
+                    self.msg_set_signing(
+                        _(
+                            "The delivery date was automatically moved "
+                            "one day earlier so the updated will can "
+                            "correctly replace the previous one.\n"
+                            "Please sign (and broadcast) to confirm "
+                            "the change."
                         )
                     )
                 password = self.bal_window.get_wallet_password(

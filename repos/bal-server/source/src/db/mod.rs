@@ -38,13 +38,23 @@ fn validate_sqlite_path(dsn: &str) -> Result<(), String> {
     // If absolute, block known sensitive system directories
     if p.is_absolute() {
         let forbidden = [
-            "/etc", "/proc", "/sys", "/dev", "/usr", "/bin", "/sbin", "/lib", "/opt",
+            Path::new("/etc"),
+            Path::new("/proc"),
+            Path::new("/sys"),
+            Path::new("/dev"),
+            Path::new("/usr"),
+            Path::new("/bin"),
+            Path::new("/sbin"),
+            Path::new("/lib"),
+            Path::new("/opt"),
         ];
         for prefix in &forbidden {
-            if path_str.starts_with(prefix) {
+            // `Path::starts_with` matches whole path components, so "/etcfoo"
+            // is not treated as being under "/etc".
+            if p.starts_with(prefix) {
                 return Err(format!(
                     "Absolute database path under {} is forbidden",
-                    prefix
+                    prefix.display()
                 ));
             }
         }

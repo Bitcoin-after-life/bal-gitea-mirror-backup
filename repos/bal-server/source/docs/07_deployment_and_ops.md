@@ -41,14 +41,19 @@ Example: `BAL_SERVER_REGTEST_ADDRESS=tpub...`, `BAL_SERVER_BITCOIN_FIXED_FEE=500
 | `BAL_SERVER_ACTIX_WORKERS` | `4` | Number of actix-web worker threads |
 | `BAL_SERVER_ACTIX_MAX_CONNECTIONS` | `100` | Maximum concurrent connections |
 | `BAL_SERVER_TRUSTED_PROXY` | `127.0.0.1` | Trusted reverse proxy IP for rate-limiting client identification |
-| `BAL_SERVER_ACTIX_PUSHTXS_PER_SEC` | `1` | Rate limit: requests per second (applied to all endpoints) |
-| `BAL_SERVER_ACTIX_PUSHTXS_BURST` | `3` | Rate limit: burst size (applied to all endpoints) |
+| `BAL_SERVER_ACTIX_PUSHTXS_PER_SEC` | `1` | Rate limit: push txs requests per second |
+| `BAL_SERVER_ACTIX_PUSHTXS_BURST` | `3` | Rate limit: push txs burst size |
 | `BAL_SERVER_ACTIX_SEARCHTX_PER_SEC` | `5` | Rate limit: searchtx requests per second |
 | `BAL_SERVER_ACTIX_SEARCHTX_BURST` | `10` | Rate limit: searchtx burst size |
-| `BAL_SERVER_ACTIX_INFO_PER_SEC` | `20` | Rate limit: info requests per second |
-| `BAL_SERVER_ACTIX_INFO_BURST` | `30` | Rate limit: info burst size |
-| `BAL_SERVER_ACTIX_DEFAULT_PER_SEC` | `50` | Rate limit: default requests per second |
+| `BAL_SERVER_ACTIX_INFO_PER_SEC` | `20` | Rate limit: info/stats requests per second |
+| `BAL_SERVER_ACTIX_INFO_BURST` | `30` | Rate limit: info/stats burst size |
+| `BAL_SERVER_ACTIX_DEFAULT_PER_SEC` | `50` | Rate limit: default requests per second (`/`, `/.pub_key.pem`, `/version`) |
 | `BAL_SERVER_ACTIX_DEFAULT_BURST` | `100` | Rate limit: default burst size |
+
+Each endpoint class has its own independent token bucket, keyed by the real
+client IP (see `BAL_SERVER_TRUSTED_PROXY`). `BAL_SERVER_ACTIX_TIMEOUT_SECS` is
+enforced by a request-timeout middleware that returns `408 Request Timeout` if
+the handler (including request body reading) exceeds the limit.
 
 ### `bal-pusher` (prefixed `BAL_PUSHER_`)
 
@@ -56,10 +61,10 @@ Example: `BAL_SERVER_REGTEST_ADDRESS=tpub...`, `BAL_SERVER_BITCOIN_FIXED_FEE=500
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BAL_PUSHER_DB_FILE` | `"bal.db"` | Path to the SQLite database file |
+| `BAL_SERVER_DB_FILE` | `"bal.db"` | Path to the SQLite database file |
 | `BAL_PUSHER_BITCOIN_DIR` | `""` | Bitcoin data directory (for cookie file path resolution) |
 | `BAL_PUSHER_SEND_STATS` | `false` | Enable/disable remote stats reporting |
-| `BAL_SERVER_URL` | `"http://localhost/"` | URL of the bal-server for internal communication |
+| `BAL_SERVER_URL` | `"http://127.0.0.1:9133"` | URL of the bal-server for internal communication |
 | `SSL_KEY_PATH` | `"privkey.pem"` | Path to Ed25519 private key for signing stats |
 | `BAL_PUSHER_PREFER_IPV6` | `false` | Pin HTTP connection to first IPv6 address (for broken IPv4 routes) |
 | `WELIST_SERVER_URL` | `"https://welist.bitcoin-after.life"` | URL to POST signed stats to (validated against SSRF) |

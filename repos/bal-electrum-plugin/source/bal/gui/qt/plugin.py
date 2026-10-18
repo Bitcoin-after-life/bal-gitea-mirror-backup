@@ -14,6 +14,8 @@ One :class:`bal.gui.qt.window.BalWindow` is created per top-level wallet window
 and cached in ``self.bal_windows``.
 """
 
+from electrum.fee_policy import FeeMethod, FeePolicy
+from electrum.gui.qt.fee_slider import FeeComboBox, FeeSlider
 from electrum.gui.qt.main_window import StatusBarButton
 from electrum.plugin import hook
 from electrum.util import EventListener, event_listener
@@ -594,7 +596,9 @@ class Plugin(BalPlugin, EventListener):
                       lbl_save_history, heir_save_history, help_save_history,
                       lbl_history_label, edit_history_label, help_history_label,
                       reset_btn_6, reset_btn_7, reset_btn_8, reset_btn_9, reset_btn_10,
-                      reset_btn_11, reset_btn_12, reset_btn_auto_sign):
+                      reset_btn_11, reset_btn_12, reset_btn_auto_sign,
+                      lbl_invalidation_fee, invalidation_fee_box,
+                      help_invalidation_fee, btn_reset_invalidation_fee):
                 w.setVisible(not basic)
             # Opzione 2: apply the per-mode Raw/Date editor default ONLY here, on
             # a real USER TYPE change (not inside update_all/CHECK), so pressing
@@ -912,6 +916,78 @@ class Plugin(BalPlugin, EventListener):
         grid.addWidget(reset_btn_auto_rebuild, 15, 3)
 
         # ----------------------------------------------------------------- #
+        # Invalidation fee policy (ADVANCED only): which fee rate the on-chain #
+        # invalidation transaction pays. It reuses Electrum's standard fee     #
+        # widget (the same Feerate / ETA / Mempool slider used in the send     #
+        # tab), so the user picks a fixed rate, a block target or a mempool    #
+        # depth. The chosen policy is persisted as an Electrum "FeePolicy"     #
+        # descriptor ("<method>:<value>").                                     #
+        # ----------------------------------------------------------------- #
+        invalidation_fee_policy = FeePolicy(self.INVALIDATION_FEE_POLICY.get())
+        settings_network = (
+            getattr(window, "network", None) if window is not None else None
+        )
+
+        def on_invalidation_fee_change(_fee_rate):
+            """Persist the fee policy descriptor chosen with the slider."""
+            self.INVALIDATION_FEE_POLICY.set(
+                invalidation_fee_policy.get_descriptor()
+            )
+
+        invalidation_fee_slider = FeeSlider(
+            parent=d,
+            network=settings_network,
+            fee_policy=invalidation_fee_policy,
+            callback=on_invalidation_fee_change,
+        )
+        invalidation_fee_combo = FeeComboBox(invalidation_fee_slider)
+        # Do NOT call invalidation_fee_slider.update() here: the slider and combo
+        # already initialise themselves before their signals are connected, and
+        # update() fires moved() -> on_invalidation_fee_change, which would
+        # persist (and snap) the descriptor just for opening the dialog.
+        invalidation_fee_box = QWidget()
+        invalidation_fee_box_layout = QHBoxLayout(invalidation_fee_box)
+        invalidation_fee_box_layout.setContentsMargins(0, 0, 0, 0)
+        invalidation_fee_box_layout.addWidget(invalidation_fee_slider, 1)
+        invalidation_fee_box_layout.addWidget(invalidation_fee_combo)
+
+        def reset_invalidation_fee():
+            """Restore the fee policy to its default ("eta:2").
+
+            The live ``FeePolicy`` object is mutated in place (method + value)
+            so the slider keeps working with the new defaults; the stored
+            descriptor and the combo are then re-synced.
+            """
+            default_policy = FeePolicy(self.INVALIDATION_FEE_POLICY.default)
+            invalidation_fee_policy.method = default_policy.method
+            invalidation_fee_policy.value = default_policy.value
+            self.INVALIDATION_FEE_POLICY.set(self.INVALIDATION_FEE_POLICY.default)
+            invalidation_fee_combo.setCurrentIndex(
+                FeeMethod.slider_index_of_method(default_policy.method)
+            )
+            invalidation_fee_slider.update()
+
+        lbl_invalidation_fee = QLabel(_("Invalidation fee policy"))
+        help_invalidation_fee = HelpButton(_(
+            "Fee rate the on-chain invalidation transaction pays.\n"
+            "The invalidation is sent TODAY (it spends the will's coins so the "
+            "old inheritance transactions become unusable), so it should pay "
+            "the current network fee - not the will's mining fee rate.\n\n"
+            "Feerate: a fixed rate (sat/vByte).\n"
+            "ETA: fee based on the estimated confirmation time (blocks).\n"
+            "Mempool: fee targeting a depth in the memory pool.\n"
+            "Only used in ADVANCED mode."
+        ))
+        btn_reset_invalidation_fee = QPushButton("\u21ba")
+        btn_reset_invalidation_fee.setFixedWidth(24)
+        btn_reset_invalidation_fee.setToolTip(_("Reset to default"))
+        btn_reset_invalidation_fee.clicked.connect(reset_invalidation_fee)
+        grid.addWidget(_hide_if_basic(lbl_invalidation_fee), 16, 0)
+        grid.addWidget(_hide_if_basic(invalidation_fee_box), 16, 1)
+        grid.addWidget(_hide_if_basic(help_invalidation_fee), 16, 2)
+        grid.addWidget(_hide_if_basic(btn_reset_invalidation_fee), 16, 3)
+
+        # ----------------------------------------------------------------- #
         # Group C / C4b: "Reset" button that restores the dialog settings to  #
         # their factory defaults. It only resets the settings exposed by THIS #
         # dialog (the ones below) and refreshes the corresponding widgets so   #
@@ -968,6 +1044,8 @@ class Plugin(BalPlugin, EventListener):
             # reset restores SAVE_HISTORY to its default, so the field must
             # follow the (default) checkbox state again.
             edit_history_label.setEnabled(bool(self.SAVE_HISTORY.get()))
+            # Reset the invalidation fee policy to its default ("eta:2") too.
+            reset_invalidation_fee()
             # Refresh the open BAL windows so any dependent view (e.g. the
             # editable-dates state is not in this list, but hide filters are)
             # reflects the reset values.

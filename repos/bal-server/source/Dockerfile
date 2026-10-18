@@ -82,7 +82,6 @@ ENV RUST_LOG=info \
     BAL_SERVER_BIND_ADDRESS=127.0.0.1 \
     BAL_SERVER_BIND_PORT=9137 \
     BAL_SERVER_DB_FILE=/var/bal/bal.db \
-    BAL_PUSHER_DB_FILE=/var/bal/bal.db \
     BAL_SERVER_URL=http://127.0.0.1:9137 \
     BAL_SERVER_PUB_KEY_PATH=/var/bal/public_key.pem \
     SSL_KEY_PATH=/var/bal/private_key.pem

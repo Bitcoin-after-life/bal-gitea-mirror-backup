@@ -1,10 +1,18 @@
 # Secrets and environment files - NEVER commit
 .env
 .env.*
+.env.local
+*.env.local
+.env.production
+.env.secret
 !.env.example
 *.pem
+private_key.pem
+privkey.pem
 !public_key.pem
 *.key
+ec.key
+chiave_privata.key
 
 # Databases
 *.db

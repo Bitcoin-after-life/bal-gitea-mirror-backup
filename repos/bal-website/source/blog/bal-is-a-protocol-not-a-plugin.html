@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitcoin Inheritance Protocol: BAL Is Not Just a Plugin — Bitcoin After Life</title>
+<meta name="description" content="The Electrum plugin is only the first way to use Bitcoin After Life. The protocol and its Will-Executors can carry much more than inheritance.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Bitcoin After Life">
+<meta property="og:title" content="Bitcoin Inheritance Protocol: BAL Is Not Just a Plugin — Bitcoin After Life">
+<meta property="og:description" content="The Electrum plugin is only the first way to use Bitcoin After Life. The protocol and its Will-Executors can carry much more than inheritance.">
+<meta property="og:url" content="https://bitcoin-after.life/blog/bal-is-a-protocol-not-a-plugin.html">
+<meta property="og:image" content="https://bitcoin-after.life/blog/img/bal-protocol-not-plugin-cover.webp">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@BitcoinAfterLif">
+<meta name="twitter:title" content="Bitcoin Inheritance Protocol: BAL Is Not Just a Plugin — Bitcoin After Life">
+<meta name="twitter:description" content="The Electrum plugin is only the first way to use Bitcoin After Life. The protocol and its Will-Executors can carry much more than inheritance.">
+<meta name="twitter:image" content="https://bitcoin-after.life/blog/img/bal-protocol-not-plugin-cover.webp">
+<meta name="theme-color" content="#2d6cdf">
+<link rel="canonical" href="https://bitcoin-after.life/blog/bal-is-a-protocol-not-a-plugin.html">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "The Plugin Is Just the First Door: BAL Is a Protocol, and Will-Executors Are Its Foundation",
+  "description": "The Electrum plugin is only the first way to use Bitcoin After Life. The protocol and its Will-Executors can carry much more than inheritance.",
+  "image": "https://bitcoin-after.life/blog/img/bal-protocol-not-plugin-cover.webp",
+  "datePublished": "2026-10-11T18:00:00+02:00",
+  "dateModified": "2026-10-11T18:00:00+02:00",
+  "author": {
+    "@type": "Organization",
+    "name": "Bitcoin After Life",
+    "url": "https://bitcoin-after.life/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Bitcoin After Life",
+    "url": "https://bitcoin-after.life/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://bitcoin-after.life/pitura/logo/Logo_nero.svg"
+    }
+  },
+  "mainEntityOfPage": "https://bitcoin-after.life/blog/bal-is-a-protocol-not-a-plugin.html",
+  "inLanguage": "en"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Bitcoin After Life",
+      "item": "https://bitcoin-after.life/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Blog",
+      "item": "https://bitcoin-after.life/blog.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "The Plugin Is Just the First Door: BAL Is a Protocol, and Will-Executors Are Its Foundation",
+      "item": "https://bitcoin-after.life/blog/bal-is-a-protocol-not-a-plugin.html"
+    }
+  ]
+}
+</script>
+<link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/pitura/ico/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/pitura/ico/favicon-16.png">
+<script>
+/* Runs before first paint: removes the `nojs` class set on <html>, so the
+   mobile menu button is only shown when it can actually work. */
+document.documentElement.classList.remove('nojs');
+</script>
+<style>
+:root{
+  --maxw:1120px;
+  --radius:10px;
+  --bg:#eef1f4;
+  --panel:#ffffff;
+  --ink:#1a2027;
+  --muted:#5b6672;
+  --line:#dfe4ea;
+  --line-strong:#cbd2da;
+  --accent:#2d6cdf;
+  --accent-soft:#e6eefc;
+  --display:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(20,30,50,.05);
+  --shadow-lg:0 6px 20px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- Top bar (shared with home and manifesto) ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(150%) blur(8px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.topbar .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);
+  font-weight:600;color:var(--ink)}
+.topbar .logo img{width:30px;height:30px;display:block}
+.topbar .logo span{font-size:15px;letter-spacing:-.01em}
+.topbar nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:13px;padding:7px 11px;border-radius:7px}
+.topbar nav a:hover{color:var(--ink);background:var(--accent-soft);text-decoration:none}
+.topbar nav a.active{color:var(--accent);font-weight:600;border:1px solid #cfe0fb;
+  background:var(--accent-soft)}
+.topbar .x{color:var(--ink);font-weight:600}
+
+.navtoggle{
+  display:none;margin-left:auto;width:44px;height:44px;flex:none;
+  align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:9px;
+  color:var(--ink);cursor:pointer;padding:0;
+}
+.navtoggle:hover{border-color:var(--accent);color:var(--accent)}
+.navtoggle .bars{display:block;width:18px;height:2px;background:currentColor;position:relative}
+.navtoggle .bars::before,.navtoggle .bars::after{
+  content:"";position:absolute;left:0;width:18px;height:2px;background:currentColor}
+.navtoggle .bars::before{top:-6px}
+.navtoggle .bars::after{top:6px}
+.navtoggle[aria-expanded="true"] .bars{background:transparent}
+.navtoggle[aria-expanded="true"] .bars::before{top:0;transform:rotate(45deg)}
+.navtoggle[aria-expanded="true"] .bars::after{top:0;transform:rotate(-45deg)}
+
+/* ---------- Footer (shared) ---------- */
+footer{border-top:1px solid var(--line);margin-top:56px;padding:34px 0 40px;
+  color:var(--muted);font-size:14px;background:var(--panel)}
+footer .sig{font-family:var(--display);font-weight:600;color:var(--ink);font-size:16px}
+footer .links{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0}
+footer .built{font-size:13px;color:var(--muted);margin-top:8px}
+
+@media (max-width:900px){
+  .navtoggle{display:inline-flex}
+  .topbar nav{
+    position:absolute;top:100%;left:0;right:0;
+    margin-left:0;display:none;flex-direction:column;gap:2px;flex-wrap:nowrap;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    box-shadow:var(--shadow-lg);padding:10px 20px 16px;
+  }
+  .topbar nav.open{display:flex}
+  .topbar nav a{font-size:15.5px;padding:0 12px;min-height:44px;
+    display:flex;align-items:center;border-radius:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/*
+  Without JavaScript the panel cannot be toggled, so the links are shown
+  inline. On narrow screens they wrap under the logo and the bar is allowed
+  to grow, instead of being clipped by the fixed 60px height.
+*/
+.nojs .navtoggle{display:none}
+.nojs .topbar nav{position:static;display:flex;flex-direction:row;flex-wrap:wrap;
+  box-shadow:none;border-bottom:0;padding:0;margin-left:auto;background:transparent}
+@media (max-width:900px){
+  .nojs .topbar .wrap{height:auto;min-height:56px;flex-wrap:wrap;padding-bottom:8px;gap:10px}
+  .nojs .topbar nav{margin-left:0;width:100%;gap:4px 6px}
+  .nojs .topbar nav a{font-size:14.5px;min-height:40px;padding:0 10px;
+    display:flex;align-items:center;border:1px solid var(--line);border-radius:8px}
+}
+
+.post-head{padding:44px 0 30px;border-bottom:1px solid var(--line);
+  background:radial-gradient(820px 280px at 50% -40%,var(--accent-soft),transparent 70%)}
+.post-head .wrap{max-width:760px}
+.post-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+.post-head h1{font-family:var(--display);font-weight:600;font-size:40px;
+  letter-spacing:-.02em;line-height:1.12;margin:0 0 14px}
+.post-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  font-size:13px;color:var(--muted)}
+.post-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--line-strong)}
+
+.article{max-width:760px;margin:0 auto;padding:34px 20px 8px}
+.article p{font-size:17px;line-height:1.8;color:#36404b;margin:0 0 20px}
+.article p strong{color:var(--ink);font-weight:600}
+.article h2{font-family:var(--display);font-weight:600;font-size:25px;
+  letter-spacing:-.01em;margin:38px 0 14px;padding-bottom:10px;
+  border-bottom:1px solid var(--line-strong)}
+.article ol{padding-left:22px;margin:0 0 20px}
+.article li{font-size:17px;line-height:1.8;color:#36404b;margin-bottom:14px}
+.article li strong{color:var(--ink);font-weight:600}
+.article figure{margin:30px 0}
+.article figure img{width:100%;height:auto;display:block;border-radius:var(--radius);
+  border:1px solid var(--line);box-shadow:var(--shadow)}
+.article hr{border:0;border-top:1px solid var(--line-strong);margin:34px 0 22px}
+.article .disclaimer{font-size:14px;color:var(--muted);font-style:italic;line-height:1.7}
+
+.back{max-width:760px;margin:26px auto 0;padding:0 20px 8px}
+.back a{font-size:14px;font-weight:600}
+
+@media (max-width:700px){
+  .post-head{padding:30px 0 24px}
+  .post-head h1{font-size:29px}
+  .article{padding:28px 18px 8px}
+  .article h2{font-size:22px;margin-top:32px}
+  .article figure{margin:24px -18px}
+  .article figure img{border-radius:0;border-left:0;border-right:0}
+}
+@media (max-width:400px){
+  .post-head h1{font-size:25px}
+  .wrap{padding:0 15px}
+  .article{padding:24px 16px 8px}
+  .article figure{margin:22px -16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <a class="logo" href="../index.html"><img src="../pitura/logo/Logo_nero.svg" alt="Bitcoin After Life logo"><span translate="no">Bitcoin After Life</span></a>
+    <button class="navtoggle" id="navToggle" type="button"
+            aria-expanded="false" aria-controls="mainNav" aria-label="Open menu">
+      <span class="bars"></span>
+    </button>
+    <nav id="mainNav">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#how">How it works</a>
+      <a href="../index.html#plugin">Plugin</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a class="active" href="../blog.html">Blog</a>
+      <a href="../manifesto.html">Manifesto</a>
+      <a class="x" href="https://x.com/BitcoinAfterLif" title="@BitcoinAfterLif on X">@X</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+<header class="post-head">
+  <div class="wrap">
+    <span class="eyebrow">Blog</span>
+    <h1>The Plugin Is Just the First Door: BAL Is a Protocol, and Will-Executors Are Its Foundation</h1>
+    <div class="post-meta">
+      <time datetime="2026-10-11">11 October 2026</time>
+      <span class="dot"></span>
+      <span translate="no">Bitcoin After Life</span>
+      <span class="dot"></span>
+      <span>6 min read</span>
+    </div>
+  </div>
+</header>
+
+<article class="article">
+<figure>
+<img src="img/bal-protocol-not-plugin-cover.webp" width="1600" height="900" fetchpriority="high" alt="An open door with the Bitcoin symbol, other doors still closed beside it, all standing on three connected servers">
+</figure>
+
+<p>When people discover Bitcoin After Life, they usually describe it the same way: "the inheritance plugin for Electrum". That is true. It is also the smallest possible way to describe it.</p>
+<p>The plugin is the first door. Behind it there is a Bitcoin inheritance protocol that does not know what an inheritance is, a network of servers that do one simple thing very well, and a set of possibilities we are only beginning to build. This article is about what is behind the door.</p>
+<h2>What the protocol actually is</h2>
+<p>Strip Bitcoin After Life down to its parts and you find three of them.</p>
+<p>The first is a <strong>transaction you sign today that cannot be used until a date you choose</strong>. Bitcoin has supported this for years through the locktime field; the network simply refuses the transaction until the time comes. Nothing exotic, no new opcodes, no sidechain: we wrote about that choice in <a href="why-electrum-and-timelocks.html">Why We Built BAL as an Electrum Plugin</a>.</p>
+<p>The second is a <strong>network of independent servers, the Will-Executors</strong>, that hold your signed transaction and broadcast it the moment it becomes valid. They do not control it. They cannot change it. They cannot spend it early, because the network would reject it.</p>
+<p>The third is <strong>Bitcoin itself</strong>, which decides when the transaction is valid, and makes sure that only one version of it can ever be spent.</p>
+<p>None of the three knows about the others, and none of them knows what the transaction is for. The plugin is what assembles them for one specific purpose: making sure your heirs receive your coins on a date you set. The protocol underneath is indifferent to that purpose. A time-locked transaction, held by a server and broadcast on time, is a general tool. Inheritance is just the first thing we built with it.</p>
+<h2>What a Will-Executor really does</h2>
+<p>A Will-Executor does three things. It receives a signed transaction. It keeps it. When the locktime passes, it broadcasts it, and if its broadcast is the one that confirms, it collects the fee written inside the transaction.</p>
+<p>That is the whole job. A Will-Executor does not see your balance, does not hold a key, does not know your name, and cannot tell whether the transaction it holds is a will, a gift or a payment. We described exactly what it can and cannot see in <a href="what-a-will-executor-can-see.html">What Can a Will-Executor Actually See?</a>.</p>
+<p>This simplicity is not a limitation. It is the point. A server that does one thing, and needs to know nothing about who is asking, can serve any wallet, any interface and any service built on top of the protocol. It does not need to be updated when a new use appears, because it never understood the old one.</p>
+<h2>Bitcoin recurring payments without a custodian</h2>
+<p>Here is one of those new uses.</p>
+<p>Imagine you want to send a fixed amount of sats every month to a child who is studying abroad. Or pay a rent. Or support a project you believe in, for a year, without having to remember it twelve times.</p>
+<p>Today the honest options are poor. You can do it by hand every month, and forget. You can leave the coins with a service that pays on your behalf, and give that service your keys, your balance and your trust. Or you can give up and use the banking system.</p>
+<p>The protocol offers a fourth way. You sign twelve transactions today: the same amount, the same recipient, each one with a different locktime, one per month. You hand them to the Will-Executors. Then you do nothing. Each month, one transaction becomes valid, a server broadcasts it, and the sats arrive.</p>
+<p>Notice what did not happen. Nobody held your funds: the coins stayed in your wallet, under your keys, until each payment was due. Nobody could change the amount or the recipient, because every transaction was already signed. Nobody could stop a payment except you, by spending the coins it depends on, which is exactly how a will is cancelled today. And if you do spend those coins for something else, the plugin rebuilds the remaining series the next time you close Electrum, the same way it keeps an inheritance current.</p>
+<figure>
+<a href="img/bal-protocol-recurring-payments.webp" target="_blank" rel="noopener"><img src="img/bal-protocol-recurring-payments.webp" width="1440" height="1120" loading="lazy" alt="Twelve transactions signed once, one per month, each valid on a different month and sent from the sender&#x27;s wallet to the recipient&#x27;s wallet"></a>
+<figcaption>Click or tap the diagram to open it full size.</figcaption>
+</figure>
+
+<p>The same pattern turns an inheritance into something gentler. Instead of a single delivery on a single day, a will can be split into instalments: a part every year, for as long as you choose. For an heir who has never handled bitcoin, receiving it gradually is often safer than receiving it all at once.</p>
+<p>We want to be precise about the status of this. <strong>The protocol already allows it; the interfaces that make it simple are being built, and are not public yet.</strong> We mention it here because it shows what the protocol is, not to announce a product.</p>
+<h2>More doors are opening</h2>
+<p>The Electrum plugin was the first interface, and it is listed among the <a href="https://plugins.electrum.org/plugins.html">external plugins on the Electrum Wallet plugins page</a>. <a href="https://github.com/ManX-SAFE21/BALeasyHeirs">BAL Easy Heirs</a> was the second: an app built not by us but by independent developers who believe in the BAL protocol, for the person on the receiving end. Other wallets and services are now being developed on the same protocol, again by others who have already started writing apps for it, because the protocol is open and nobody needs our permission to use it.</p>
+<p>Every one of those doors leads to the same room. Whatever interface signs the transaction, it is the same kind of transaction, held by the same Will-Executors, broadcast by the same rule. A server that joined the network to serve inheritances will serve recurring payments, instalments, and whatever comes next, without changing a line.</p>
+<h2>Why running a Will-Executor is a bet on the whole protocol</h2>
+<p>Today a Will-Executor broadcasts inheritance transactions. By their nature those are rare: a will executes once, years after it was signed.</p>
+<p>Recurring payments change the arithmetic. A single user setting up a monthly payment produces twelve transactions a year. An inheritance paid in instalments produces one a year for a decade. Each of those transactions carries a fee for the server that broadcasts it first, paid in bitcoin, only on success. The more that is built on the protocol, the more transactions pass through the Will-Executors, and the more there is to earn for the servers that are there, reliable, and quick.</p>
+<p>The servers that are there first also gain something that cannot be bought later: a track record. Users choose their Will-Executors from <a href="https://welist.bitcoin-after.life/">welist</a>, and a server that has been broadcasting on time for years is the one people pick. How to run one, and what it costs, is in <a href="run-a-will-executor.html">Run a Will-Executor</a>.</p>
+<h2>Two invitations</h2>
+<p>The protocol has no owner. It is a way of using Bitcoin that anyone can adopt.</p>
+<p>If you run infrastructure, run a Will-Executor. The work is small, the role is honest, and every new use of the protocol increases what it earns.</p>
+<p>If you build software, build a door. The plugin is one way in; it will not be the last. A wallet that signs time-locked transactions and hands them to Will-Executors is already a Bitcoin After Life client, whether or not we ever hear about it.</p>
+<p>The inheritance plugin is how most people will meet the protocol. It is not where the protocol ends.</p>
+
+<aside class="related">
+<h2>Keep reading</h2>
+<ul style="padding-left:22px">
+<li><a href="run-a-will-executor.html">Run a Will-Executor: Earn Bitcoin Fees by Powering Decentralized Inheritance</a></li>
+<li><a href="what-a-will-executor-can-see.html">What Can a Will-Executor Actually See? Privacy in the BAL Protocol</a></li>
+<li><a href="why-electrum-and-timelocks.html">Why We Built BAL as an Electrum Plugin — and Why Timelocks Remove the Need for Trust</a></li>
+</ul>
+<p>New to Bitcoin After Life? Read the <a href="https://bitcoin-after.life/docs/">user manual</a> or <a href="../index.html#plugin">get the Electrum plugin</a>.</p>
+</aside>
+
+<hr>
+<p class="disclaimer">Bitcoin After Life is open source and Bitcoin-only. Explore the plugin and the server on <a href="https://bitcoin-after.life/gitea/bitcoinafterlife" target="_blank" rel="noopener">Gitea</a> and read the full manual at <a href="https://bitcoin-after.life/docs/" target="_blank" rel="noopener">bitcoin-after.life/docs</a>.</p>
+</article>
+
+<div class="back">
+  <a href="../blog.html">← Back to the blog</a>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="sig">Svātantrya</div>
+    <div>Signed — <span translate="no">Bitcoin After Life</span> Protocol</div>
+    <div class="links">
+      <a href="https://bitcoin-after.life">bitcoin-after.life</a>
+      <a href="mailto:info@bitcoin-after.life">info@bitcoin-after.life</a>
+      <a href="https://x.com/BitcoinAfterLif">@BitcoinAfterLif</a>
+      <a href="https://bitcoin-after.life/pgp">PGP Key</a>
+      <a href="https://bitcoin-after.life/gitea/bitcoinafterlife">Source Code</a>
+    </div>
+    <div class="built">Built with ₿itcoin. No FIAT was used in the making of this protocol.</div>
+  </div>
+</footer>
+
+<script>
+/* Mobile menu toggle -- identical behaviour across all pages. */
+(function () {
+  const toggle = document.getElementById('navToggle');
+  const nav = document.getElementById('mainNav');
+  if (!toggle || !nav) return;
+
+  function setOpen(open) {
+    nav.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+
+  toggle.addEventListener('click', function () {
+    setOpen(!nav.classList.contains('open'));
+  });
+  nav.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') setOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+})();
+</script>
+</body>
+</html>

@@ -386,7 +386,9 @@ def test_insufficient_funds_warns():
 
     assert not will, "no wallet funds must not build a will"
     assert ctl.window.warnings, "user must be warned about the balance"
-    assert any("adjustment" in w.lower() for w in ctl.window.warnings)
+    # The wording was shortened (task #67): the "adjustment of the amounts"
+    # sentence was dropped, the "fully emptied" note stays.
+    assert any("fully emptied" in w.lower() for w in ctl.window.warnings)
     assert not ctl.willitems
 
 

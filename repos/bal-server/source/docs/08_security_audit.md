@@ -36,7 +36,7 @@
 **Description:** All `unwrap()`/`expect()` calls on critical paths have been replaced with safe error handling.
 **Mitigation Applied:**
 - `bal-server`: `from_utf8` returns 400, `sqlite::open` uses `open_db()` with validation, all handlers return proper HTTP status codes.
-- `bal-pusher`: RPC failures log errors + sleep + retry (no panic), ZMQ `recv` uses `set_rcvtimeo(5000)`, `fs::read_to_string` uses `match` + 500, `cfg.lock()` uses `poisoned.into_inner()` recovery.
+- `bal-pusher`: RPC failures log errors + sleep + retry (no panic), ZMQ `recv` uses `set_rcvtimeo(5000)`, malformed ZMQ frames are handled with `get()`/`first()` and `from_utf8_lossy` (no indexing or UTF-8 `expect`), stats signing returns an error that is logged and skipped rather than `expect`-panicking.
 **Regression Tests:** `tests/panic_regression_tests.rs` (2 tests).
 
 ### 3. Secret Leakage (FIXED)
@@ -52,18 +52,20 @@
 **Description:** All DoS vectors mitigated via actix-web migration.
 **Mitigation Applied:**
 - Body size limit: `PayloadConfig::default().limit(max_body_size)` via `BAL_SERVER_ACTIX_MAX_BODY_SIZE` (default 1 MiB).
-- Rate limiting: `actix-governor` with token-bucket per client IP (`BAL_SERVER_ACTIX_PUSHTXS_PER_SEC`/`BURST`). Uses `RealIpKeyExtractor` to extract real client IP from proxy headers.
+- Rate limiting: `actix-governor` with a token bucket per client IP, with an **independent bucket for each endpoint class** (push txs, searchtx, info/stats, default) so that polling a cheap endpoint cannot exhaust the push-txs budget. Uses `RealIpKeyExtractor` to extract the real client IP from proxy headers.
 - Connection limits: `workers(4)` and `max_connections(100)` via `BAL_SERVER_ACTIX_WORKERS`/`MAX_CONNECTIONS`.
-- Body timeout: configurable via `BAL_SERVER_ACTIX_TIMEOUT_SECS`.
+- Request timeout: `middleware::from_fn` wraps every handler in `tokio::time::timeout`, returning `408 Request Timeout` when `BAL_SERVER_ACTIX_TIMEOUT_SECS` (default 5) elapses, covering slow request bodies.
 - ZMQ timeout: `set_rcvtimeo(5000)` prevents infinite blocking.
 - RPC retry: sleep + retry on connection failure instead of panic.
+- ZMQ message handling is panic-free: multipart frames are accessed with `get()`/`first()` and topics are decoded with `from_utf8_lossy`, so malformed frames cannot abort the pusher.
+- Stats-report signing failures are logged and skipped instead of panicking the pusher when the key is unreadable.
 
 ### 5. SSRF / Network Abuse via `reqwest` (FIXED)
 **Severity:** MEDIUM | **Status:** Fixed
 **Location:** `src/bin/bal-pusher.rs`, `src/validation.rs`
 **Description:** URL validation prevents redirecting requests to internal/private IPs.
-**Mitigation Applied:** `is_valid_welist_url()` in `src/validation.rs` blocks localhost, loopback, RFC1918, link-local, multicast, unspecified, and IPv6 unique-local addresses. HTTPS-only scheme enforced.
-**Regression Tests:** `tests/ssrf_tests.rs` (integration) + 8 unit tests in `src/validation.rs`.
+**Mitigation Applied:** `is_valid_welist_url()` in `src/validation.rs` blocks localhost, loopback, RFC1918, link-local, multicast, unspecified, IPv6 unique-local addresses, and **IPv4-mapped IPv6 addresses** (`::ffff:a.b.c.d`) that route to loopback/private/link-local/unspecified IPv4 targets. HTTPS-only scheme enforced. Note: hostnames are not DNS-resolved before validation, so a domain that resolves to a private address is not caught by this check — restrict `WELIST_SERVER_URL` to trusted values.
+**Regression Tests:** `tests/ssrf_tests.rs` (integration) + 11 unit tests in `src/validation.rs`.
 
 ### 6. Insecure Database Access (FIXED)
 **Severity:** MEDIUM | **Status:** Fixed
@@ -130,16 +132,17 @@
 6. Use read-only filesystem for the server binary.
 
 ### Application-Level
-1. **Rate Limiting:** Implemented via `actix-governor` with token-bucket per client IP. `RealIpKeyExtractor` identifies clients behind reverse proxy using `X-Real-IP` / `X-Forwarded-For` headers. Trusted proxy IP configurable via `BAL_SERVER_TRUSTED_PROXY`.
+1. **Rate Limiting:** Implemented via `actix-governor` with token-bucket per client IP and a **separate bucket per endpoint class**. `RealIpKeyExtractor` identifies clients behind reverse proxy using `X-Real-IP` / `X-Forwarded-For` headers. Trusted proxy IP configurable via `BAL_SERVER_TRUSTED_PROXY`.
 2. **Input Validation:** Network enum check, txid hex validation, body size limits.
-3. **HTTPS:** Via Nginx reverse proxy with Let's Encrypt.
-4. **WAL Mode:** Enabled with retry logic for concurrent access.
-5. **ZMQ Timeout:** 5-second receive timeout prevents infinite blocking.
-6. **Transaction Size Limits:** Configurable via rate limiting and body size.
-7. **ZMQ Retry:** Reconnect logic with timeout-based detection.
-8. **Fee Limits:** Per-network `fixed_fee` configuration.
-9. **Network Limits:** Only known networks accepted (bitcoin, testnet, testnet4, signet, regtest).
-10. **Locktime Reasonableness:** Locktime compared against blockchain height and median time with threshold-based distinction.
+3. **Request Timeout:** `tokio::time::timeout` middleware returns `408` when a handler (including body read) exceeds `BAL_SERVER_ACTIX_TIMEOUT_SECS`.
+4. **HTTPS:** Via Nginx reverse proxy with Let's Encrypt.
+5. **WAL Mode:** Enabled with retry logic for concurrent access.
+6. **ZMQ Timeout:** 5-second receive timeout prevents infinite blocking.
+7. **Transaction Size Limits:** Configurable via rate limiting and body size.
+8. **ZMQ Retry:** Reconnect logic with timeout-based detection.
+9. **Fee Limits:** Per-network `fixed_fee` configuration.
+10. **Network Limits:** Only known networks accepted (bitcoin, testnet, testnet4, signet, regtest).
+11. **Locktime Reasonableness:** Locktime compared against blockchain height and median time with threshold-based distinction.
 
 ---
 
@@ -153,4 +156,4 @@
 | `tests/secret_leakage_tests.rs` | 3 | .gitignore, no tracked secrets, no hardcoded tokens |
 | `tests/input_validation_tests.rs` | 4 | Address caching, network validation, txid hex validation |
 | `tests/db_path_validation.rs` | 5 | Path traversal, forbidden dirs, symlinks, WAL pragma, valid paths |
-| `src/validation.rs` (inline) | 8 | SSRF URL validation unit tests |
+| `src/validation.rs` (inline) | 11 | SSRF URL validation unit tests |

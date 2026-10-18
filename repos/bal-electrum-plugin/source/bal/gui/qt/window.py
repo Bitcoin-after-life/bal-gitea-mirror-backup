@@ -835,11 +835,11 @@ class BalWindow:
                     self.window.wallet.dust_threshold(),
                     max_fee=self.bal_plugin.MAX_WILLEXECUTOR_FEE.get(),
                 )
-            except AmountException as e:
+            except AmountException:
                 self.show_warning(
                     _(
-                        "In the inheritance process, the entire wallet will always be fully emptied. Your settings require an adjustment of the amounts.{}"
-                    ).format(e)
+                        "In the inheritance process, the entire wallet will always be fully emptied."
+                    )
                 )
             except WillExecutorFeeTooHighException as e:
                 self.show_error(
@@ -1089,6 +1089,7 @@ class BalWindow:
             will_locktime=Will.get_min_locktime(
                 willitems, default_value=self.date_to_check
             ),
+            fee_policy_descriptor=self.bal_plugin.INVALIDATION_FEE_POLICY.get(),
         )
         msg = _("Calculating Transactions")
         self.waiting_dialog = BalWaitingDialog(
@@ -1424,6 +1425,7 @@ class BalWindow:
                     willitems,
                     default_value=getattr(self, "date_to_check", None),
                 ),
+                fee_policy_descriptor=self.bal_plugin.INVALIDATION_FEE_POLICY.get(),
             )
         except Exception as e:
             _logger.error("auto invalidate: could not build tx: {}".format(e))

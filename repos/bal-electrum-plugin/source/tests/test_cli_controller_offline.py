@@ -25,9 +25,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), os.pardir))
 from electrum.simple_config import SimpleConfig
 from electrum.util import UserFacingException
 
-from bal.cli.controller import BalController
+from bal.cli.controller import BalController, _user_facing
 from bal.core.heirs import Heirs
 from bal.core.util import Util
+from bal.core.will import (
+    HeirChangeException,
+    NotCompleteWillException,
+    WillexecutorChangeException,
+)
 
 VALID_ADDRESS = "bc1qusymuetsz2psaqzqxv8qmzcy64d9meckj3lxxf"
 
@@ -100,6 +105,13 @@ class Plugin:
 
 def _make_controller(plugin):
     return BalController(plugin, FakeWallet())
+
+
+def _tmp_path():
+    """Return the path of a fresh temporary JSON file (caller removes it)."""
+    fd, path = tempfile.mkstemp(prefix="bal_cli_", suffix=".json")
+    os.close(fd)
+    return path
 
 
 def test_controller_init_empty():
@@ -192,6 +204,179 @@ def test_willexecutors_crud():
 
         assert c.willexecutors_delete([renamed]) == {"deleted": [renamed]}
         assert renamed not in c.willexecutors
+
+
+def test_willexecutors_update_accepts_promo_code():
+    """Regression: the command transport used to forward six positional args to
+    a five-parameter controller method, raising TypeError.  ``promo_code`` must
+    also be applied to the record instead of being silently dropped.
+    """
+    with Plugin() as plugin:
+        c = _make_controller(plugin)
+        url = "https://executor-promo.example.invalid"
+        c.willexecutors_add(url, address="", base_fee=250)
+        # Positional call mirroring the transport layer: (url, address,
+        # base_fee, info, promo_code, rename_to).
+        result = c.willexecutors_update(
+            url, "", "300", "Promo executor", "PROMO10", None
+        )
+        assert result["willexecutor"]["base_fee"] == 300
+        assert result["willexecutor"]["info"] == "Promo executor"
+        assert c.willexecutors[url]["promo_code"] == "PROMO10"
+
+
+def test_heirs_locktime_forced_when_multiverse_disabled():
+    """When multiverse is disabled the heir locktime follows the will locktime,
+    exactly like the GUI's ``set_heir`` (which forces ``heir[3]``)."""
+    with Plugin() as plugin:
+        plugin.WILL_SETTINGS.set(
+            {"threshold": "-150d", "locktime": "2y", "baltx_fees": 20}
+        )
+        plugin.ENABLE_MULTIVERSE.set(False)
+        c = _make_controller(plugin)
+        c.heirs_add("bob", VALID_ADDRESS, "100000", locktime="30d")
+        assert c.heirs["bob"][2] == "2y"
+
+
+def test_heirs_locktime_kept_when_multiverse_enabled():
+    with Plugin() as plugin:
+        plugin.WILL_SETTINGS.set({"threshold": "-150d", "locktime": "2y", "baltx_fees": 20})
+        plugin.ENABLE_MULTIVERSE.set(True)
+        c = _make_controller(plugin)
+        c.heirs_add("carol", VALID_ADDRESS, "100000", locktime="30d")
+        assert c.heirs["carol"][2] == "30d"
+
+
+def test_user_facing_maps_not_complete_will():
+    """The check flow must translate every NotCompleteWillException subtype to a
+    user-facing message instead of leaking the raw internal exception.
+    """
+    assert "heirs changed" in str(_user_facing(HeirChangeException())).lower()
+    assert "will-executor changed" in str(
+        _user_facing(WillexecutorChangeException())
+    ).lower()
+    assert "no valid transaction" in str(
+        _user_facing(NotCompleteWillException())
+    ).lower()
+    assert "does not cover" in str(
+        _user_facing(NotCompleteWillException("utxo"))
+    ).lower()
+
+def test_willexecutors_delete_missing_is_noop():
+    with Plugin() as plugin:
+        c = _make_controller(plugin)
+        assert c.willexecutors_delete(["https://missing.example.invalid"]) == {
+            "deleted": []
+        }
+
+
+def test_willexecutors_select_only_valid():
+    with Plugin() as plugin:
+        c = _make_controller(plugin)
+        valid_url = "https://valid.example.invalid"
+        invalid_url = "https://invalid.example.invalid"
+        # Valid: real address, base_fee within [dust, max_fee].
+        c.willexecutors_add(valid_url, address=VALID_ADDRESS, base_fee=1000)
+        # Invalid: no address.
+        c.willexecutors_add(invalid_url, address="", base_fee=1000)
+
+        c.willexecutors_select(None, select=True, only_valid=True)
+        assert c.willexecutors[valid_url]["selected"] is True
+        assert c.willexecutors[invalid_url]["selected"] is False
+
+        # Select everything, then deselect only-valid: the valid one keeps its
+        # state, only the invalid one is cleared.
+        c.willexecutors_select(None, select=True)
+        c.willexecutors_select(None, select=False, only_valid=True)
+        assert c.willexecutors[valid_url]["selected"] is True
+        assert c.willexecutors[invalid_url]["selected"] is False
+
+
+def test_willexecutors_import_overwrites_existing():
+    import json
+
+    with Plugin() as plugin:
+        c = _make_controller(plugin)
+        url = "https://existing.example.invalid"
+        c.willexecutors_add(url, address="", base_fee=100, info="Old")
+        path = _tmp_path()
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        url: {
+                            "address": "",
+                            "base_fee": 999,
+                            "info": "New",
+                            "selected": True,
+                        }
+                    },
+                    f,
+                )
+            result = c.willexecutors_import(path)
+            assert result["imported"] == 1
+            # The imported record replaces the existing one (GUI behaviour).
+            assert c.willexecutors[url]["base_fee"] == 999
+            assert c.willexecutors[url]["info"] == "New"
+            assert c.willexecutors[url]["selected"] is True
+        finally:
+            os.remove(path)
+
+
+def test_willexecutors_export_subsets():
+    import json
+
+    with Plugin() as plugin:
+        c = _make_controller(plugin)
+        selected_url = "https://selected.example.invalid"
+        other_url = "https://other.example.invalid"
+        invalid_url = "https://invalid.example.invalid"
+        c.willexecutors_add(selected_url, address=VALID_ADDRESS, base_fee=1000)
+        c.willexecutors_add(other_url, address=VALID_ADDRESS, base_fee=1000)
+        c.willexecutors_add(invalid_url, address="", base_fee=1000)
+        c.willexecutors_select([selected_url], select=True)
+
+        def exported(subset):
+            path = _tmp_path()
+            try:
+                c.willexecutors_export(path, subset)
+                with open(path, encoding="utf-8") as f:
+                    return json.load(f)
+            finally:
+                os.remove(path)
+
+        assert set(exported(None)) == {selected_url, other_url, invalid_url}
+        assert set(exported("selected")) == {selected_url}
+        # "valid" keeps both real-address records and drops the address-less one.
+        assert set(exported("valid")) == {selected_url, other_url}
+
+
+def test_user_facing_maps_no_servers_for_chain():
+    from bal.core.willexecutors import Willexecutors
+
+    advanced = Willexecutors.NoServersForChainError(
+        "bitcoin", url="https://welist.example/", reason="boom"
+    )
+    assert "https://welist.example/" in str(_user_facing(advanced))
+    basic = Willexecutors.NoServersForChainError("bitcoin")
+    assert "bitcoin" in str(_user_facing(basic))
+
+
+def test_prepare_will_warns_on_amount_exception():
+    from bal.core import will as will_mod
+
+    with Plugin() as plugin:
+        plugin.NO_WILLEXECUTOR.set(True)
+        c = _make_controller(plugin)
+        c.heirs["alice"] = [VALID_ADDRESS, "100%", "2y"]
+        with mock.patch.object(
+            will_mod.Will,
+            "check_amounts",
+            side_effect=will_mod.FixedAmountException("too much"),
+        ), mock.patch.object(will_mod.Will, "is_will_valid", return_value=True):
+            result = c.prepare_will()
+        # The amount mismatch is a warning, not an abort: the flow completes.
+        assert result["result"] == "coherent"
 
 
 def test_will_status_empty():

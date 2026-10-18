@@ -65,6 +65,19 @@ pub fn is_valid_welist_url(url_str: &str) -> bool {
                 {
                     return false;
                 }
+
+                // IPv4-mapped IPv6 addresses (e.g. `::ffff:127.0.0.1`) are
+                // routed to the embedded IPv4 address on dual-stack hosts, so
+                // they must be validated against the IPv4 rules as well.
+                if let Some(v4) = v6.to_ipv4_mapped()
+                    && (v4.is_loopback()
+                        || v4.is_private()
+                        || v4.is_link_local()
+                        || v4.is_unspecified()
+                        || v4.is_multicast())
+                {
+                    return false;
+                }
             }
         }
     }
@@ -151,6 +164,38 @@ mod tests {
         assert!(
             !is_valid_welist_url("https://[fd00::1]"),
             "IPv6 unique local (fd00::7) should be blocked"
+        );
+    }
+
+    #[test]
+    fn test_ipv4_mapped_ipv6() {
+        assert!(
+            !is_valid_welist_url("https://[::ffff:127.0.0.1]"),
+            "IPv4-mapped loopback should be blocked"
+        );
+        assert!(
+            !is_valid_welist_url("https://[::ffff:10.0.0.1]"),
+            "IPv4-mapped private address should be blocked"
+        );
+        assert!(
+            !is_valid_welist_url("https://[::ffff:172.16.0.1]"),
+            "IPv4-mapped private address should be blocked"
+        );
+        assert!(
+            !is_valid_welist_url("https://[::ffff:192.168.1.1]"),
+            "IPv4-mapped private address should be blocked"
+        );
+        assert!(
+            !is_valid_welist_url("https://[::ffff:169.254.169.254]"),
+            "IPv4-mapped link-local address should be blocked"
+        );
+        assert!(
+            !is_valid_welist_url("https://[::ffff:0.0.0.0]"),
+            "IPv4-mapped unspecified address should be blocked"
+        );
+        assert!(
+            is_valid_welist_url("https://[::ffff:8.8.8.8]"),
+            "IPv4-mapped public address should be allowed"
         );
     }
 
