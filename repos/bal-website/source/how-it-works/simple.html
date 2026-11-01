@@ -1,20 +1,19 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex, nofollow">
-<meta name="description" content="Animated guide in 15 steps, with voice in English, Italian and Spanish: how will-executors deliver your bitcoin to your heirs, without ever holding your keys.">
+<meta name="description" content="Animated guide in 8 steps, with voice in English, Italian and Spanish: how will-executors deliver your bitcoin to your heirs, without ever holding your keys.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Bitcoin After Life">
-<meta property="og:title" content="How the BAL Protocol works">
-<meta property="og:description" content="Animated guide in 15 steps, with voice in English, Italian and Spanish: how will-executors deliver your bitcoin to your heirs, without ever holding your keys.">
-<meta property="og:url" content="https://bitcoin-after.life/preview-2a86b5/">
-<meta property="og:image" content="https://bitcoin-after.life/preview-2a86b5/cover.jpg">
+<meta property="og:title" content="How the BAL Protocol works (simple version)">
+<meta property="og:description" content="Animated guide in 8 steps, with voice in English, Italian and Spanish: how will-executors deliver your bitcoin to your heirs, without ever holding your keys.">
+<meta property="og:url" content="https://bitcoin-after.life/how-it-works/simple.html">
+<meta property="og:image" content="https://bitcoin-after.life/how-it-works/cover.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="How the BAL Protocol works">
-<meta name="twitter:description" content="Animated guide in 15 steps, with voice in English, Italian and Spanish: how will-executors deliver your bitcoin to your heirs, without ever holding your keys.">
-<meta name="twitter:image" content="https://bitcoin-after.life/preview-2a86b5/cover.jpg">
+<meta name="twitter:title" content="How the BAL Protocol works (simple version)">
+<meta name="twitter:description" content="Animated guide in 8 steps, with voice in English, Italian and Spanish: how will-executors deliver your bitcoin to your heirs, without ever holding your keys.">
+<meta name="twitter:image" content="https://bitcoin-after.life/how-it-works/cover.jpg">
 <script>document.documentElement.setAttribute("data-theme","light")</script>
 <title data-k="title">Come funziona BAL PROTOCOL</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -129,17 +128,18 @@ svg.tips .tip{opacity:1}
   54%{transform:translate(70px,369px)}70%{transform:translate(118px,369px)}
   72%{transform:translate(104px,383px)}88%,100%{transform:translate(142px,380px)}}
 @media (max-width:560px){.card h2{font-size:20px}.card p{font-size:16px}.dot{width:26px;height:26px}}
+/* phones (owner, 2026-10-25): narrower side margins (a larger drawing), the language / sound row wraps */
+@media (max-width:560px){body{padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}.right{flex-wrap:wrap;margin-left:0}.sndhint{font-size:15px;padding:5px 11px}}
+.tapstart{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:0;padding:0;margin:0;cursor:pointer;background:color-mix(in srgb,var(--stage) 62%,transparent);color:var(--ink);font:700 clamp(18px,3.2vw,30px)/1.1 var(--display)}
+.tapstart small{font:600 clamp(13px,1.8vw,17px) var(--body);color:var(--muted)}
+.tapstart .pl{width:clamp(62px,11vw,108px);aspect-ratio:1;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(0,0,0,.18);animation:sndpulse 1.4s ease-in-out infinite}
+.tapstart .pl svg{width:44%;height:44%;margin-left:9%}
 /* the BAL mark, almost invisible, behind the drawing */
 .stage::before{content:"";position:absolute;left:50%;top:50%;width:34%;aspect-ratio:205/212;transform:translate(-50%,-50%);background:var(--teal);-webkit-mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20205.29%20212.5%22%20role%3D%22img%22%20aria-label%3D%22Bitcoin%20After%20Life%22%3E%3Cdefs%3E%3Cstyle%3E.m4%2C.m5%7Bfill%3A%23000%3Bstroke%3A%23000%3Bstroke-miterlimit%3A10%3B%7D.m5%7Bstroke-width%3A7px%3B%7D.mt%7Bfont-size%3A22px%3Bfont-family%3A%27Optima-Bold%27%2C%20Optima%2C%20Candara%2C%20%27Segoe%20UI%27%2C%20%27Trebuchet%20MS%27%2C%20sans-serif%3Bfont-weight%3A700%3Bfill%3A%23000%3B%7D%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M116.39%2C113.29s0%2C0%2C0%2C0A17.05%2C17.05%2C0%2C0%2C0%2C103%2C85.63H97.54s0%2C0%2C0%2C0V82.23A2.23%2C2.23%2C0%2C0%2C0%2C95.28%2C80H90.05A2.08%2C2.08%2C0%2C0%2C0%2C88%2C82.07v3.54s0%2C0%2C0%2C0H85.23s0%2C0%2C0%2C0V82.42A2.43%2C2.43%2C0%2C0%2C0%2C82.77%2C80H78.56a2.89%2C2.89%2C0%2C0%2C0-2.89%2C2.9v2.72s0%2C0%2C0%2C0H71.35s0%2C0%2C0%2C0v9.48s0%2C0%2C0%2C0h4.29l0%2C0v15l0%2C0H71.35s0%2C0%2C0%2C0v9.48s0%2C0%2C0%2C0h4.29s0%2C0%2C0%2C0v15a0%2C0%2C0%2C0%2C1%2C0%2C0H71.35s0%2C0%2C0%2C0v9.48a0%2C0%2C0%2C0%2C0%2C0%2C0h4.29a0%2C0%2C0%2C0%2C1%2C0%2C0v3.12a2.49%2C2.49%2C0%2C0%2C0%2C2.49%2C2.5h4.45a2.59%2C2.59%2C0%2C0%2C0%2C2.59-2.59v-3a0%2C0%2C0%2C0%2C1%2C0%2C0H88a0%2C0%2C0%2C0%2C1%2C0%2C0v3.72a1.9%2C1.9%2C0%2C0%2C0%2C1.9%2C1.9h5.31a2.32%2C2.32%2C0%2C0%2C0%2C2.32-2.32v-3.3a0%2C0%2C0%2C0%2C1%2C0%2C0h8.82a17.25%2C17.25%2C0%2C0%2C0%2C17.32-18A17%2C17%2C0%2C0%2C0%2C116.39%2C113.29Zm-13.57-3.07H85.23s0%2C0%2C0%2C0v-15s0%2C0%2C0%2C0H103c2.86%2C0%2C3.7%2C2.72%2C3.58%2C7-.12%2C4.1%2C0%2C7.71-3.75%2C8.08Zm-17.59%2C9.54h21.24c1.86%2C0%2C4.5%2C3.42%2C4.62%2C7.52.12%2C4.25-3.07%2C7.39-4.45%2C7.53H85.23a0%2C0%2C0%2C0%2C1%2C0%2C0v-15S85.21%2C119.76%2C85.23%2C119.76Z%22%2F%3E%3Cpath%20class%3D%22m4%22%20d%3D%22M26.7%2C112c0%2C.78.08%2C1.57.12%2C2.36%2C0%2C.19%2C0%2C.39%2C0%2C.58l.05.59.05.59%2C0%2C.3%2C0%2C.29a68.65%2C68.65%2C0%2C0%2C0%2C1.6%2C9.33c.36%2C1.54.8%2C3.07%2C1.27%2C4.58.25.75.48%2C1.51.76%2C2.25.13.38.25.75.4%2C1.12l.42%2C1.12c.58%2C1.47%2C1.21%2C2.94%2C1.89%2C4.37.33.72.7%2C1.43%2C1%2C2.14.18.36.37.7.56%2C1.05s.37.71.57%2C1A71.56%2C71.56%2C0%2C0%2C0%2C47%2C159l.85.85.86.83c.57.57%2C1.17%2C1.09%2C1.76%2C1.64l.9.78.45.4.47.38.92.77.94.74.48.37.48.36%2C1%2C.72c.65.46%2C1.3.94%2C2%2C1.38%2C1.32.91%2C2.68%2C1.75%2C4.06%2C2.57l1%2C.6.52.29.53.29c.7.39%2C1.42.74%2C2.14%2C1.11%2C1.44.71%2C2.89%2C1.39%2C4.38%2C2%2C.74.32%2C1.49.6%2C2.24.89l1.13.41.57.21.57.19%2C1.14.38%2C1.15.36.58.18.58.16%2C1.16.33%2C1.17.29.59.15.59.14%2C1.17.26%2C1.19.24.59.12.59.11%2C1.19.2c.4.07.8.12%2C1.2.18l1.19.17a74%2C74%2C0%2C0%2C0%2C9.64.59h1.21l1.2%2C0%2C.61%2C0%2C.6%2C0%2C1.21-.08c1.6-.12%2C3.21-.27%2C4.81-.5a73%2C73%2C0%2C0%2C0%2C9.47-2%2C72.19%2C72.19%2C0%2C0%2C0%2C17.75-7.6%2C73%2C73%2C0%2C0%2C0%2C26.57-27.52A72.34%2C72.34%2C0%2C0%2C0%2C168.68%2C89h0c-1.13-5.7%2C1.31-15.16%2C6.1-17.38%2C4.45-2.06%2C12%2C1.84%2C18.58-1.69%2C6.24-3.37%2C10-10.29%2C11-17.3s-.2-14.16-1.87-21c-1.81%2C3.59-5.23%2C6.12-8.86%2C7.86s-7.53%2C2.79-11.28%2C4.25-7.43%2C3.4-10%2C6.5a20%2C20%2C0%2C0%2C0-4%2C9.22c-.61%2C3.33%2C0%2C7.15.66%2C10.64a29.64%2C29.64%2C0%2C0%2C1%2C7.51-6.1c16.51-8.44%2C20-15.2%2C20.56-16.76-2.58%2C7.45-8.18%2C11.22-13%2C14.2l-2.47%2C1.55c-4.16%2C2.23-8.35%2C4.79-11.35%2C8.48a16.7%2C16.7%2C0%2C0%2C0-4%2C10.57c-.53-1.37-1.1-2.72-1.71-4a69.41%2C69.41%2C0%2C0%2C0-4.59-8.38%2C70.61%2C70.61%2C0%2C0%2C0-13.87-15.92l-3.11-3c-6-5.83-13-13.07-14.4-24.71.4%2C2.49%2C3.32%2C13.41%2C24.66%2C30.82%2C5.2%2C4.25%2C9%2C11.24%2C9%2C11.24%2C2.12-4.86%2C4.14-10.24%2C4.29-15.27A29.79%2C29.79%2C0%2C0%2C0%2C163.75%2C38c-2.75-5.32-7.51-9.31-12.51-12.61s-10.35-6.07-15.09-9.73-8.92-8.42-10.42-14.22C121.14%2C11%2C117.06%2C21%2C116.4%2C31.5S119%2C53.28%2C127%2C60.14c8.42%2C7.2%2C22.07%2C4.41%2C28.22%2C8.34a16.44%2C16.44%2C0%2C0%2C1%2C5%2C5.61c.8%2C1.56%2C1.54%2C3.16%2C2.22%2C4.78a70.85%2C70.85%2C0%2C0%2C1%2C3%2C8.73A70.89%2C70.89%2C0%2C0%2C1%2C168%2C105.83V107c0%2C.19%2C0%2C.38%2C0%2C.57l0%2C.58v.57c0%2C.2%2C0%2C.39%2C0%2C.58l-.06%2C1.15c0%2C.38%2C0%2C.76-.08%2C1.14s-.05.77-.08%2C1.15l-.12%2C1.14-.06.58-.07.57-.14%2C1.14-.17%2C1.13-.09.57-.1.57-.2%2C1.13-.22%2C1.12-.11.57-.13.56-.25%2C1.11L165.8%2C124l-.14.55-.15.56-.31%2C1.1-.34%2C1.1-.16.54-.18.55-.37%2C1.09-.39%2C1.08-.19.53-.21.54-.41%2C1.07-.44%2C1.06-.22.52-.23.53-.47%2C1-.49%2C1c-.08.17-.16.35-.25.52l-.26.51c-.17.34-.34.68-.52%2C1-.36.67-.71%2C1.35-1.09%2C2a70.61%2C70.61%2C0%2C0%2C1-25.29%2C25.91l-1%2C.58-1%2C.56-.5.28-.5.27-1%2C.53c-.68.34-1.36.69-2%2C1-.35.16-.69.33-1%2C.48l-1%2C.46c-.34.16-.7.3-1%2C.45l-1.06.43c-.71.27-1.42.55-2.14.8-1.44.52-2.89%2C1-4.36%2C1.39A70%2C70%2C0%2C0%2C1%2C108%2C176c-1.51.24-3%2C.39-4.55.52l-1.15.08-.57%2C0-.57%2C0-1.14.05-1.15%2C0A70%2C70%2C0%2C0%2C1%2C72%2C171.9c-1.43-.55-2.83-1.17-4.22-1.81-.69-.34-1.38-.66-2.06-1l-.51-.26-.51-.27-1-.55c-1.34-.75-2.67-1.53-4-2.36-.66-.41-1.29-.85-1.93-1.28l-.94-.66-.47-.33-.46-.34-.93-.69-.91-.71-.45-.36-.45-.37-.89-.73-.87-.75c-.3-.25-.58-.51-.87-.77l-.85-.77-.84-.8c-1.11-1.07-2.2-2.16-3.23-3.3-.53-.57-1-1.15-1.54-1.73l-.74-.89-.38-.44-.36-.45-.72-.91-.7-.92-.35-.46-.34-.47-.68-.94-.65-1-.33-.48-.32-.49-.63-1-.61-1a71.35%2C71.35%2C0%2C0%2C1-7.55-17%2C73.92%2C73.92%2C0%2C0%2C1-2.08-9.12l-.05-.29%2C0-.29-.08-.58-.09-.58c0-.19-.05-.39-.07-.58-.1-.78-.2-1.55-.27-2.33%2C0-.39-.07-.78-.1-1.17l-.09-1.18c0-.19%2C0-.39%2C0-.58l0-.59-.05-1.18C26.67%2C108.8%2C26.64%2C110.37%2C26.7%2C112ZM197.14%2C47.16c0-.11.07-.22.11-.34S197.22%2C46.94%2C197.14%2C47.16Z%22%2F%3E%3Cpath%20class%3D%22m5%22%20d%3D%22M110.65%2C22.37a90.47%2C90.47%2C0%2C0%2C0-29.87%2C0%2C92%2C92%2C0%2C0%2C0-28.44%2C9.82c-2.23%2C1.2-4.39%2C2.51-6.51%2C3.89s-4.19%2C2.85-6.19%2C4.4-3.94%2C3.19-5.81%2C4.91l-.7.64-.69.65-1.37%2C1.33-1.33%2C1.36c-.45.45-.87.92-1.31%2C1.38q-2.59%2C2.79-5%2C5.79c-1.57%2C2-3%2C4.07-4.46%2C6.19s-2.73%2C4.3-4%2C6.53-2.36%2C4.52-3.4%2C6.85A94.21%2C94.21%2C0%2C0%2C0%2C6.6%2C90.58c-.66%2C2.47-1.2%2C5-1.64%2C7.48%2C0%2C.32-.12.63-.16%2C1l-.15.94c-.1.64-.2%2C1.27-.28%2C1.9l-.24%2C1.9-.2%2C1.91A93.8%2C93.8%2C0%2C0%2C0%2C6%2C136.17q.88%2C3.74%2C2.07%2C7.4c.79%2C2.44%2C1.69%2C4.84%2C2.68%2C7.21a94.27%2C94.27%2C0%2C0%2C0%2C7.06%2C13.65c1.35%2C2.18%2C2.82%2C4.29%2C4.35%2C6.35s3.14%2C4.06%2C4.83%2C6%2C3.48%2C3.78%2C5.32%2C5.57c.46.44.92.89%2C1.39%2C1.32l1.42%2C1.3%2C1.46%2C1.27.73.62.74.61a94.28%2C94.28%2C0%2C0%2C0%2C26.55%2C15.34%2C95.38%2C95.38%2C0%2C0%2C0%2C30%2C6c2.56.08%2C5.12.08%2C7.68%2C0s5.12-.35%2C7.66-.67l1.9-.26%2C1.89-.31c.64-.09%2C1.26-.22%2C1.89-.34l1-.18.93-.2c2.51-.54%2C5-1.17%2C7.44-1.91A94%2C94%2C0%2C0%2C0%2C174%2C170c1.49-2.06%2C2.9-4.17%2C4.21-6.34s2.54-4.4%2C3.67-6.67%2C2.16-4.58%2C3.1-6.93l.35-.88.33-.89.33-.89c.11-.3.22-.59.32-.89l.62-1.8.57-1.81q1.1-3.63%2C1.91-7.32t1.31-7.45l.23-1.87.19-1.88.09-.94.07-.94.12-1.89.08-1.88%2C0-.94v-.94c0-.63%2C0-1.26%2C0-1.89l-.05-1.88a89.67%2C89.67%2C0%2C0%2C0-5.8-29.3%2C94.28%2C94.28%2C0%2C0%2C1%2C4.18%2C29.31l0%2C1.85c0%2C.61-.07%2C1.23-.1%2C1.84l-.05.93-.07.92-.15%2C1.84-.2%2C1.83-.11.92-.13.92-.25%2C1.82-.31%2C1.82c-.44%2C2.42-.95%2C4.82-1.56%2C7.2s-1.33%2C4.72-2.13%2C7-1.7%2C4.59-2.68%2C6.83-2.05%2C4.45-3.22%2C6.59-2.4%2C4.25-3.72%2C6.3-2.74%2C4-4.22%2C6a92.23%2C92.23%2C0%2C0%2C1-9.78%2C10.83c-1.76%2C1.67-3.61%2C3.26-5.5%2C4.78s-3.84%2C3-5.85%2C4.33a88.6%2C88.6%2C0%2C0%2C1-12.64%2C7.18c-2.19%2C1-4.42%2C2-6.69%2C2.82s-4.57%2C1.6-6.9%2C2.26-4.68%2C1.23-7%2C1.69-4.75.86-7.15%2C1.13-4.81.46-7.23.55-4.83.06-7.24-.05a91.12%2C91.12%2C0%2C0%2C1-28.22-5.85c-2.26-.86-4.47-1.81-6.65-2.85l-.81-.39-.81-.4L56.79%2C193l-1.58-.87c-.27-.14-.53-.29-.79-.44l-.78-.45c-2.09-1.21-4.12-2.5-6.11-3.87s-3.89-2.84-5.76-4.37l-.69-.57c-.24-.19-.47-.38-.69-.58L39%2C180.61l-1.34-1.22c-.44-.4-.87-.82-1.31-1.24-1.73-1.67-3.4-3.42-5-5.22s-3.11-3.68-4.56-5.61-2.82-3.91-4.11-5.95-2.49-4.12-3.62-6.26l-.83-1.6-.79-1.63c-.26-.54-.5-1.1-.76-1.64s-.48-1.11-.72-1.66c-1-2.22-1.82-4.47-2.58-6.76s-1.44-4.61-2-6.95A89.82%2C89.82%2C0%2C0%2C1%2C9%2C106.1l.15-1.81.2-1.8c.07-.6.16-1.2.24-1.8l.12-.9c0-.3.1-.6.15-.9.1-.59.19-1.19.3-1.79l.34-1.78c.11-.6.25-1.19.38-1.78s.26-1.18.4-1.77A89.66%2C89.66%2C0%2C0%2C1%2C22.55%2C65.05C23.84%2C63%2C25.21%2C61%2C26.66%2C59s3-3.85%2C4.6-5.68c.4-.45.8-.92%2C1.21-1.36l1.25-1.35L35%2C49.32c.21-.22.43-.43.65-.64l.65-.64q2.63-2.55%2C5.45-4.9c1.88-1.56%2C3.83-3%2C5.83-4.45s4.06-2.74%2C6.17-4S58%2C32.3%2C60.21%2C31.22s4.46-2%2C6.75-2.95A92.31%2C92.31%2C0%2C0%2C1%2C81.08%2C24%2C94.9%2C94.9%2C0%2C0%2C1%2C110.65%2C22.37Z%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20205.29%20212.5%22%20role%3D%22img%22%20aria-label%3D%22Bitcoin%20After%20Life%22%3E%3Cdefs%3E%3Cstyle%3E.m4%2C.m5%7Bfill%3A%23000%3Bstroke%3A%23000%3Bstroke-miterlimit%3A10%3B%7D.m5%7Bstroke-width%3A7px%3B%7D.mt%7Bfont-size%3A22px%3Bfont-family%3A%27Optima-Bold%27%2C%20Optima%2C%20Candara%2C%20%27Segoe%20UI%27%2C%20%27Trebuchet%20MS%27%2C%20sans-serif%3Bfont-weight%3A700%3Bfill%3A%23000%3B%7D%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22%23000%22%20d%3D%22M116.39%2C113.29s0%2C0%2C0%2C0A17.05%2C17.05%2C0%2C0%2C0%2C103%2C85.63H97.54s0%2C0%2C0%2C0V82.23A2.23%2C2.23%2C0%2C0%2C0%2C95.28%2C80H90.05A2.08%2C2.08%2C0%2C0%2C0%2C88%2C82.07v3.54s0%2C0%2C0%2C0H85.23s0%2C0%2C0%2C0V82.42A2.43%2C2.43%2C0%2C0%2C0%2C82.77%2C80H78.56a2.89%2C2.89%2C0%2C0%2C0-2.89%2C2.9v2.72s0%2C0%2C0%2C0H71.35s0%2C0%2C0%2C0v9.48s0%2C0%2C0%2C0h4.29l0%2C0v15l0%2C0H71.35s0%2C0%2C0%2C0v9.48s0%2C0%2C0%2C0h4.29s0%2C0%2C0%2C0v15a0%2C0%2C0%2C0%2C1%2C0%2C0H71.35s0%2C0%2C0%2C0v9.48a0%2C0%2C0%2C0%2C0%2C0%2C0h4.29a0%2C0%2C0%2C0%2C1%2C0%2C0v3.12a2.49%2C2.49%2C0%2C0%2C0%2C2.49%2C2.5h4.45a2.59%2C2.59%2C0%2C0%2C0%2C2.59-2.59v-3a0%2C0%2C0%2C0%2C1%2C0%2C0H88a0%2C0%2C0%2C0%2C1%2C0%2C0v3.72a1.9%2C1.9%2C0%2C0%2C0%2C1.9%2C1.9h5.31a2.32%2C2.32%2C0%2C0%2C0%2C2.32-2.32v-3.3a0%2C0%2C0%2C0%2C1%2C0%2C0h8.82a17.25%2C17.25%2C0%2C0%2C0%2C17.32-18A17%2C17%2C0%2C0%2C0%2C116.39%2C113.29Zm-13.57-3.07H85.23s0%2C0%2C0%2C0v-15s0%2C0%2C0%2C0H103c2.86%2C0%2C3.7%2C2.72%2C3.58%2C7-.12%2C4.1%2C0%2C7.71-3.75%2C8.08Zm-17.59%2C9.54h21.24c1.86%2C0%2C4.5%2C3.42%2C4.62%2C7.52.12%2C4.25-3.07%2C7.39-4.45%2C7.53H85.23a0%2C0%2C0%2C0%2C1%2C0%2C0v-15S85.21%2C119.76%2C85.23%2C119.76Z%22%2F%3E%3Cpath%20class%3D%22m4%22%20d%3D%22M26.7%2C112c0%2C.78.08%2C1.57.12%2C2.36%2C0%2C.19%2C0%2C.39%2C0%2C.58l.05.59.05.59%2C0%2C.3%2C0%2C.29a68.65%2C68.65%2C0%2C0%2C0%2C1.6%2C9.33c.36%2C1.54.8%2C3.07%2C1.27%2C4.58.25.75.48%2C1.51.76%2C2.25.13.38.25.75.4%2C1.12l.42%2C1.12c.58%2C1.47%2C1.21%2C2.94%2C1.89%2C4.37.33.72.7%2C1.43%2C1%2C2.14.18.36.37.7.56%2C1.05s.37.71.57%2C1A71.56%2C71.56%2C0%2C0%2C0%2C47%2C159l.85.85.86.83c.57.57%2C1.17%2C1.09%2C1.76%2C1.64l.9.78.45.4.47.38.92.77.94.74.48.37.48.36%2C1%2C.72c.65.46%2C1.3.94%2C2%2C1.38%2C1.32.91%2C2.68%2C1.75%2C4.06%2C2.57l1%2C.6.52.29.53.29c.7.39%2C1.42.74%2C2.14%2C1.11%2C1.44.71%2C2.89%2C1.39%2C4.38%2C2%2C.74.32%2C1.49.6%2C2.24.89l1.13.41.57.21.57.19%2C1.14.38%2C1.15.36.58.18.58.16%2C1.16.33%2C1.17.29.59.15.59.14%2C1.17.26%2C1.19.24.59.12.59.11%2C1.19.2c.4.07.8.12%2C1.2.18l1.19.17a74%2C74%2C0%2C0%2C0%2C9.64.59h1.21l1.2%2C0%2C.61%2C0%2C.6%2C0%2C1.21-.08c1.6-.12%2C3.21-.27%2C4.81-.5a73%2C73%2C0%2C0%2C0%2C9.47-2%2C72.19%2C72.19%2C0%2C0%2C0%2C17.75-7.6%2C73%2C73%2C0%2C0%2C0%2C26.57-27.52A72.34%2C72.34%2C0%2C0%2C0%2C168.68%2C89h0c-1.13-5.7%2C1.31-15.16%2C6.1-17.38%2C4.45-2.06%2C12%2C1.84%2C18.58-1.69%2C6.24-3.37%2C10-10.29%2C11-17.3s-.2-14.16-1.87-21c-1.81%2C3.59-5.23%2C6.12-8.86%2C7.86s-7.53%2C2.79-11.28%2C4.25-7.43%2C3.4-10%2C6.5a20%2C20%2C0%2C0%2C0-4%2C9.22c-.61%2C3.33%2C0%2C7.15.66%2C10.64a29.64%2C29.64%2C0%2C0%2C1%2C7.51-6.1c16.51-8.44%2C20-15.2%2C20.56-16.76-2.58%2C7.45-8.18%2C11.22-13%2C14.2l-2.47%2C1.55c-4.16%2C2.23-8.35%2C4.79-11.35%2C8.48a16.7%2C16.7%2C0%2C0%2C0-4%2C10.57c-.53-1.37-1.1-2.72-1.71-4a69.41%2C69.41%2C0%2C0%2C0-4.59-8.38%2C70.61%2C70.61%2C0%2C0%2C0-13.87-15.92l-3.11-3c-6-5.83-13-13.07-14.4-24.71.4%2C2.49%2C3.32%2C13.41%2C24.66%2C30.82%2C5.2%2C4.25%2C9%2C11.24%2C9%2C11.24%2C2.12-4.86%2C4.14-10.24%2C4.29-15.27A29.79%2C29.79%2C0%2C0%2C0%2C163.75%2C38c-2.75-5.32-7.51-9.31-12.51-12.61s-10.35-6.07-15.09-9.73-8.92-8.42-10.42-14.22C121.14%2C11%2C117.06%2C21%2C116.4%2C31.5S119%2C53.28%2C127%2C60.14c8.42%2C7.2%2C22.07%2C4.41%2C28.22%2C8.34a16.44%2C16.44%2C0%2C0%2C1%2C5%2C5.61c.8%2C1.56%2C1.54%2C3.16%2C2.22%2C4.78a70.85%2C70.85%2C0%2C0%2C1%2C3%2C8.73A70.89%2C70.89%2C0%2C0%2C1%2C168%2C105.83V107c0%2C.19%2C0%2C.38%2C0%2C.57l0%2C.58v.57c0%2C.2%2C0%2C.39%2C0%2C.58l-.06%2C1.15c0%2C.38%2C0%2C.76-.08%2C1.14s-.05.77-.08%2C1.15l-.12%2C1.14-.06.58-.07.57-.14%2C1.14-.17%2C1.13-.09.57-.1.57-.2%2C1.13-.22%2C1.12-.11.57-.13.56-.25%2C1.11L165.8%2C124l-.14.55-.15.56-.31%2C1.1-.34%2C1.1-.16.54-.18.55-.37%2C1.09-.39%2C1.08-.19.53-.21.54-.41%2C1.07-.44%2C1.06-.22.52-.23.53-.47%2C1-.49%2C1c-.08.17-.16.35-.25.52l-.26.51c-.17.34-.34.68-.52%2C1-.36.67-.71%2C1.35-1.09%2C2a70.61%2C70.61%2C0%2C0%2C1-25.29%2C25.91l-1%2C.58-1%2C.56-.5.28-.5.27-1%2C.53c-.68.34-1.36.69-2%2C1-.35.16-.69.33-1%2C.48l-1%2C.46c-.34.16-.7.3-1%2C.45l-1.06.43c-.71.27-1.42.55-2.14.8-1.44.52-2.89%2C1-4.36%2C1.39A70%2C70%2C0%2C0%2C1%2C108%2C176c-1.51.24-3%2C.39-4.55.52l-1.15.08-.57%2C0-.57%2C0-1.14.05-1.15%2C0A70%2C70%2C0%2C0%2C1%2C72%2C171.9c-1.43-.55-2.83-1.17-4.22-1.81-.69-.34-1.38-.66-2.06-1l-.51-.26-.51-.27-1-.55c-1.34-.75-2.67-1.53-4-2.36-.66-.41-1.29-.85-1.93-1.28l-.94-.66-.47-.33-.46-.34-.93-.69-.91-.71-.45-.36-.45-.37-.89-.73-.87-.75c-.3-.25-.58-.51-.87-.77l-.85-.77-.84-.8c-1.11-1.07-2.2-2.16-3.23-3.3-.53-.57-1-1.15-1.54-1.73l-.74-.89-.38-.44-.36-.45-.72-.91-.7-.92-.35-.46-.34-.47-.68-.94-.65-1-.33-.48-.32-.49-.63-1-.61-1a71.35%2C71.35%2C0%2C0%2C1-7.55-17%2C73.92%2C73.92%2C0%2C0%2C1-2.08-9.12l-.05-.29%2C0-.29-.08-.58-.09-.58c0-.19-.05-.39-.07-.58-.1-.78-.2-1.55-.27-2.33%2C0-.39-.07-.78-.1-1.17l-.09-1.18c0-.19%2C0-.39%2C0-.58l0-.59-.05-1.18C26.67%2C108.8%2C26.64%2C110.37%2C26.7%2C112ZM197.14%2C47.16c0-.11.07-.22.11-.34S197.22%2C46.94%2C197.14%2C47.16Z%22%2F%3E%3Cpath%20class%3D%22m5%22%20d%3D%22M110.65%2C22.37a90.47%2C90.47%2C0%2C0%2C0-29.87%2C0%2C92%2C92%2C0%2C0%2C0-28.44%2C9.82c-2.23%2C1.2-4.39%2C2.51-6.51%2C3.89s-4.19%2C2.85-6.19%2C4.4-3.94%2C3.19-5.81%2C4.91l-.7.64-.69.65-1.37%2C1.33-1.33%2C1.36c-.45.45-.87.92-1.31%2C1.38q-2.59%2C2.79-5%2C5.79c-1.57%2C2-3%2C4.07-4.46%2C6.19s-2.73%2C4.3-4%2C6.53-2.36%2C4.52-3.4%2C6.85A94.21%2C94.21%2C0%2C0%2C0%2C6.6%2C90.58c-.66%2C2.47-1.2%2C5-1.64%2C7.48%2C0%2C.32-.12.63-.16%2C1l-.15.94c-.1.64-.2%2C1.27-.28%2C1.9l-.24%2C1.9-.2%2C1.91A93.8%2C93.8%2C0%2C0%2C0%2C6%2C136.17q.88%2C3.74%2C2.07%2C7.4c.79%2C2.44%2C1.69%2C4.84%2C2.68%2C7.21a94.27%2C94.27%2C0%2C0%2C0%2C7.06%2C13.65c1.35%2C2.18%2C2.82%2C4.29%2C4.35%2C6.35s3.14%2C4.06%2C4.83%2C6%2C3.48%2C3.78%2C5.32%2C5.57c.46.44.92.89%2C1.39%2C1.32l1.42%2C1.3%2C1.46%2C1.27.73.62.74.61a94.28%2C94.28%2C0%2C0%2C0%2C26.55%2C15.34%2C95.38%2C95.38%2C0%2C0%2C0%2C30%2C6c2.56.08%2C5.12.08%2C7.68%2C0s5.12-.35%2C7.66-.67l1.9-.26%2C1.89-.31c.64-.09%2C1.26-.22%2C1.89-.34l1-.18.93-.2c2.51-.54%2C5-1.17%2C7.44-1.91A94%2C94%2C0%2C0%2C0%2C174%2C170c1.49-2.06%2C2.9-4.17%2C4.21-6.34s2.54-4.4%2C3.67-6.67%2C2.16-4.58%2C3.1-6.93l.35-.88.33-.89.33-.89c.11-.3.22-.59.32-.89l.62-1.8.57-1.81q1.1-3.63%2C1.91-7.32t1.31-7.45l.23-1.87.19-1.88.09-.94.07-.94.12-1.89.08-1.88%2C0-.94v-.94c0-.63%2C0-1.26%2C0-1.89l-.05-1.88a89.67%2C89.67%2C0%2C0%2C0-5.8-29.3%2C94.28%2C94.28%2C0%2C0%2C1%2C4.18%2C29.31l0%2C1.85c0%2C.61-.07%2C1.23-.1%2C1.84l-.05.93-.07.92-.15%2C1.84-.2%2C1.83-.11.92-.13.92-.25%2C1.82-.31%2C1.82c-.44%2C2.42-.95%2C4.82-1.56%2C7.2s-1.33%2C4.72-2.13%2C7-1.7%2C4.59-2.68%2C6.83-2.05%2C4.45-3.22%2C6.59-2.4%2C4.25-3.72%2C6.3-2.74%2C4-4.22%2C6a92.23%2C92.23%2C0%2C0%2C1-9.78%2C10.83c-1.76%2C1.67-3.61%2C3.26-5.5%2C4.78s-3.84%2C3-5.85%2C4.33a88.6%2C88.6%2C0%2C0%2C1-12.64%2C7.18c-2.19%2C1-4.42%2C2-6.69%2C2.82s-4.57%2C1.6-6.9%2C2.26-4.68%2C1.23-7%2C1.69-4.75.86-7.15%2C1.13-4.81.46-7.23.55-4.83.06-7.24-.05a91.12%2C91.12%2C0%2C0%2C1-28.22-5.85c-2.26-.86-4.47-1.81-6.65-2.85l-.81-.39-.81-.4L56.79%2C193l-1.58-.87c-.27-.14-.53-.29-.79-.44l-.78-.45c-2.09-1.21-4.12-2.5-6.11-3.87s-3.89-2.84-5.76-4.37l-.69-.57c-.24-.19-.47-.38-.69-.58L39%2C180.61l-1.34-1.22c-.44-.4-.87-.82-1.31-1.24-1.73-1.67-3.4-3.42-5-5.22s-3.11-3.68-4.56-5.61-2.82-3.91-4.11-5.95-2.49-4.12-3.62-6.26l-.83-1.6-.79-1.63c-.26-.54-.5-1.1-.76-1.64s-.48-1.11-.72-1.66c-1-2.22-1.82-4.47-2.58-6.76s-1.44-4.61-2-6.95A89.82%2C89.82%2C0%2C0%2C1%2C9%2C106.1l.15-1.81.2-1.8c.07-.6.16-1.2.24-1.8l.12-.9c0-.3.1-.6.15-.9.1-.59.19-1.19.3-1.79l.34-1.78c.11-.6.25-1.19.38-1.78s.26-1.18.4-1.77A89.66%2C89.66%2C0%2C0%2C1%2C22.55%2C65.05C23.84%2C63%2C25.21%2C61%2C26.66%2C59s3-3.85%2C4.6-5.68c.4-.45.8-.92%2C1.21-1.36l1.25-1.35L35%2C49.32c.21-.22.43-.43.65-.64l.65-.64q2.63-2.55%2C5.45-4.9c1.88-1.56%2C3.83-3%2C5.83-4.45s4.06-2.74%2C6.17-4S58%2C32.3%2C60.21%2C31.22s4.46-2%2C6.75-2.95A92.31%2C92.31%2C0%2C0%2C1%2C81.08%2C24%2C94.9%2C94.9%2C0%2C0%2C1%2C110.65%2C22.37Z%22%2F%3E%3C%2Fsvg%3E") center/contain no-repeat;opacity:.03;pointer-events:none}
 .stage svg{position:relative}
 #balLogo{cursor:pointer}#balLogo:hover image{opacity:1}#balLogo .dk{display:none}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #balLogo .lt{display:none}:root:not([data-theme="light"]) #balLogo .dk{display:inline}}
 :root[data-theme="dark"] #balLogo .lt{display:none}:root[data-theme="dark"] #balLogo .dk{display:inline}
-@media (max-width:560px){body{padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}.right{flex-wrap:wrap;margin-left:0}.sndhint{font-size:15px;padding:5px 11px}}
-.tapstart{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:0;padding:0;margin:0;cursor:pointer;background:color-mix(in srgb,var(--stage) 62%,transparent);color:var(--ink);font:700 clamp(18px,3.2vw,30px)/1.1 var(--display)}
-.tapstart small{font:600 clamp(13px,1.8vw,17px) var(--body);color:var(--muted)}
-.tapstart .pl{width:clamp(62px,11vw,108px);aspect-ratio:1;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(0,0,0,.18);animation:sndpulse 1.4s ease-in-out infinite}
-.tapstart .pl svg{width:44%;height:44%;margin-left:9%}
 </style>
 
 <div class="wrap">
@@ -423,16 +423,16 @@ document.querySelectorAll(".yr").forEach(e=>{e.textContent=Y0+ +e.dataset.i});
 
 const STEPS_L={it:[
  ["Scrivi il testamento: scegli gli eredi e la data","Nel software scrivi chi eredita i tuoi bitcoin e da quale data. I bitcoin sono registrati nella blockchain, sul tuo indirizzo, e restano tuoi."],
- ["Copie firmate oggi, valide solo dalla data che hai scelto","Il software prepara una transazione firmata per ogni will-executor scelto: sposta i bitcoin sull'indirizzo degli eredi, ma solo dalla data di consegna (locktime). Prima di quella data la rete Bitcoin la rifiuta."],
+ ["Una copia per ogni will-executor, valida dalla data scelta","Il software firma oggi una copia per ogni will-executor. È come un assegno postdatato: porta i bitcoin agli eredi, ma la rete la accetta solo dalla data che hai scelto."],
  ["I will-executor custodiscono le copie, senza le tue chiavi","Ogni will-executor riceve e custodisce la sua copia. Non ha le tue chiavi: non può modificarla né spendere i tuoi bitcoin."],
  ["Ogni copia contiene la mancia del suo will-executor","Le copie non sono tutte uguali: ognuna contiene una piccola mancia per il suo will-executor, che è il suo compenso. La mancia viene detratta dall'eredità solo il giorno della consegna, quando la copia viene accettata dalla rete."],
  ["Finché ci sei tu, non parte niente e i bitcoin restano tuoi","I bitcoin restano sul tuo indirizzo e li usi come sempre. Finché la data di consegna non arriva, i will-executor non inviano niente e non esce nessun bitcoin dal tuo indirizzo."],
- ["Se cambia l'importo del wallet, il software prepara copie nuove","Quando cambia l'importo del wallet, il software prepara una copia nuova per ogni will-executor, con la data di consegna anticipata di un giorno rispetto alla data di eredità, in quanto la vecchia eredità non è più valida. Questo meccanismo, inventato da Bitcoin After Life, permette di risparmiare costose commissioni di rete bitcoin a ogni modifica."],
- ["Se aggiungi un erede, il software prepara una copia nuova","Come quando cambia l'importo: un'altra copia, con la data di consegna anticipata di un altro giorno, si aggiunge a destra. Le vecchie restano dove sono, ma non verranno usate: alla consegna parte solo la più recente."],
- ["Posticipare la data: si invalidano le copie vecchie","Per spostare la consegna più avanti, il software invalida le copie vecchie con una piccola transazione sulla blockchain (paghi solo la commissione di rete). Le copie vecchie restano dove sono, ma non valgono più: le segniamo in rosso."],
- ["Copie nuove con la data posticipata","Il software prepara le copie con la data nuova, il {Y2}, e le manda ai will-executor. Ora conta solo la più recente, quella più a destra."],
- ["Arriva la data di eredità: solo l'ultima copia è ancora valida","Siamo nel {Y2}. Da oggi la rete Bitcoin accetta la copia più recente; quelle segnate in rosso non valgono più."],
- ["Il giorno della consegna, le copie partono","Ogni will-executor invia alla rete Bitcoin la sua copia più recente, quella più a destra."],
+ ["Se cambia l'importo del wallet, il software prepara copie nuove","Se cambia l'importo del wallet, il software prepara una copia nuova per ogni will-executor, con la data di consegna anticipata di un giorno rispetto alla data di eredità, in quanto la vecchia eredità non è più valida. Questo meccanismo, inventato da Bitcoin After Life, permette di risparmiare costose commissioni di rete bitcoin a ogni modifica."],
+ ["Se aggiungi un erede, il software prepara una copia nuova","Succede lo stesso se si aggiunge un erede: un'altra copia, un giorno prima ancora, si aggiunge a destra. Le vecchie restano dove sono, ma non verranno usate: alla consegna parte solo la più recente."],
+ ["Posticipare la data: prima si invalidano le copie vecchie","Per spostare la consegna più avanti, il software invalida le copie vecchie con una piccola transazione sulla blockchain (paghi solo la commissione di rete). Le copie vecchie restano dove sono, ma non valgono più: le segniamo in rosso."],
+ ["Posticipare la data: poi il software crea copie nuove","Poi il software prepara copie nuove con la data nuova, il {Y2}, e le manda ai will-executor. La più recente, quella più a destra, è la sola che conta."],
+ ["Arriva la data di eredità: solo l'ultima copia è ancora valida","Arriva la data di consegna, il {Y2}. Da quel giorno la copia più recente può essere spesa."],
+ ["Alla data, i will-executor inviano la loro copia alla rete","Tutti i will-executor inviano alla rete Bitcoin la loro copia più recente, quella più a destra."],
  ["Il blocco accetta una sola copia: quella inviata per prima","Le copie spendono gli stessi bitcoin, quindi il nuovo blocco ne accetta una sola, di solito quella inviata per prima. Le altre due restano in fila sotto il blocco, in attesa."],
  ["Bitcoin agli eredi, mancia al will-executor; poi le altre invalidate","Appena la copia è accettata, i bitcoin passano dal tuo indirizzo a quello degli eredi, come stabilito nel testamento, e una piccola mancia va al will-executor della copia accettata. Solo dopo le altre due copie vengono invalidate, perché quei bitcoin sono già stati spesi."],
  ["E se quasi tutti i will-executor spariscono?","Cosa succede se quasi tutti i will-executor smettono di funzionare? Lo vediamo nel prossimo passo."],
@@ -444,8 +444,8 @@ en:[
 "In the software you write who inherits your bitcoin and from which date. Your bitcoin are recorded on the blockchain, at your address, and they stay yours."
 ],
 [
-"Copies signed today, valid only from the date you chose",
-"The software prepares one signed transaction for each will-executor you chose: it moves the bitcoin to your heirs' addresses, but only from the delivery date (locktime). Before that date the Bitcoin network refuses it."
+"One copy for each will-executor, valid from the date you chose",
+"Today the software signs one copy for each will-executor. It is like a post-dated cheque: it takes the bitcoin to your heirs, but the network accepts it only from the date you chose."
 ],
 [
 "The will-executors keep the copies, without your keys",
@@ -461,27 +461,27 @@ en:[
 ],
 [
 "If the wallet amount changes, the software makes new copies",
-"When the wallet amount changes, the software prepares a new copy for each will-executor, with the delivery date one day earlier than the inheritance date, because the old inheritance is no longer valid. This mechanism, invented by Bitcoin After Life, saves costly Bitcoin network fees at every change."
+"If the wallet amount changes, the software prepares a new copy for each will-executor, with the delivery date one day earlier than the inheritance date, because the old inheritance is no longer valid. This mechanism, invented by Bitcoin After Life, saves costly Bitcoin network fees at every change."
 ],
 [
 "If you add an heir, the software makes a new copy",
-"Just like when the amount changes: another copy, with the delivery date one more day earlier, is added on the right. The old ones stay where they are, but they will not be used: on delivery only the newest one is sent."
+"The same happens if an heir is added: another copy, one more day earlier, is added on the right. The old ones stay where they are, but they will not be used: on delivery only the newest one is sent."
 ],
 [
-"Postponing the date: the old copies are invalidated",
+"Postponing the date: first the old copies are invalidated",
 "To move the delivery later, the software invalidates the old copies with a small transaction on the blockchain (you only pay the network fee). The old copies stay where they are, but they are no longer valid: we mark them in red."
 ],
 [
-"New copies with the postponed date",
-"The software prepares the copies with the new date, {Y2}, and sends them to the will-executors. Now only the newest one, the one furthest right, counts."
+"Postponing the date: then the new copies are made",
+"Then the software prepares new copies with the new date, {Y2}, and sends them to the will-executors. The newest one, the one furthest right, is the only one that counts."
 ],
 [
 "The inheritance date arrives: only the last copy is still valid",
-"It is now {Y2}. From today the Bitcoin network accepts the newest copy; the ones marked in red are no longer valid."
+"The delivery date arrives: {Y2}. From that day the newest copy can be spent."
 ],
 [
-"On the delivery day, the copies are sent",
-"Each will-executor sends its newest copy, the one furthest right, to the Bitcoin network."
+"On that date, the will-executors send their copy to the network",
+"All the will-executors send their newest copy, the one furthest right, to the Bitcoin network."
 ],
 [
 "The block accepts one copy only: the one sent first",
@@ -507,8 +507,8 @@ es:[
 "En el software escribes quién hereda tus bitcoin y desde qué fecha. Tus bitcoin están registrados en la blockchain, en tu dirección, y siguen siendo tuyos."
 ],
 [
-"Copias firmadas hoy, válidas solo desde la fecha que elegiste",
-"El software prepara una transacción firmada para cada will-executor elegido: mueve los bitcoin a las direcciones de los herederos, pero solo a partir de la fecha de entrega (locktime). Antes de esa fecha la red Bitcoin la rechaza."
+"Una copia para cada will-executor, válida desde la fecha elegida",
+"El software firma hoy una copia para cada will-executor. Es como un cheque posfechado: lleva los bitcoin a tus herederos, pero la red solo lo acepta desde la fecha que elegiste."
 ],
 [
 "Los will-executors guardan las copias, sin tus claves",
@@ -524,27 +524,27 @@ es:[
 ],
 [
 "Si cambia el importe del wallet, el software crea copias nuevas",
-"Cuando cambia el importe de la cartera, el software prepara una copia nueva para cada will-executor, con la fecha de entrega adelantada un día respecto a la fecha de la herencia, porque la herencia anterior ya no es válida. Este mecanismo, inventado por Bitcoin After Life, permite ahorrar costosas comisiones de la red Bitcoin en cada cambio."
+"Si cambia el importe de la cartera, el software prepara una copia nueva para cada will-executor, con la fecha de entrega adelantada un día respecto a la fecha de la herencia, porque la herencia anterior ya no es válida. Este mecanismo, inventado por Bitcoin After Life, permite ahorrar costosas comisiones de la red Bitcoin en cada cambio."
 ],
 [
 "Si añades un heredero, el software crea una copia nueva",
-"Igual que cuando cambia el importe: otra copia, con la fecha de entrega adelantada un día más, se añade a la derecha. Las viejas se quedan donde están, pero no se usarán: en la entrega solo sale la más reciente."
+"Pasa lo mismo si se añade un heredero: otra copia, un día antes todavía, se añade a la derecha. Las viejas se quedan donde están, pero no se usarán: en la entrega solo sale la más reciente."
 ],
 [
-"Aplazar la fecha: se invalidan las copias viejas",
+"Aplazar la fecha: primero se invalidan las copias viejas",
 "Para mover la entrega más adelante, el software invalida las copias viejas con una pequeña transacción en la blockchain (solo pagas la comisión de la red). Las copias viejas se quedan donde están, pero ya no valen: las marcamos en rojo."
 ],
 [
-"Copias nuevas con la fecha aplazada",
-"El software prepara las copias con la nueva fecha, {Y2}, y las envía a los will-executors. Ahora solo cuenta la más reciente, la que está más a la derecha."
+"Aplazar la fecha: después se crean copias nuevas",
+"Después el software prepara copias nuevas con la nueva fecha, {Y2}, y las envía a los will-executors. La más reciente, la que está más a la derecha, es la única que cuenta."
 ],
 [
 "Llega la fecha de la herencia: solo la última copia sigue válida",
-"Estamos en {Y2}. Desde hoy la red Bitcoin acepta la copia más reciente; las marcadas en rojo ya no valen."
+"Llega la fecha de entrega, {Y2}. Desde ese día la copia más reciente se puede gastar."
 ],
 [
-"El día de la entrega, salen las copias",
-"Cada will-executor envía a la red Bitcoin su copia más reciente, la que está más a la derecha."
+"En esa fecha, los will-executors envían su copia a la red",
+"Todos los will-executors envían a la red Bitcoin su copia más reciente, la que está más a la derecha."
 ],
 [
 "El bloque acepta una sola copia: la enviada primero",
@@ -565,10 +565,40 @@ es:[
 ]
 ]};
 const UI={"title": {"it": "Come funziona BAL PROTOCOL", "en": "How BAL PROTOCOL works", "es": "Cómo funciona BAL PROTOCOL"}, "subtitle": {"it": "Vedi come funzionano i WILL-EXECUTOR", "en": "See how WILL-EXECUTORS work", "es": "Mira cómo funcionan los WILL-EXECUTORS"}, "sceneT": {"it": "La blockchain, tre will-executor, il tuo indirizzo e quello degli eredi", "en": "The blockchain, three will-executors, your address and your heirs' addresses", "es": "La blockchain, tres will-executors, tu dirección y las de los herederos"}, "sceneD": {"it": "Le copie firmate del testamento vanno dal tuo computer ai tre will-executor. Alla data di consegna tutti e tre inviano la loro copia: il nuovo blocco ne accetta una sola, le altre due vengono scartate, e i bitcoin passano dal tuo indirizzo a quello degli eredi.", "en": "The signed copies of the will go from your computer to the three will-executors. On the delivery date they all send their copy: the new block accepts only one, the other two are refused, and the bitcoin move from your address to your heirs' addresses.", "es": "Las copias firmadas del testamento van de tu ordenador a los tres will-executors. En la fecha de entrega los tres envían su copia: el nuevo bloque acepta solo una, las otras dos se rechazan, y los bitcoin pasan de tu dirección a las de los herederos."}, "chain": {"it": "Blockchain di Bitcoin", "en": "Bitcoin blockchain", "es": "Blockchain de Bitcoin"}, "accepted": {"it": "accettata", "en": "accepted", "es": "aceptada"}, "off": {"it": "spento", "en": "off", "es": "apagado"}, "refused": {"it": "copie scartate", "en": "copies refused", "es": "copias rechazadas"}, "spent": {"it": "quei bitcoin sono già spesi", "en": "those bitcoin are already spent", "es": "esos bitcoin ya están gastados"}, "todayNote": {"it": "31 ottobre 2024 · nasce BAL", "en": "31 October 2024 · BAL is born", "es": "31 de octubre de 2024 · nace BAL"}, "today": {"it": "oggi", "en": "today", "es": "hoy"}, "delivery": {"it": "consegna", "en": "delivery", "es": "entrega"}, "alive": {"it": "ci sei", "en": "you are here", "es": "estás aquí"}, "sheet": {"it": "Testamento", "en": "Will", "es": "Testamento"}, "copy1": {"it": "copia 1", "en": "copy 1", "es": "copia 1"}, "copy2": {"it": "copia 2", "en": "copy 2", "es": "copia 2"}, "copy3": {"it": "copia 3", "en": "copy 3", "es": "copia 3"}, "amount": {"it": "importo del wallet", "en": "wallet amount", "es": "importe de la cartera"}, "newCopy": {"it": "copia nuova", "en": "new copy", "es": "copia nueva"}, "heirsS": {"it": "eredi", "en": "heirs", "es": "herederos"}, "dueDate": {"it": "data di consegna", "en": "delivery date", "es": "fecha de entrega"}, "noBeat": {"it": "nessun battito", "en": "no heartbeat", "es": "sin latido"}, "you": {"it": "Tu", "en": "You", "es": "Tú"}, "yourAddr": {"it": "il tuo indirizzo", "en": "your address", "es": "tu dirección"}, "heirs": {"it": "Eredi", "en": "Heirs", "es": "Herederos"}, "heir1": {"it": "indirizzo erede 1", "en": "heir 1 address", "es": "dirección heredero 1"}, "heir2": {"it": "indirizzo erede 2", "en": "heir 2 address", "es": "dirección heredero 2"}, "heir3": {"it": "indirizzo erede 3", "en": "heir 3 address", "es": "dirección heredero 3"}, "tip": {"it": "+ mancia", "en": "+ fee", "es": "+ comisión"}, "tipNote1": {"it": "ogni copia ha la sua mancia", "en": "each copy carries its fee", "es": "cada copia lleva su comisión"}, "tipNote2": {"it": "si paga solo alla consegna", "en": "paid only on delivery", "es": "se paga solo en la entrega"}, "amountChg": {"it": "l'importo cambia", "en": "the amount changes", "es": "el importe cambia"}, "heirsChg": {"it": "si aggiunge un erede", "en": "a heir is added", "es": "se añade un heredero"}, "dayBefore": {"it": "un giorno prima", "en": "one day earlier", "es": "un día antes"}, "dayBefore2": {"it": "un altro giorno prima", "en": "another day earlier", "es": "otro día antes"}, "invalid": {"it": "copie invalidate", "en": "copies invalidated", "es": "copias invalidadas"}, "question": {"it": "E se la maggior parte dei WILL-EXECUTOR sparisce, cosa succede?", "en": "What if most of the WILL-EXECUTORS disappear?", "es": "¿Y si la mayoría de los WILL-EXECUTORS desaparece, qué pasa?"}, "prev": {"it": "← Indietro", "en": "← Back", "es": "← Atrás"}, "next": {"it": "Avanti →", "en": "Next →", "es": "Siguiente →"}, "play": {"it": "▶ Riproduci", "en": "▶ Play", "es": "▶ Reproducir"}, "restart": {"it": "↺ Dall'inizio", "en": "↺ From the start", "es": "↺ Desde el inicio"}, "pause": {"it": "❚❚ Pausa", "en": "❚❚ Pause", "es": "❚❚ Pausa"}, "sound": {"it": "Suono acceso / spento", "en": "Sound on / off", "es": "Sonido sí / no"}, "music": {"it": "Musica accesa / spenta", "en": "Music on / off", "es": "Música sí / no"}, "tapSound": {"it": "tocca per il suono", "en": "tap for sound", "es": "toca para el sonido"}, "stepOf": {"it": "Passo {n} di {m}", "en": "Step {n} of {m}", "es": "Paso {n} de {m}"}};
-// the language: ?lang=, then the last one chosen, then the browser's (Italian or Spanish), else English
+// the language: international page (Bitcoin After Life), English unless ?lang= asks for another one
 let LANG=(()=>{const q=new URLSearchParams(location.search).get("lang");return q&&STEPS_L[q]?q:"en"})();   // international page: English first
 for(const l in STEPS_L)STEPS_L[l].forEach(st=>{for(let i=0;i<st.length;i++)st[i]=st[i].replace(/\{Y2\}/g,Y2)});
-let STEPS=STEPS_L[LANG];
+// SIMPLE STORY (page opened with ?v=semplice, or <html data-story="simple">): only steps 1-5 and 10-13 of the
+// full story; no change of amount, heirs or date, and not the last two steps. n in show() is always the step
+// of the FULL story (its "scene"), so the drawing code is shared; IDS maps the shown steps to the scenes.
+const SIMPLE=true;   // this file is the simple version (9 steps)
+// owner 2026-10-20: "one is enough" (14) and the closing step (99) removed again; their code stays, unused
+const IDS=SIMPLE?[0,1,98,4,9,10,11,12]:STEPS_L.it.map((_,i)=>i);
+const LAY_SEND=SIMPLE?0:3;   // the layer of copies that is sent: the only one (simple) or the newest (full)
+const SIMPLE_TXT={   // texts that speak of newer copies or of the postponed date, rewritten for the simple story
+  // 98 = steps 3 and 4 of the full story in one: the copies go to the will-executors, then each shows its tip
+  98:{it:["Ogni will-executor custodisce una copia, con la sua mancia","Ogni will-executor riceve e custodisce la sua copia. Non ha le tue chiavi: non può modificarla né spendere i tuoi bitcoin. Ogni copia contiene una piccola mancia, il suo compenso, pagata solo il giorno della consegna."],
+      en:["Each will-executor keeps a copy, with its own fee","Each will-executor receives and keeps its copy. It does not have your keys: it can neither change the copy nor spend your bitcoin. Each copy contains a small fee, its pay, paid only on the delivery day."],
+      es:["Cada will-executor guarda una copia, con su comisión","Cada will-executor recibe y guarda su copia. No tiene tus claves: no puede modificarla ni gastar tus bitcoin. Cada copia contiene una pequeña comisión, su pago, que se cobra solo el día de la entrega."]},
+  // 14 = "one is enough", without the small note of the full story (kept short)
+  14:{it:["Basta un solo will-executor attivo","Anche se due will-executor sono spenti o spariti, ne basta uno che funziona: invia la sua copia, la rete la accetta, gli eredi ricevono i bitcoin e quel will-executor incassa la mancia. Per questo il software ne usa più di uno."],
+      en:["One single active will-executor is enough","Even if two will-executors are off or gone, one that works is enough: it sends its copy, the network accepts it, the heirs receive the bitcoin and that will-executor collects its fee. This is why the software uses more than one."],
+      es:["Basta con un solo will-executor activo","Aunque dos will-executors estén apagados o hayan desaparecido, basta con uno que funcione: envía su copia, la red la acepta, los herederos reciben los bitcoin y ese will-executor cobra su comisión. Por eso el software usa más de uno."]},
+  // 99 = closing step (simple story only): the message to remember, on the final picture
+  99:{it:["I tuoi bitcoin: tuoi finché ci sei, poi a chi hai scelto","Nessun notaio, nessuna banca, nessuno che custodisce le tue chiavi. Solo transazioni firmate da te, che diventano valide alla data che hai deciso."],
+      en:["Your bitcoin: yours while you're here, then to your chosen heirs","No notary, no bank, nobody holding your keys. Only transactions signed by you, which become valid on the date you chose."],
+      es:["Tus bitcoin: tuyos mientras estés, luego para quien elegiste","Sin notario, sin banco, nadie que guarde tus claves. Solo transacciones firmadas por ti, que son válidas en la fecha que elegiste."]},
+  9:{it:["Arriva la data di consegna","Il calendario raggiunge la data che hai scelto. Da quel giorno la copia può essere spesa."],
+     en:["The delivery date arrives","The calendar reaches the date you chose. From that day the copy can be spent."],
+     es:["Llega la fecha de entrega","El calendario llega a la fecha que elegiste. Desde ese día la copia se puede gastar."]},
+  10:{it:["Alla data scelta, le copie vengono inviate","Ogni will-executor prende la sua copia firmata e la manda alla rete Bitcoin, senza bisogno di te."],
+      en:["On the chosen date, the copies are sent","Each will-executor takes its signed copy and sends it to the Bitcoin network, without needing you."],
+      es:["En la fecha elegida, se envían las copias","Cada will-executor toma su copia firmada y la envía a la red Bitcoin, sin que tú tengas que hacer nada."]}};
+function story(l){
+  // the steps shown, in language l
+  return IDS.map(i=>SIMPLE&&SIMPLE_TXT[i]?SIMPLE_TXT[i][l]:STEPS_L[l][i]);
+}
+let STEPS=story(LANG);
 const T=k=>UI[k][LANG];
 const $=id=>document.getElementById(id);
 const SX=370, RYI=i=>140+i*90;                         // the will-executors, one above the other: x of the server, y of row i
@@ -704,15 +734,12 @@ function sfx(name,arg){
 }
 const snd=(name,ms,arg)=>later(()=>sfx(name,arg),ms);   // a sound at a time of the step, cancelled with the step
 
-// ---- narration (voice version only): one recorded MP3 per step and language (ElevenLabs, 2026-10-23):
-// Italian "Luca" (voce-det/), English "Ian" (voce-det-en/), Spanish "Nico" (voce-det-es/).
+// ---- narration (voice version only): one recorded MP3 per step, Italian only, voice "Luca" (ElevenLabs, 2026-10-20).
 // VO_LEN: length of each clip in seconds (ffprobe). The step lasts the clip plus VO_GAP. VT (set by show) says whether
-// the step is narrated; then the drawing uses the voice times, placed on the phrases of the voice (ffmpeg silencedetect).
-const VO_LEN={it:[12.88,16.32,12.56,17.44,14.96,24.72,17.04,17.84,10.64,10.24,8.48,14.88,21.68,9.04,16.8],
-  en:[12.64,16.4,12.32,15.92,13.84,23.28,16.64,17.84,11.76,11.12,8.4,13.84,22.16,9.2,18.0],
-  es:[13.52,17.04,11.76,16.32,15.12,24.32,17.04,17.84,11.68,10.16,8.8,14.32,22.16,9.12,18.24]};
+// the step is narrated; then the drawing uses the voice times, placed on the pauses of the voice (ffmpeg silencedetect).
+const VO_LEN={it:[12.88,14.72,18.32,14.96,7.12,8.96,14.88,21.92],en:[13.04,16.48,18.08,13.6,7.12,8.88,13.6,22.24],es:[13.28,15.76,17.12,15.04,7.12,9.36,13.92,22.48]};   // en: voice Ian, es: voice Nico (ElevenLabs, 2026-10-23)
+const VO_V="f98be10657";   // version of the clips (hash), added to their address against stale browser caches
 const VX=(it,en,es)=>LANG==="en"?en:LANG==="es"?es:it;   // a time of the drawing on the voice of the language
-const VO_V="dc51d14509";   // version of the clips (hash), added to their address against stale browser caches
 const VO_GAP=1200;
 let VO=null,VT=false,voReady=false;
 const voiceOn=()=>soundOn;   // a recorded voice in all three languages
@@ -721,7 +748,7 @@ function voiceStart(i){
   // the clip of step i from the start; only once the browser lets the page play sound (first click / tap)
   voiceStop();
   if(!VT||!AC||AC.state!=="running")return;
-  const a=new Audio(({it:"voice-full-it/",en:"voice-full-en/",es:"voice-full-es/"}[LANG])+"passo-"+(i+1)+".mp3?v="+VO_V);VO=a;
+  const a=new Audio(({it:"voice-it/",en:"voice-en/",es:"voice-es/"}[LANG])+"passo-"+(i+1)+".mp3?v="+VO_V);VO=a;
   a.onended=()=>{if(VO===a)voiceDuck(false)};
   a.play().then(()=>{if(VO===a)voiceDuck(true)}).catch(()=>{if(VO===a)VO=null});
 }
@@ -817,6 +844,12 @@ function voiceKick(){
       if(MUS&&AC){const t=AC.currentTime;MUS.g.gain.cancelScheduledValues(t);MUS.g.gain.setValueAtTime(MUS.g.gain.value,t);MUS.g.gain.linearRampToValueAtTime(0,t+1)}
       clearTimeout(musTimer);musTimer=null;if(MUS)MUS.next=0;
     }
+    function musicFade(sec){
+      // the music fades out slowly (closing step); musicStart() brings it back on another step
+      if(!MUS||!AC)return;const t=AC.currentTime,g=MUS.g.gain;
+      g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.linearRampToValueAtTime(0,t+sec);
+      setTimeout(()=>{if(step===IDS.indexOf(99)){clearTimeout(musTimer);musTimer=null;MUS.next=0}},sec*1000+100);
+    }
     function duck(){
       // the music steps back for a moment under a sound effect
       if(!MUS||!musicOn)return;const t=AC.currentTime,g=MUS.g.gain;
@@ -878,10 +911,10 @@ function showRank(i,k,delay){
   later(()=>{setRank(i,k);op("ord"+i,1)},delay);
 }
 function sendNewest(senders){
-  senders.forEach((i,k)=>{later(()=>mv(E(3,i),...(k===0?BLOCK:NEAR[k-1])),800+k*900);snd("whoosh",800+k*900);showRank(i,k,800+k*900+1560);snd("medal",800+k*900+1560,k)});   // 0.9 s apart: the first to send is the first to arrive
+  senders.forEach((i,k)=>{later(()=>mv(E(LAY_SEND,i),...(k===0?BLOCK:NEAR[k-1])),800+k*900);snd("whoosh",800+k*900);showRank(i,k,800+k*900+1560);snd("medal",800+k*900+1560,k)});   // 0.9 s apart: the first to send is the first to arrive
 }
 function atBlock(senders){
-  senders.forEach((i,k)=>jump(E(3,i),...(k===0?BLOCK:NEAR[k-1]),1));
+  senders.forEach((i,k)=>jump(E(LAY_SEND,i),...(k===0?BLOCK:NEAR[k-1]),1));
 }
 function joy(win,delay){
   // heirs and the will-executor that earned the tip are happy: gold stars over the heirs, a gold medal on the server
@@ -890,7 +923,7 @@ function joy(win,delay){
 function deliver(senders){
   // the whole delivery in one go (last step): sending, acceptance, refusals, funds and tip
   const [win,...lost]=senders;
-  senders.forEach((i,k)=>later(()=>mv(E(3,i),...(k===0?BLOCK:NEAR[k-1])),780+k*260));
+  senders.forEach((i,k)=>later(()=>mv(E(LAY_SEND,i),...(k===0?BLOCK:NEAR[k-1])),780+k*260));
   later(()=>{op("newblock",1);op("nbTag",1)},2600);
   snd("whoosh",780);snd("stamp",2600);snd("coins",5000);snd("coins",6000);snd("fanfare",6300);
   later(()=>{if(lost.length)op("rejTag",1);lost.forEach((i,k)=>tear(LAY[3][i],...NEAR[k]))},3300);
@@ -902,32 +935,44 @@ function deliver(senders){
   later(()=>{$("feeTag").setAttribute("transform",`translate(${SX+75},${cy-21})`);op("feeTag",1)},6300);
   joy(win,6300);
 }
-function show(n){
+function show(i){
+  const n=IDS[i];   // the scene of the full story (see SIMPLE)
+  // where the scene sits in time: 98 (steps 3+4 merged) is at step 3, before the date arrives
+  const at=n===98?3:n;
   // the strip of blocks slides one block only in the steps where time really passes (steps 5, 6, 7, 9, 10 and 12);
   // it stays still in the others, so the accepted block keeps one number from step 12 on
-  const sl=[4,5,6,8,9,11].filter(i=>i<=n).length;
-  step=n;VT=voiceOn();reset();slide(sl);$("nbNum").textContent=BLK0+K+sl;
-  svgRoot.classList.toggle("tips",n>=3);
+  const sl=[4,5,6,8,9,11].filter(i=>i<=at).length;
+  step=i;VT=voiceOn();reset();slide(sl);$("nbNum").textContent=BLK0+K+sl;
+  svgRoot.classList.toggle("tips",n>=3&&n!==98);
   // the third heir (person, address box, coin) is there from step 7 on
-  if(n>=6)jump("coins3",...COIN3_YOU,1);   // the third coin arrives when the wallet amount grows (step 6)
-  if(n>=7){show1("heirC");show1("heir3g")}
+  if(n>=6&&!SIMPLE)jump("coins3",...COIN3_YOU,1);   // the third coin arrives when the wallet amount grows (step 6)
+  if(n>=7&&!SIMPLE){show1("heirC");show1("heir3g")}
   // the new (third) heir is highlighted in orange while it is added (step 7), on the monitor and on the right
   $("heirBuse").style.color=n===6?"#FBBF24":"";$("heirBuse").style.opacity=n===6?1:.85;
   $("heir3Sub").style.fill=$("heir3Addr").style.fill=n===6?"var(--orange)":"";
   $("heirCuse").style.color=n===6?"var(--orange)":"var(--heir)";$("heirCuse").style.opacity=n===6?1:.9;
   hideEnvs();
   // the delivery date: 2029, one day earlier at every new copy, postponed to 2033 at step 9; "today" reaches it at step 10
-  const due=n>=9?DUE[1]:n===6?DUE[0]-5:(n===7||n===8)?DUE[0]-10:DUE[0];
-  mv("due",due,0);$("dueText").textContent=n>=9?Y2:Y1;
-  mv("today",n>=9?due:TODAY,0);op("todayLbl",n>=9?0:1);
-  if(n===0){op("write",1);
-    // write the sheet again from the start, once
-    ["w1","w2","w3","w4","w5","quill"].forEach(id=>{const e=$(id);e.style.animation="none";e.getBoundingClientRect();e.style.animation=""});
-    snd("ding",5400)}   // the last line is written at 5.3 s: the will is done
-  if(n===1){op("scCopies",1);for(let i=0;i<3;i++){const t=VT?VX(4130,3990,4170)+i*800:500+i*400;later(()=>op(E(0,i),1),t);snd("pop",t)}}
+  const due=SIMPLE?DUE[0]:at>=9?DUE[1]:at===6?DUE[0]-5:(at===7||at===8)?DUE[0]-10:DUE[0];
+  mv("due",due,0);$("dueText").textContent=at>=9&&!SIMPLE?Y2:Y1;
+  mv("today",at>=9?due:TODAY,0);op("todayLbl",at>=9?0:1);
+  if(n===0){const w0=0;
+    // write the sheet again from the start, once (voice: starts together with the voice, owner 2026-10-21)
+    later(()=>{op("write",1);["w1","w2","w3","w4","w5","quill"].forEach(id=>{const e=$(id);e.style.animation="none";e.getBoundingClientRect();e.style.animation=""})},w0);
+    snd("ding",w0+5400)}   // the last line is written at 5.3 s: the will is done
+  if(n===1){op("scCopies",1);for(let i=0;i<3;i++){const t=VT?VX(4300,4800,4800)+i*1000:500+i*400;later(()=>op(E(0,i),1),t);snd("pop",t)}}
   if(n===2){op("wifi",1);for(let i=0;i<3;i++)jump(E(0,i),...HOME(i),1);
-    const fl=VT?VX(2980,4000,4330):800;later(()=>{for(let i=0;i<3;i++)mv(E(0,i),...PILE(i,0))},fl);snd("whoosh",fl)}
-  if(n===3){op("scTips",1);placeAll(0);later(()=>op("tipTag",1),VT?VX(5980,5510,5890):900);for(let i=0;i<3;i++)snd("tin",150+i*220)}
+    later(()=>{for(let i=0;i<3;i++)mv(E(0,i),...PILE(i,0))},800);snd("whoosh",800)}
+  if(n===98){
+    // steps 3+4 in one: the copies fly to the will-executors (0.8 s), and when they arrive each one shows its tip
+    op("wifi",1);for(let i=0;i<3;i++)jump(E(0,i),...HOME(i),1);
+    const fly=VT?VX(4300,4200,4000):800,tips=VT?VX(12600,13000,11600):2500;
+    later(()=>{for(let i=0;i<3;i++)mv(E(0,i),...PILE(i,0))},fly);snd("whoosh",fly);
+    later(()=>{op("wifi",0);op("scTips",1);svgRoot.classList.add("tips")},tips);
+    for(let i=0;i<3;i++)snd("tin",tips+100+i*220);
+    later(()=>op("tipTag",1),tips+700);
+  }
+  if(n===3){op("scTips",1);placeAll(0);later(()=>op("tipTag",1),900);for(let i=0;i<3;i++)snd("tin",150+i*220)}
   if(n===4){op("beat",1);placeAll(0);for(let i=0;i<(VT&&LANG!=="en"?10:9);i++)snd("beat",300+i*1600)}   // in time with the heartbeat line (1.6 s)
   if(n===5){
     // the amount changes: new copies, dated one day earlier, arrive to the right of the old ones
@@ -936,11 +981,11 @@ function show(n){
     $("chgTag").textContent=T("amountChg");
     later(()=>op("chgTag",1),700);
     // first the amount grows (third coin), only then the new copies are sent
-    const ar=VT?VX(6350,6000,6390):3200,dy=VT?VX(9900,9620,10070):3900,of=VT?VX(14220,13450,14130):7000;arrive(1,ar);
-    later(()=>{bar.style.transform="scaleX(.85)";op("coins3",1)},1000);snd("ding",1000);snd("whoosh",ar+300);
-    later(()=>op("amtNew",1),ar);
-    later(()=>{mv("due",DUE[0]-5,0);$("dayTag").textContent=T("dayBefore");op("dayTag",1)},dy);
-    later(()=>{op("chgTag",0);op("dayTag",0)},of);
+    arrive(1,3200);
+    later(()=>{bar.style.transform="scaleX(.85)";op("coins3",1)},1000);snd("ding",1000);snd("whoosh",3500);
+    later(()=>op("amtNew",1),3200);
+    later(()=>{mv("due",DUE[0]-5,0);$("dayTag").textContent=T("dayBefore");op("dayTag",1)},3900);
+    later(()=>{op("chgTag",0);op("dayTag",0)},7000);
   }
   if(n===6){
     // the heirs change: one more copy, one more day earlier, further right
@@ -949,27 +994,27 @@ function show(n){
     // a third heir is added first (new person, new address box, slow fade, no coloured outline);
     // only afterwards the new copies are sent. The third coin is already there since step 6.
     later(()=>op("chgTag",1),600);
-    later(()=>{op("heirB",1);op("heirC",1);op("heir3g",1)},1200);snd("ding",1200);snd("whoosh",(VT?VX(5580,5680,5930):4600)+300);
-    arrive(2,VT?VX(5580,5680,5930):4600);
-    later(()=>{op("heirNew",1);mv("due",DUE[0]-10,0);$("dayTag").textContent=T("dayBefore2");op("dayTag",1)},VT?VX(6670,6590,6800):5800);
-    later(()=>{op("chgTag",0);op("dayTag",0)},VT?VX(10940,10630,11010):8200);
+    later(()=>{op("heirB",1);op("heirC",1);op("heir3g",1)},1200);snd("ding",1200);snd("whoosh",4900);
+    arrive(2,4600);
+    later(()=>{op("heirNew",1);mv("due",DUE[0]-10,0);$("dayTag").textContent=T("dayBefore2");op("dayTag",1)},5800);
+    later(()=>{op("chgTag",0);op("dayTag",0)},8200);
   }
   if(n===7){
     // postponing, first part: the old copies are invalidated on the blockchain; they stay where they are, in red
     op("scInval",1);placeAll(2);
-    later(()=>{op("invTag",1);op("dueX",1);for(let k=0;k<3;k++)for(let i=0;i<3;i++)markBad(E(k,i))},VT?VX(5900,5970,5840):900);snd("error",VT?VX(5900,5970,5840):900);
+    later(()=>{op("invTag",1);op("dueX",1);for(let k=0;k<3;k++)for(let i=0;i<3;i++)markBad(E(k,i))},900);snd("error",900);
   }
   if(n===8){
     // postponing, second part: the new date and the new copies
     op("scCal",1);$("calYear").textContent=Y1;placeAll(2,true);
-    arrive(3,VT?VX(2720,2760,2640):1000);snd("whoosh",(VT?VX(2720,2760,2640):1000)+300);
+    arrive(3,1000);snd("whoosh",1300);
     // the delivery date moves to the new one, on the timeline and on the screen
-    later(()=>{mv("due",DUE[1],0);$("dueText").textContent=Y2;$("calYear").textContent=Y2},VT?VX(4350,4200,4330):1200);
+    later(()=>{mv("due",DUE[1],0);$("dueText").textContent=Y2;$("calYear").textContent=Y2},1200);
   }
-  if(n>=9)op("scFlat",1);
+  if(at>=9)op("scFlat",1);
   if(n===9)snd("bell",1500);   // "today" reaches the delivery date
-  if(n>=9&&n<=12)placeAll(n>=12?2:3,true);
-  if(n===14)for(let i=0;i<3;i++)jump(E(3,i),...PILE(i,0),1);   // after the delivery only the copy that is sent is left, next to its server
+  if(n>=9&&n<=12){if(SIMPLE){if(n<=11)placeAll(0)}else placeAll(n>=12?2:3,true)}   // simple: one layer of copies only
+  if(n===14)for(let i=0;i<3;i++)jump(E(LAY_SEND,i),...PILE(i,0),1);   // after the delivery only the copy that is sent is left, next to its server
   // the copy of will-executor 2 is the one the block accepts (the winner is not simply the nearest one)
   if(n===10)sendNewest([1,0,2]);
   // the medals of slide 11 stay on in slides 12 and 13
@@ -977,15 +1022,14 @@ function show(n){
   if(n===11){
     // slide 12: the block accepts the copy of will-executor 2; the other two wait in a column under the block
     atBlock([1,0,2]);
-    later(()=>{op("newblock",1);op("nbTag",1)},VT?VX(7000,6800,7000):900);snd("stamp",VT?VX(7000,6800,7000):900);
+    later(()=>{op("newblock",1);op("nbTag",1)},VT?1200:900);snd("stamp",VT?1200:900);
   }
   if(n===12){
     // slide 13: once the copy is accepted the funds go to the heirs (one coin each) and the tip to the will-executor,
     // at the same moment; only afterwards the other two copies are invalidated (their coins are already spent)
     show1("newblock");show1("nbTag");
-    jump(E(3,1),...BLOCK,1);jump(E(3,0),...NEAR[0],1);jump(E(3,2),...NEAR[1],1);
-    const tx=VT?VX(5720,5560,6030):600,go=VT?VX(7478,7510,7740):1200,tip=VT?VX(12592,12130,12940):1000,glad=VT?VX(13800,13330,14140):2800,
-      torn=VT?VX(16502,16520,17080):5200,gone=VT?VX(19392,19900,20100):7500;
+    jump(E(LAY_SEND,1),...BLOCK,1);jump(E(LAY_SEND,0),...NEAR[0],1);jump(E(LAY_SEND,2),...NEAR[1],1);
+    const tx=VT?VX(7400,5600,6100):600,go=VT?VX(7800,7500,7700):1200,tip=VT?VX(12600,12200,11000):1000,glad=VT?VX(14400,14000,13000):2800,torn=VT?VX(16700,16600,17300):5200;
     later(()=>op("tx",1),tx);
     later(()=>{mv("coins",...COIN_HEIR[0]);mv("coins2",...COIN_HEIR[1]);mv("coins3",...COIN_HEIR[2])},go);
     snd("coins",go+100);snd("coins",go+1300);snd("fanfare",glad);snd("tear",torn);
@@ -993,24 +1037,32 @@ function show(n){
     later(()=>op("fee",1),tip);
     later(()=>mv("fee",SX+75,cy),tip+200);
     later(()=>{$("feeTag").setAttribute("transform",`translate(${SX+75},${cy-21})`);op("feeTag",1)},glad);joy(1,glad)}
-    later(()=>{op("rejTag",1);tear(LAY[3][0],...NEAR[0]);tear(LAY[3][2],...NEAR[1])},torn);
+    later(()=>{op("rejTag",1);tear(LAY[LAY_SEND][0],...NEAR[0]);tear(LAY[LAY_SEND][2],...NEAR[1])},torn);
     // the delivery is done: the old, invalidated copies go away
-    later(()=>{for(let k=0;k<3;k++)for(let i=0;i<3;i++)op(E(k,i),0)},gone);
+    if(!SIMPLE)later(()=>{for(let k=0;k<3;k++)for(let i=0;i<3;i++)op(E(k,i),0)},7500);
   }
+  if(n===99){
+    // closing step: the delivery is done (accepted copy in the block, coins at the heirs, tip and joy), nothing moves
+    show1("newblock");show1("nbTag");show1("tx");jump(E(LAY_SEND,1),...BLOCK,1);
+    jump("coins",...COIN_HEIR[0],1);jump("coins2",...COIN_HEIR[1],1);
+    {const cy=RYI(1)+13;jump("fee",SX+75,cy,1);$("feeTag").setAttribute("transform",`translate(${SX+75},${cy-21})`);show1("feeTag");
+     $("joyWE").setAttribute("transform",`translate(${SX+150},${RYI(1)-2})`);show1("joyHeir");show1("joyWE")}
+    later(()=>musicFade(4),1500);
+  }else musicStart();
   $("qslide").parentNode.classList.toggle("ask",n===13);
-  voiceStart(n);
+  voiceStart(i);
   if(n===14){
     // two of the three will-executors are off: the one that is left is enough
-    const off=()=>[0,1].forEach(r=>{op("rack"+r,.35);op(r?"offTag1":"offTag",1);$("rack"+r).querySelectorAll(".led").forEach(l=>l.setAttribute("fill","var(--led-off)"));
-      op(E(3,r),.25)});if(VT)later(off,VX(3000,3340,2890));else off();
-    snd("powerdown",VT?VX(3000,3340,2890):200);
-    if(VT)later(()=>deliver([2]),VX(6940,7670,7840));else deliver([2]);
+    [0,1].forEach(r=>{op("rack"+r,.35);op(r?"offTag1":"offTag",1);$("rack"+r).querySelectorAll(".led").forEach(l=>l.setAttribute("fill","var(--led-off)"));
+      op(E(LAY_SEND,r),.25)});
+    snd("powerdown",200);
+    deliver([2]);
   }
-  $("eyebrow").textContent=T("stepOf").replace("{n}",n+1).replace("{m}",STEPS.length);
-  $("cap-t").textContent=STEPS[n][0];$("cap-d").textContent=STEPS[n][1];
-  $("cap-n").textContent=STEPS[n][2]||"";
-  for(let i=0;i<STEPS.length;i++){const d=$("dot"+i);d.classList.toggle("done",i<n);
-    if(i===n)d.setAttribute("aria-current","step");else d.removeAttribute("aria-current")}
+  $("eyebrow").textContent=T("stepOf").replace("{n}",i+1).replace("{m}",STEPS.length);
+  $("cap-t").textContent=STEPS[i][0];$("cap-d").textContent=STEPS[i][1];
+  $("cap-n").textContent=STEPS[i][2]||"";
+  for(let j=0;j<STEPS.length;j++){const d=$("dot"+j);d.classList.toggle("done",j<i);
+    if(j===i)d.setAttribute("aria-current","step");else d.removeAttribute("aria-current")}
 }
 const lbl=k=>T(k).replace(/^[^\p{L}]+/u,"");
 function setPlay(on){$("play").textContent=on?"❚❚":"▶";$("play").title=lbl(on?"pause":"play");$("play").setAttribute("aria-label",lbl(on?"pause":"play"))}
@@ -1020,16 +1072,16 @@ $("prev").onclick=()=>{stop();show((step+STEPS.length-1)%STEPS.length)};
 // time on each step: attentive reading (about 3 words a second, note included) plus 2.5 s to see the drawing; never under 9 s (the longest animation), the question slide 6 s
 // PACE: owner decision 2026-10-19, all the times halved (1 = the reading times above)
 const PACE=.5;
-const dwell=n=>Math.round(PACE*Math.max(n===13?6000:9000,Math.round((STEPS[n][0]+" "+STEPS[n][1]+" "+(STEPS[n][2]||"")).split(/\s+/).length/3*1000)+2500));
+const dwell=n=>Math.round(PACE*Math.max(IDS[n]===13?6000:9000,Math.round((STEPS[n][0]+" "+STEPS[n][1]+" "+(STEPS[n][2]||"")).split(/\s+/).length/3*1000)+2500));
 // voice version: a narrated step lasts its clip plus VO_GAP; otherwise the reading time above
 const dwellV=n=>voiceOn()?Math.round(VO_LEN[LANG][n]*1000)+VO_GAP:dwell(n);
-function auto(){timer=setTimeout(()=>{if(step===STEPS.length-1){stop();return}show(step+1);auto()},dwellV(step))}
+function auto(){timer=setTimeout(()=>{if(step===STEPS.length-1){clearTimeout(timer);timer=null;setPlay(false);return}show(step+1);auto()},dwellV(step))}
 $("play").onclick=()=>{if(timer){stop();return}setPlay(true);show(step);auto()};
 $("restart").onclick=()=>{stop();setPlay(true);show(0);auto()};
 document.addEventListener("keydown",e=>{if(e.key==="ArrowRight")$("next").click();if(e.key==="ArrowLeft")$("prev").click()});
 function applyLang(l){
   // every text of the page and of the drawing in the chosen language; the step shown is drawn again
-  LANG=l;STEPS=STEPS_L[l];document.documentElement.lang=l;document.title=T("title");
+  LANG=l;STEPS=story(l);document.documentElement.lang=l;document.title=T("title");
   document.querySelectorAll("[data-k]").forEach(e=>{e.textContent=T(e.dataset.k)});
   // short notes inside the drawing are broken into lines of at most N characters
   document.querySelectorAll("[data-wrap]").forEach(e=>{
@@ -1060,7 +1112,7 @@ function fitCard(){
   const keep=ids.map(id=>$(id).textContent);
   card.style.minHeight="";
   let max=0;
-  Object.values(STEPS_L).forEach(L=>L.forEach(st=>{
+  Object.keys(STEPS_L).map(story).forEach(L=>L.forEach(st=>{
     ids.forEach((id,i)=>{$(id).textContent=st[i]||""});
     max=Math.max(max,card.offsetHeight)}));
   ids.forEach((id,i)=>{$(id).textContent=keep[i]});
@@ -1070,6 +1122,6 @@ fitCard();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitCard);
 let fitT;window.addEventListener("resize",()=>{clearTimeout(fitT);fitT=setTimeout(fitCard,150)});
 // the animation starts by itself, as if play had been pressed (not when the viewer asked the system for reduced motion)
-{setPlay(true);auto()}   // always plays, also with "reduce motion" on (owner, 2026-10-23)
+{setPlay(true);auto()}   // always plays, also with "reduce motion" on (owner, 2026-10-23/25: phones)
 })();
 </script>

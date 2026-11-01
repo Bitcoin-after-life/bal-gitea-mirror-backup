@@ -399,6 +399,40 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* ---------- Lighter hero (owner, 2026-10-29) ----------
+   Opt-in via the .hero-light class on header.hero: the two notes lose their
+   white boxes and the four stats lose their grey tiles, so the top of the page
+   has fewer framed blocks. Existing hero rules are left untouched. */
+header.hero.hero-light .fiat-bar{background:transparent;border:0;border-left:2px solid var(--accent);
+  border-radius:0;box-shadow:none;padding:2px 0 2px 14px}
+header.hero.hero-light .fiat-bar.latest-post{margin-top:14px}
+header.hero.hero-light .hero-card{box-shadow:var(--shadow)}
+header.hero.hero-light .hero-card .stats{gap:0 18px;padding-top:14px}
+header.hero.hero-light .hero-card .stat{background:transparent;border:0;border-top:1px solid var(--line);
+  border-radius:0;padding:12px 4px 6px}
+/* ---------- Animated guides card (under the hero) ----------
+   Links to the two narrated animations in /how-it-works/. Only the cover image
+   is loaded here (lazy); the pages and their audio load only when opened. */
+.how-strip{padding:40px 0 44px;background:var(--panel);border-bottom:1px solid var(--line)}
+/* white band, no frame around the card: breaks the long light-grey block under the hero (owner, 2026-10-29) */
+.how-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:center;
+  background:transparent;border:0;padding:0}
+.how-cover{position:relative;display:block;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow-lg)}
+.how-cover img{display:block;width:100%;height:auto}
+.how-play{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;
+  background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:24px;padding-left:4px;box-shadow:0 6px 18px rgba(45,108,223,.35);transition:transform .15s}
+.how-cover:hover .how-play{transform:scale(1.08)}
+.how-text h2{font-family:var(--display);font-size:26px;font-weight:600;letter-spacing:-.01em;margin:0 0 10px}
+.how-text p{color:var(--muted);font-size:16px;margin:0 0 18px}
+.how-actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.how-pills{display:flex;flex-wrap:wrap;gap:8px}
+.how-pills span{font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--accent-soft);
+  border:1px solid #cfe0fb;border-radius:999px;padding:3px 10px}
+@media (max-width:760px){
+  .how-card{grid-template-columns:1fr;gap:18px}
+  .how-text h2{font-size:23px}
+}
 </style>
 <script type="application/ld+json">
 {
@@ -511,7 +545,7 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
 </div>
 
 <!-- ===== Hero ===== -->
-<header class="hero" id="top">
+<header class="hero hero-light" id="top">
   <div class="wrap">
     <div>
       <span class="badge">● Open-source · Bitcoin-only · No custodian</span>
@@ -554,6 +588,28 @@ footer .built{font-size:13px;color:var(--muted);margin-top:8px}
 </header>
 
 <main>
+
+<!-- ===== Animated guides: card linking to /how-it-works/ (no audio or script loaded here) ===== -->
+<section class="section how-strip" id="guides">
+  <div class="wrap">
+    <div class="how-card">
+      <a class="how-cover" href="/how-it-works/simple.html" aria-label="Play the quick tour of the BAL protocol">
+        <img src="/how-it-works/cover.jpg" alt="" loading="lazy" width="1200" height="630">
+        <span class="how-play" aria-hidden="true">&#9654;</span>
+      </a>
+      <div class="how-text">
+        <span class="eyebrow">Animated guide</span>
+        <h2>See the protocol in action</h2>
+        <p>Two animated guides, narrated in English, Italian and Spanish. Pick the one that fits your time.</p>
+        <div class="how-actions">
+          <a class="btn" href="/how-it-works/simple.html">&#9654; Quick tour · 8 steps, 3 min</a>
+          <a class="btn ghost" href="/how-it-works/">Full guide · 15 steps</a>
+        </div>
+        <div class="how-pills"><span>EN · IT · ES</span><span>No tracking</span></div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <!-- ===== Key features ===== -->
 <section class="section alt" id="features">

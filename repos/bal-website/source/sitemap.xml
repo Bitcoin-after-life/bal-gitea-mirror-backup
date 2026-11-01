@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://bitcoin-after.life/index.html</loc><lastmod>2026-10-11</lastmod><priority>1.0</priority></url>
+  <url><loc>https://bitcoin-after.life/index.html</loc><lastmod>2026-10-29</lastmod><priority>1.0</priority></url>
+  <url><loc>https://bitcoin-after.life/how-it-works/</loc><lastmod>2026-10-29</lastmod><priority>0.7</priority></url>
+  <url><loc>https://bitcoin-after.life/how-it-works/simple.html</loc><lastmod>2026-10-29</lastmod><priority>0.7</priority></url>
   <url><loc>https://bitcoin-after.life/manifesto.html</loc><lastmod>2026-09-05</lastmod><priority>0.8</priority></url>
   <url><loc>https://bitcoin-after.life/blog.html</loc><lastmod>2026-10-11</lastmod><priority>0.6</priority></url>
   <url><loc>https://bitcoin-after.life/blog/bal-is-a-protocol-not-a-plugin.html</loc><lastmod>2026-10-11</lastmod><priority>0.5</priority></url>
