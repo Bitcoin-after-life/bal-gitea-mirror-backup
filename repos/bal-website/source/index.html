@@ -433,6 +433,24 @@ header.hero.hero-light .hero-card .stat{background:transparent;border:0;border-t
   .how-card{grid-template-columns:1fr;gap:18px}
   .how-text h2{font-size:23px}
 }
+/* ---------- Will-Executors strip (under the animated guide) ----------
+   The former "beating heart" section, merged with the invitation to the WeList
+   (2026-11-06). Text left, a drawn mini leaderboard right: inline SVG, no image
+   file, no animation. The WeList API sends no CORS headers, so nothing here is
+   live by design. */
+.we-strip{padding:44px 0 48px;border-bottom:1px solid var(--line)}
+.we-card{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:32px;align-items:center}
+.we-text h2{font-family:var(--display);font-size:26px;font-weight:600;letter-spacing:-.01em;margin:0 0 10px}
+.we-text p{color:var(--muted);font-size:16px;margin:0 0 14px}
+.we-actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 12px}
+.we-links{font-size:13px;color:var(--muted)}
+.we-links a{color:var(--accent);text-decoration:none}
+.we-links a:hover{text-decoration:underline}
+.we-art{display:block;width:100%;height:auto;border-radius:var(--radius);border:1px solid var(--line);box-shadow:var(--shadow-lg);background:#f7f9fc}
+@media (max-width:760px){
+  .we-card{grid-template-columns:1fr;gap:18px}
+  .we-text h2{font-size:23px}
+}
 </style>
 <script type="application/ld+json">
 {
@@ -568,7 +586,7 @@ header.hero.hero-light .hero-card .stat{background:transparent;border:0;border-t
       <div class="fiat-bar latest-post">
         <span class="btc">📄</span>
         <span class="t"><strong>New on the blog:</strong>
-          <a href="blog/bal-is-a-protocol-not-a-plugin.html">The plugin is just the first door — BAL is a protocol, and Will-Executors are its foundation</a></span>
+          <a href="blog/binance-hack-not-your-keys.html">Six billion dollars in twenty minutes — what the Binance hack proves about keys</a></span>
       </div>
     </div>
 
@@ -607,6 +625,73 @@ header.hero.hero-light .hero-card .stat{background:transparent;border:0;border-t
         </div>
         <div class="how-pills"><span>EN · IT · ES</span><span>No tracking</span></div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Will-Executors: the "beating heart" text merged with the WeList invitation (drawn, not live) ===== -->
+<section class="section we-strip" id="executors">
+  <div class="wrap">
+    <div class="we-card">
+      <div class="we-text">
+        <span class="eyebrow">Will-Executors</span>
+        <h2>The beating heart of the protocol</h2>
+        <p>Independent Will-Executor servers keep a copy of your will and broadcast it on the delivery date. Each inheritance transaction carries a fee: the first server to get it into a block earns it. These incentives are substantial, grow with the value of Bitcoin, and attract more and more servers over time.</p>
+        <p>Anybody can run a Will-Executor: the code is open source. They are listed on the public <strong>WeList</strong> directory and shown directly inside the plugin.</p>
+        <div class="we-actions">
+          <a class="btn" href="https://welist.bitcoin-after.life/">See the Will-Executor list &nearr;</a>
+          <a class="btn ghost" href="https://welist.bitcoin-after.life/terms.html">Run your own &middot; earn fees</a>
+        </div>
+        <p class="we-links">Manual: <a href="https://bitcoin-after.life/docs/will-executors/what-they-are.html">what Will-Executors are</a> &middot; <a href="https://bitcoin-after.life/docs/will-executors/running-a-server.html">running a Will-Executor</a></p>
+      </div>
+      <svg class="we-art" viewBox="0 0 560 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="we-art-t">
+        <title id="we-art-t">The Will-Executor list: independent servers ranked by score, open to anyone</title>
+        <rect x="20" y="22" width="520" height="276" rx="14" fill="#fff" stroke="#dfe4ea"/>
+        <text x="40" y="52" font-size="12" fill="#5b6672" font-family="ui-monospace,Menlo,Consolas,monospace" letter-spacing="1">WELIST.BITCOIN-AFTER.LIFE</text>
+        <text x="40" y="76" font-size="17" font-weight="600" fill="#1a2027">Will-Executor List</text>
+        <rect x="414" y="40" width="106" height="24" rx="12" fill="#e3f4ea"/>
+        <circle cx="430" cy="52" r="4" fill="#1f9d57"/><text x="440" y="56" font-size="11.5" font-weight="600" fill="#1f9d57">servers online</text>
+        <line x1="40" y1="92" x2="520" y2="92" stroke="#dfe4ea"/>
+        
+      <g>
+        <circle cx="46" cy="122" r="13" fill="#f7931a"/><text x="46" y="126.5" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">1</text>
+        <rect x="72" y="109" width="40" height="26" rx="6" fill="#fff" stroke="#2d6cdf" stroke-width="1.5"/>
+        <g stroke="#2d6cdf" stroke-width="1.5" stroke-linecap="round"><path d="M80 117v10M85 117v10M90 117v10M95 117v10"/></g>
+        <circle cx="104" cy="122" r="2.5" fill="#1f9d57"/>
+        <text x="124" y="119" font-size="13" font-weight="600" fill="#1a2027">Will-executor 1</text>
+        <g><circle class="dot" cx="128" cy="132" r="3.5" fill="#1f9d57"/><text x="137" y="135.5" font-size="10.5" fill="#5b6672">online</text></g>
+        <rect x="300" y="116" width="190" height="12" rx="6" fill="#e6eefc"/>
+        <rect class="bar b1" x="300" y="116" width="182" height="12" rx="6" fill="#2d6cdf"/>
+        <text x="510" y="126" font-size="11" fill="#5b6672" font-family="ui-monospace,Menlo,Consolas,monospace">score</text>
+      </g>
+        
+      <g>
+        <circle cx="46" cy="172" r="13" fill="#eceff3"/><text x="46" y="176.5" text-anchor="middle" font-size="12" font-weight="700" fill="#5b6672">2</text>
+        <rect x="72" y="159" width="40" height="26" rx="6" fill="#fff" stroke="#2d6cdf" stroke-width="1.5"/>
+        <g stroke="#2d6cdf" stroke-width="1.5" stroke-linecap="round"><path d="M80 167v10M85 167v10M90 167v10M95 167v10"/></g>
+        <circle cx="104" cy="172" r="2.5" fill="#1f9d57"/>
+        <text x="124" y="169" font-size="13" font-weight="600" fill="#1a2027">Will-executor 2</text>
+        <g><circle class="dot" cx="128" cy="182" r="3.5" fill="#1f9d57"/><text x="137" y="185.5" font-size="10.5" fill="#5b6672">online</text></g>
+        <rect x="300" y="166" width="190" height="12" rx="6" fill="#e6eefc"/>
+        <rect class="bar b2" x="300" y="166" width="138" height="12" rx="6" fill="#2d6cdf"/>
+        <text x="510" y="176" font-size="11" fill="#5b6672" font-family="ui-monospace,Menlo,Consolas,monospace">score</text>
+      </g>
+        
+      <g>
+        <circle cx="46" cy="222" r="13" fill="#eceff3"/><text x="46" y="226.5" text-anchor="middle" font-size="12" font-weight="700" fill="#5b6672">3</text>
+        <rect x="72" y="209" width="40" height="26" rx="6" fill="#fff" stroke="#2d6cdf" stroke-width="1.5"/>
+        <g stroke="#2d6cdf" stroke-width="1.5" stroke-linecap="round"><path d="M80 217v10M85 217v10M90 217v10M95 217v10"/></g>
+        <circle cx="104" cy="222" r="2.5" fill="#1f9d57"/>
+        <text x="124" y="219" font-size="13" font-weight="600" fill="#1a2027">Will-executor 3</text>
+        <g><circle class="dot" cx="128" cy="232" r="3.5" fill="#1f9d57"/><text x="137" y="235.5" font-size="10.5" fill="#5b6672">online</text></g>
+        <rect x="300" y="216" width="190" height="12" rx="6" fill="#e6eefc"/>
+        <rect class="bar b3" x="300" y="216" width="104" height="12" rx="6" fill="#2d6cdf"/>
+        <text x="510" y="226" font-size="11" fill="#5b6672" font-family="ui-monospace,Menlo,Consolas,monospace">score</text>
+      </g>
+        <rect x="40" y="252" width="480" height="32" rx="8" fill="#e6eefc" stroke="#2d6cdf" stroke-dasharray="4 3"/>
+        <circle cx="62" cy="268" r="9" fill="#2d6cdf"/><path d="M62 263v10M57 268h10" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+        <text x="80" y="272.5" font-size="12.5" font-weight="600" fill="#2d6cdf">Your server here: open to anyone, earns fees</text>
+      </svg>
     </div>
   </div>
 </section>
@@ -686,19 +771,6 @@ header.hero.hero-light .hero-card .stat{background:transparent;border:0;border-t
 </section>
 
 <!-- ===== Will-Executors ===== -->
-<section class="section alt" id="executors">
-  <div class="wrap prose">
-    <span class="eyebrow">Will-Executors</span>
-    <h2>The beating heart of the protocol</h2>
-    <p>The economic incentive that makes all this possible is a fee included in each inheritance transaction. It is paid when the Will-Executor transmits the inheritance transaction to the nodes, and is therefore inserted into the block. The first one to send the transaction to the nodes wins the inheritance fee.</p>
-    <p>We expect the BAL Protocol to succeed thanks to these incentives. They are <strong>substantial and grow with the value of Bitcoin over time</strong>, and they are attractive to more and more servers joining the inheritance transactions with a prospect of medium- to long-term gains.</p>
-    <p>Anybody can create a Will-Executor server to contribute to the protocol and earn commissions, since the code is available as open source. Read more in the manual: <a href="https://bitcoin-after.life/docs/will-executors/what-they-are.html">what Will-Executors are</a> and <a href="https://bitcoin-after.life/docs/will-executors/running-a-server.html">running a Will-Executor</a>.</p>
-    <div class="callout">
-      <span class="k">📋</span>
-      <p>Will-Executors are listed on the public <strong>WeList</strong> directory and shown directly inside the plugin. <a href="https://welist.bitcoin-after.life/">Browse the Will-Executor List →</a></p>
-    </div>
-  </div>
-</section>
 
 <!-- ===== Components / Plugin ===== -->
 <section class="section" id="plugin">
@@ -849,6 +921,13 @@ header.hero.hero-light .hero-card .stat{background:transparent;border:0;border-t
     <div class="grid cols-3">
 
       <article class="card">
+        <div class="chips"><span class="chip">1 November 2026</span></div>
+        <h3 style="margin-top:12px"><a href="blog/binance-hack-not-your-keys.html">Six billion dollars in twenty minutes: what the Binance hack proves about keys</a></h3>
+        <p>Hackers took $6.3 billion from Binance in about twenty minutes. The stolen stablecoins were frozen with a click; the bitcoin, nobody could touch. What the biggest theft in history proves about custody, freezable money and why BAL exists.</p>
+        <a class="more" href="blog/binance-hack-not-your-keys.html">Read the article →</a>
+      </article>
+
+      <article class="card">
         <div class="chips"><span class="chip">11 October 2026</span></div>
         <h3 style="margin-top:12px"><a href="blog/bal-is-a-protocol-not-a-plugin.html">The plugin is just the first door: BAL is a protocol, and Will-Executors are its foundation</a></h3>
         <p>The Electrum plugin is only the first way to use Bitcoin After Life. The protocol underneath, and the Will-Executors that run it, can carry much more than inheritance: recurring payments, instalments, and whatever comes next.</p>
@@ -860,13 +939,6 @@ header.hero.hero-light .hero-card .stat{background:transparent;border:0;border-t
         <h3 style="margin-top:12px"><a href="blog/should-you-tell-your-family-about-your-bitcoin.html">Should you tell your family about your bitcoin? What they need to know, and what they don't</a></h3>
         <p>Your family doesn't need your seed, your balance or your passwords. They need to know one thing: that your bitcoin will reach them, and how.</p>
         <a class="more" href="blog/should-you-tell-your-family-about-your-bitcoin.html">Read the article →</a>
-      </article>
-
-      <article class="card">
-        <div class="chips"><span class="chip">26 September 2026</span></div>
-        <h3 style="margin-top:12px"><a href="blog/proof-of-life.html">Proof of life without surveillance: how your wallet tells the protocol you're still here</a></h3>
-        <p>BAL never tries to detect death. Why updating a will costs nothing while postponing it costs a transaction — and why the only proof of life the protocol ever sees is your own signature.</p>
-        <a class="more" href="blog/proof-of-life.html">Read the article →</a>
       </article>
 
     </div>

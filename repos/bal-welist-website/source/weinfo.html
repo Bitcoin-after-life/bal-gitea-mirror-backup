@@ -1,103 +1,315 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bal Server List</title>
-    <link rel="icon" href="Logo_nero.ico" type="image/x-icon">
-    <script src="/qrcode.min.js"></script>
-    <script src="/purify.min.js"></script>
-    <script src="/bal.js"></script>
-  </head>
-  <style>
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      background-color: #f2f2f2;
-    }
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-    span {
-      margin-left:10px;
-    }
-  </style>  
-  <body>
-    <div align="center">
-      <a href="/"><img alt="BAL LOGO" src="/Logo_nero.png"></a>
-      <h2 id="wename">&nbsp;</h2>
-      <h3 id="weinfo">&nbsp;</h3>
-      <h4 id="wechain">&nbsp;</h4>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Will Executor — Server page</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/Logo_nero.ico" type="image/x-icon">
+<script src="/purify.min.js"></script>
+<script src="/bal.js"></script>
+<!--
+  Server detail page, restyled 2026-11-06 in the look of index.html (same colour
+  variables and type). Deliberately light: inline CSS only, no new script
+  (qrcode.min.js was loaded and never used, so it is gone). The data flow is
+  unchanged: fetchDataAndPopulateTable (bal.js) reads /weinfodata/<chain>/<id>
+  with ?page/?limit and draws the prev/next links into #paginator; the payment
+  banner polls the same endpoint until the deposit is credited.
+-->
+<style>
+:root{
+  --maxw:1120px;--radius:10px;
+  --bg:#eef1f4;--panel:#ffffff;--ink:#1a2027;--muted:#5b6672;
+  --line:#dfe4ea;--line-strong:#cbd2da;
+  --accent:#2d6cdf;--accent-soft:#e6eefc;
+  --ok:#1f9d57;--ok-soft:#e3f4ea;--off:#9aa4b0;--off-soft:#eceff3;
+  --display:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(20,30,50,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+a{color:var(--accent)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+.mono{font-family:var(--mono)}
+
+header.hero{padding:28px 0 22px;border-bottom:1px solid var(--line);background:var(--panel)}
+.hero .wrap{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit}
+.brand .mark{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;background:#fff}
+.brand .mark img{width:30px;height:30px;display:block}
+.brand h1{font-family:var(--display);font-size:18px;font-weight:600;margin:0;letter-spacing:-.01em}
+.brand .sub{color:var(--muted);font-size:13px}
+.back-btn{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;border:1px solid var(--line-strong);
+  background:var(--panel);color:var(--accent);font-weight:600;font-size:14px;text-decoration:none;box-shadow:var(--shadow)}
+.back-btn:hover{border-color:var(--accent)}
+.back-btn svg{width:18px;height:18px}
+
+main{padding:28px 0 40px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 24px}
+.server .url{font-family:var(--mono);font-size:22px;font-weight:600;word-break:break-all;margin:0 0 6px}
+.server .info{color:var(--muted);margin:0 0 14px}
+.badges{display:flex;flex-wrap:wrap;gap:8px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);padding:4px 10px;border-radius:999px;
+  background:var(--off-soft);color:var(--muted);border:1px solid var(--line)}
+.badge.ok{background:var(--ok-soft);color:var(--ok);border-color:#bfe3cd}
+.badge.ok::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.badge.bad{background:#fdecec;color:#b42318;border-color:#f5c2c0}
+.badge.bad::before{content:"";width:8px;height:8px;border-radius:50%;background:#b42318}
+
+#wepayment{display:none;margin:16px 0 0;padding:10px 14px;border-radius:8px;font-weight:600;font-size:14px}
+
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:20px;margin-top:20px}
+.sec-title{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 12px}
+.expiry .big{font-family:var(--display);font-size:32px;font-weight:600;line-height:1.1;margin:0}
+.expiry .days{color:var(--muted);font-size:13px;margin:2px 0 14px}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:13px}
+.kv div{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:8px}
+.kv span{color:var(--muted)}
+.kv b{font-family:var(--mono);font-weight:600}
+.open{color:var(--ok)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--bg)}
+.tile .n{font-family:var(--display);font-size:22px;font-weight:600;line-height:1.1}
+.tile .l{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.tile.wide{grid-column:1 / -1;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.tile.wide .n{font-size:13px;font-family:var(--mono)}
+
+.rounds{margin-top:20px;padding:0;overflow:hidden}
+.rounds .head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 24px;border-bottom:1px solid var(--line)}
+.rounds .head h2{font-family:var(--display);font-size:16px;margin:0}
+.rounds .head .note{color:var(--muted);font-size:13px}
+.pager{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:13px;color:var(--muted)}
+#paginator a{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid var(--line-strong);
+  border-radius:8px;background:var(--panel);color:var(--ink);text-decoration:none;font-weight:600}
+#paginator a:hover{border-color:var(--accent);color:var(--accent)}
+.pg-off{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid var(--line);border-radius:8px;color:var(--off)}
+.pg-label{padding:0 4px}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;
+  padding:10px 10px;border-bottom:1px solid var(--line);background:#fafbfc;white-space:nowrap}
+td{padding:10px 10px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--mono)}
+td.hash{font-family:var(--mono);color:var(--muted);font-size:12px;letter-spacing:-.01em}
+.pos-1{color:var(--ok);font-weight:600}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 24px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.btn-ghost{font:inherit;font-size:13px;text-decoration:none;padding:8px 12px;border-radius:8px;border:1px solid var(--line-strong);
+  background:var(--panel);color:var(--ink);display:inline-flex;gap:7px;align-items:center}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+
+footer{border-top:1px solid var(--line);margin-top:32px;padding:24px 0;color:var(--muted);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+footer a{color:var(--accent);text-decoration:none}
+
+@media (max-width:760px){
+  .grid2{grid-template-columns:1fr}
+  .tiles{grid-template-columns:repeat(2,1fr)}
+  .server .url{font-size:18px}
+  .expiry .big{font-size:28px}
+}
+</style>
+</head>
+<body>
+
+  <header class="hero">
+    <div class="wrap">
+      <a class="brand" href="/">
+        <span class="mark"><img alt="Bitcoin After Life" src="/Logo_nero.png"></span>
+        <span><h1>Will Executor — Server List</h1><span class="sub">Bitcoin After Life · server page</span></span>
+      </a>
+      <a class="back-btn" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 17l-5-5 5-5"/><path d="M6 12h6"/><path d="M15 6h4M15 12h4M15 18h4"/></svg>Back to the server list</a>
     </div>
-    <div style="float:left;border:1;margin-right:50px;">
-      <div><span>Version:</span><span id="weversion">&nbsp;</span></div>
-      <div><span>Fees:</span><span id="wefees">&nbsp;</span></div>
-      <div><span>Tld:</span><span id="wetld">&nbsp;</span></div>
-      <div><span>Last Update:</span><span id="weupdate">&nbsp;</span></div>
+  </header>
+
+  <main class="wrap">
+
+    <section class="card server">
+      <p class="url" id="wename">&nbsp;</p>
+      <p class="info" id="weinfo">&nbsp;</p>
+      <div class="badges">
+        <span class="badge" id="wechain">&nbsp;</span>
+        <span class="badge"><span>v</span><span id="weversion">&nbsp;</span></span>
+        <span class="badge" id="westatus-badge"><span id="westatus">&nbsp;</span></span>
+      </div>
+      <div id="wepayment"></div>
+    </section>
+
+    <div class="grid2">
+      <section class="card expiry">
+        <p class="sec-title">Listing</p>
+        <p class="big" id="weexpiry">&nbsp;</p>
+        <p class="days" id="wedays">&nbsp;</p>
+        <div class="kv">
+          <div><span>Renewal window</span><b id="wewindow">—</b></div>
+          <div><span>Balance</span><b id="webalance">—</b></div>
+          <div><span>Donations</span><b id="wedonations">—</b></div>
+          <div><span>Domain</span><b id="wetld">—</b></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <p class="sec-title">Activity</p>
+        <div class="tiles">
+          <div class="tile"><div class="n" id="wepoints">—</div><div class="l">Points</div></div>
+          <div class="tile"><div class="n" id="wewin">—</div><div class="l">Wins</div></div>
+          <div class="tile"><div class="n" id="wefees">—</div><div class="l">Fee (sats)</div></div>
+          <div class="tile"><div class="n" id="weheight">—</div><div class="l">Height</div></div>
+          <div class="tile wide"><div class="l" style="margin:0">Last update</div><div class="n" id="weupdate">—</div></div>
+        </div>
+      </section>
     </div>
-    <div style="float:left;border:1;margin-right:50px;">
-      <div><span>Height:</span><span id="weheight">&nbsp;</span></div>
-      <div><span>Points:</span><span id="wepoints">&nbsp;</span></div>
-      <div><span>Win:</span><span id="wewin">&nbsp;</span></div>
+
+    <section class="card rounds">
+      <div class="head">
+        <div><h2>WeTime rounds</h2><div class="note">Each round: the block hash sent by this server and how fast it was. Chain: <span class="mono" id="chainth"></span>. The full list is in the download below.</div></div>
+        <!-- The API supports page offsets; bal.js draws the prev/next links here. -->
+        <div class="pager" id="paginator"></div>
+      </div>
+      <div class="table-wrap">
+        <table id="wetimes">
+          <thead>
+            <tr>
+              <th class="num">Height</th>
+              <th>Block hash</th>
+              <th>Time</th>
+              <th class="num">Delay</th>
+              <th class="num">Position</th>
+              <th class="num">Participants</th>
+              <th class="num">Points</th>
+            </tr>
+          </thead>
+          <tbody><!-- rows from the script --></tbody>
+        </table>
+      </div>
+      <div class="foot">
+        <span>Points reward fast answers within the same block; they only break ties in the list.</span>
+        <a class="btn-ghost" href="" id="download">&#8595; Download JSON</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Bitcoin After Life — Will Executor List</span>
+      <a href="/">&larr; Server list</a>
+      <a href="/terms.html">Terms</a>
+      <a href="mailto:welist@bitcoin-after.life">welist@bitcoin-after.life</a>
     </div>
-    <div style="border:1;margin-right:50px;">
-      <div><span>Balance:</span><span id="webalance">&nbsp;</span></div>
-      <div><span>Donations:</span><span id="wedonations">&nbsp;</span></div>
-      <div><span>Status:</span><span id="westatus">&nbsp;</span></div>
-      <div><span>Expiry:</span><span id="weexpiry">&nbsp;</span></div>
-    </div>
-    <div>
-      <table id="wetimes">
-        <thead>
-          <tr>
-            <th colspan=5><span id="chainth"><!-- --></span>: <span id="paginator"></span></th>
-          </tr>
-          <tr>
-            <th>height</th>
-            <th>block hash</th>
-            <th>time</th>
-            <th>diff</th>
-            <th>position</th>
-            <th>participants</th>
-            <th>points</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- -->
-        </tbody>
-      </table>
-    </div>
-    <a href="" id="download">Download</a>
-    <script type="text/javascript"> 
+  </footer>
+
+    <script type="text/javascript">
+      // Payment banner: this page has a fixed address, so whoever paid can close the
+      // invoice and follow the deposit here. It asks the server data every 30 seconds
+      // until the server is listed. The status only moves forward, because
+      // unconfirmed_balance may go back to 0 before the deposit is credited.
+      const PAYMENT_POLL_MS = 30000;
+      const PAYMENT_POLL_MAX_MS = 24 * 60 * 60 * 1000;
+      const paymentStarted = Date.now();
+      let paymentTimer = null, paymentSeen = false, paymentAmount = 0, firstExpiry;
+
+      const fmt = n => (n != null ? Number(n).toLocaleString('en-US') : '—');
+      const pad = n => String(n).padStart(2, '0');
+      function fmtTime(d) {
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + ' ' +
+               pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      }
+
+      // Expiry card: the date big, the days left, the renewal window (from 6 months
+      // before expiry, Terms Section 1).
+      function showExpiry(expiryRaw) {
+        const expiry = (expiryRaw || '').slice(0, 10);
+        document.getElementById('weexpiry').textContent = expiry ? 'Expires ' + expiry : 'Not listed';
+        const daysEl = document.getElementById('wedays');
+        const winEl = document.getElementById('wewindow');
+        if (!expiry) { daysEl.textContent = 'No listing time: see the Terms to get listed.'; winEl.textContent = '—'; winEl.className = ''; return; }
+        const exp = new Date(expiry + 'T00:00:00Z');
+        const win = new Date(exp); win.setUTCMonth(win.getUTCMonth() - 6);
+        const days = Math.ceil((exp - Date.now()) / 86400000);
+        daysEl.textContent = days > 0 ? days + ' days of listing left' : 'Listing expired';
+        const open = Date.now() >= win.getTime() && days > 0;
+        winEl.textContent = open ? 'open now' : 'opens on ' + win.toISOString().slice(0, 10);
+        winEl.className = open ? 'open' : '';
+      }
+
+      function showPayment(text, ok) {
+        const box = document.getElementById('wepayment');
+        box.textContent = text;
+        box.style.display = 'block';
+        box.style.color = ok ? '#14703a' : '#7a5200';
+        box.style.background = ok ? '#e6f6ec' : '#fdf3dc';
+      }
+
+      function stopPayment() {
+        if (paymentTimer) clearInterval(paymentTimer);
+        paymentTimer = null;
+      }
+
+      async function pollPayment() {
+        if (Date.now() - paymentStarted > PAYMENT_POLL_MAX_MS) return stopPayment();
+        const path = window.location.pathname.split('/').filter(p => p !== '');
+        let data;
+        try {
+          const response = await fetch('/weinfodata/' + path[1] + '/' + path[2]);
+          if (!response.ok) return;
+          data = await response.json();
+        } catch (err) {
+          return;  // temporary network problem: try again at the next round
+        }
+        if (!data) return;
+        const expiry = data.expiry_date || null;
+        if (firstExpiry === undefined) firstExpiry = expiry;
+        const unconfirmed = Number(data.unconfirmed_balance) > 0;
+        const active = expiry && new Date(expiry.replace(' ', 'T') + 'Z') > new Date();
+        const bal = data.balance != null ? fmt(data.balance) : null;
+        const unc = data.unconfirmed_balance != null ? fmt(data.unconfirmed_balance) : null;
+        document.getElementById('webalance').textContent = bal ? (unc ? bal + ' (' + unc + ')' : bal) : '—';
+        showExpiry(expiry);
+        if (expiry && expiry !== firstExpiry) {
+          showPayment('✓ Payment confirmed: this server is now listed.', true);
+          stopPayment();
+        } else if (unconfirmed || paymentSeen) {
+          paymentSeen = true;
+          if (unconfirmed) paymentAmount = Number(data.unconfirmed_balance);
+          showPayment('Payment detected: ' + paymentAmount.toLocaleString('en-US') + ' sats, waiting for 3 confirmations (about 30 minutes). This page updates by itself.', false);
+        } else if (active) {
+          stopPayment();  // already listed and nothing incoming: no banner, nothing to follow
+        } else {
+          showPayment('Waiting for payment. This page updates by itself.', false);
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        paymentTimer = setInterval(pollPayment, PAYMENT_POLL_MS);
+        pollPayment();
+      });
+
       function getWeInfo(){
         const path = window.location.pathname.split('/').filter(p => p !== '');
         const we_id = path[2];
         const chain = path[1];
         const cdate=new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
         fetchDataAndPopulateTable('/weinfodata/'+chain+"/"+we_id, new URLSearchParams(),(data) => {
-          document.getElementById('wename').innerHTML     = DOMPurify.sanitize(data.url||'—');
-          document.getElementById('wechain').innerHTML    = DOMPurify.sanitize(data.chain||'—');
-          document.getElementById('weinfo').innerHTML     = DOMPurify.sanitize(data.info||'—');
-          document.getElementById('wefees').innerHTML     = data.base_fee != null ? data.base_fee : '—';
-          document.getElementById('weheight').innerHTML   = data.last_block != null ? data.last_block : '—';
-          document.getElementById('wepoints').innerHTML   = data.points != null ? data.points : '—';
-          document.getElementById('wewin').innerHTML      = data.count_win != null ? data.count_win : '—';
-          document.getElementById('wetld').innerHTML      = DOMPurify.sanitize(data.tld||'—');
-          const bal = data.balance != null ? data.balance : null;
-          const unc = data.unconfirmed_balance != null ? data.unconfirmed_balance : null;
-          document.getElementById('webalance').innerHTML  = bal ? (unc ? bal + ' (' + unc + ')' : bal) : '—';
-          document.getElementById('wedonations').innerHTML = data.donation != null ? data.donation : '—';
-          document.getElementById('weversion').innerHTML  = data.version||'—';
-          document.getElementById('weexpiry').innerHTML   = '<b>' + (data.expiry_date || '—') + '</b>';
-          document.getElementById('weupdate').innerHTML   = data.last_update || '—';
+          document.getElementById('wename').textContent    = data.url || '—';
+          document.title = (data.url || 'Server') + ' — Will Executor';
+          document.getElementById('wechain').textContent   = data.chain || chain;
+          document.getElementById('weinfo').textContent    = data.info || '';
+          document.getElementById('wefees').textContent    = fmt(data.base_fee);
+          document.getElementById('weheight').textContent  = fmt(data.last_block);
+          document.getElementById('wepoints').textContent  = fmt(data.points);
+          document.getElementById('wewin').textContent     = fmt(data.count_win);
+          document.getElementById('wetld').textContent     = data.tld || '—';
+          const bal = data.balance != null ? fmt(data.balance) : null;
+          const unc = data.unconfirmed_balance != null ? fmt(data.unconfirmed_balance) : null;
+          document.getElementById('webalance').textContent  = bal ? (unc ? bal + ' (' + unc + ')' : bal) : '—';
+          document.getElementById('wedonations').textContent = fmt(data.donation);
+          document.getElementById('weversion').textContent = data.version || '—';
+          document.getElementById('weupdate').textContent  = data.last_update || '—';
+          showExpiry(data.expiry_date);
           const statusMap = {
             'OK': 'Health check passed',
             'TIMEOUT': 'Connection timeout',
@@ -110,7 +322,8 @@
             'KO': 'Generic error'
           };
           const st = (data.status||'').split(':')[0];
-          document.getElementById('westatus').innerHTML   = statusMap[st] || '—';
+          document.getElementById('westatus').textContent = statusMap[st] || (data.status ? 'Unknown status' : '—');
+          document.getElementById('westatus-badge').className = 'badge ' + (st === 'OK' ? 'ok' : (st ? 'bad' : ''));
 
           const tableBody = document.querySelector('#wetimes tbody');
           tableBody.innerHTML ='';
@@ -118,36 +331,37 @@
             Object.entries(data.times).forEach(([key,wetime]) => {
               const row = document.createElement('tr');
               const d = new Date(wetime.time/1000);
+              const hash = DOMPurify.sanitize(wetime.blockHash||'');
+              const pos = wetime.position != null ? wetime.position + 1 : null;
               row.innerHTML = `
-                <td>${wetime.blockHeight != null ? wetime.blockHeight : '—'}</td>
-                <td>${DOMPurify.sanitize(wetime.blockHash||'—')}</td>
-                <td>${d}</td>
-                <td>${wetime.diff != null ? wetime.diff/1000000 + ' s' : '—'}</td>
-                <td>${wetime.position != null ? wetime.position+1 : '—'}</td>
-                <td>${wetime.participants != null ? wetime.participants : '—'}</td>
-                <td>${wetime.points != null ? wetime.points : '—'}</td>
+                <td class="num">${wetime.blockHeight != null ? fmt(wetime.blockHeight) : '—'}</td>
+                <td class="hash">${hash || '—'}</td>
+                <td>${fmtTime(d)}</td>
+                <td class="num">${wetime.diff != null ? (wetime.diff/1000000).toFixed(3) + ' s' : '—'}</td>
+                <td class="num ${pos === 1 ? 'pos-1' : ''}">${pos != null ? '#' + pos : '—'}</td>
+                <td class="num">${wetime.participants != null ? wetime.participants : '—'}</td>
+                <td class="num">${wetime.points != null ? wetime.points : '—'}</td>
               `;
               tableBody.appendChild(row);
             });
           } else {
-            tableBody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:#999">No rounds yet.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="7" style="padding:24px;text-align:center;color:var(--muted)">No rounds yet.</td></tr>';
           }
-          var prev=0;
-          var next=0;
-          if (data.times && data.times.length > 0){
-            prev = data.times[0].blockHeight+data.times.length;
-            next = data.times[data.times.length-1].blockHeight;
-            if (prev < 0 ){
-              prev = 0;
-            }
-          }
-
-          const paginator = {prev:prev,next:next};
-          return paginator;
+          const urlParams = new URLSearchParams(window.location.search);
+          const currentPage = Math.max(parseInt(urlParams.get('page') || '0', 10) || 0, 0);
+          const pageSize = Math.min(Number(limit) || 100, 100);
+          const hasNext = !!data.times && data.times.length >= pageSize;
+          return {
+            page: currentPage,
+            prev: Math.max(currentPage - 1, 0),
+            next: currentPage + 1,
+            hasPrev: currentPage > 0,
+            hasNext: hasNext,
+          };
         },{elementName:"download",fileName:"weinfo_"+cdate+".json",linkText:"download"})
-      } 
+      }
 
       getWeInfo();
     </script>
-  </body>
+</body>
 </html>

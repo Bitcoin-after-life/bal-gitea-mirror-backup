@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en" class="nojs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The $6 Billion Binance Hack and the Case for Self-Custody — Bitcoin After Life</title>
+<meta name="description" content="Hackers took $6.3 billion from Binance in twenty minutes. Issuers froze $3 billion of it with a click — the Bitcoin, nobody could. Why BAL is Bitcoin-only.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Bitcoin After Life">
+<meta property="og:title" content="The $6 Billion Binance Hack and the Case for Self-Custody — Bitcoin After Life">
+<meta property="og:description" content="Hackers took $6.3 billion from Binance in twenty minutes. Issuers froze $3 billion of it with a click — the Bitcoin, nobody could. Why BAL is Bitcoin-only.">
+<meta property="og:url" content="https://bitcoin-after.life/blog/binance-hack-not-your-keys.html">
+<meta property="og:image" content="https://bitcoin-after.life/blog/img/binance-hack-not-your-keys-cover.webp">
+<meta property="og:image:width" content="1600">
+<meta property="og:image:height" content="900">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@BitcoinAfterLif">
+<meta name="twitter:title" content="The $6 Billion Binance Hack and the Case for Self-Custody — Bitcoin After Life">
+<meta name="twitter:description" content="Hackers took $6.3 billion from Binance in twenty minutes. Issuers froze $3 billion of it with a click — the Bitcoin, nobody could. Why BAL is Bitcoin-only.">
+<meta name="twitter:image" content="https://bitcoin-after.life/blog/img/binance-hack-not-your-keys-cover.webp">
+<meta name="theme-color" content="#2d6cdf">
+<link rel="canonical" href="https://bitcoin-after.life/blog/binance-hack-not-your-keys.html">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Six Billion Dollars in Twenty Minutes: What the Binance Hack Proves About Keys",
+  "description": "Hackers took $6.3 billion from Binance in twenty minutes. Issuers froze $3 billion of it with a click — the Bitcoin, nobody could. Why BAL is Bitcoin-only.",
+  "image": "https://bitcoin-after.life/blog/img/binance-hack-not-your-keys-cover.webp",
+  "datePublished": "2026-11-01T18:00:00+01:00",
+  "dateModified": "2026-11-01T18:00:00+01:00",
+  "author": {
+    "@type": "Organization",
+    "name": "Bitcoin After Life",
+    "url": "https://bitcoin-after.life/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Bitcoin After Life",
+    "url": "https://bitcoin-after.life/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://bitcoin-after.life/pitura/logo/Logo_nero.svg"
+    }
+  },
+  "mainEntityOfPage": "https://bitcoin-after.life/blog/binance-hack-not-your-keys.html",
+  "inLanguage": "en"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Bitcoin After Life",
+      "item": "https://bitcoin-after.life/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Blog",
+      "item": "https://bitcoin-after.life/blog.html"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Six Billion Dollars in Twenty Minutes: What the Binance Hack Proves About Keys",
+      "item": "https://bitcoin-after.life/blog/binance-hack-not-your-keys.html"
+    }
+  ]
+}
+</script>
+<link rel="icon" type="image/x-icon" href="/pitura/ico/Logo_nero.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/pitura/ico/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/pitura/ico/favicon-16.png">
+<script>
+/* Runs before first paint: removes the `nojs` class set on <html>, so the
+   mobile menu button is only shown when it can actually work. */
+document.documentElement.classList.remove('nojs');
+</script>
+<style>
+:root{
+  --maxw:1120px;
+  --radius:10px;
+  --bg:#eef1f4;
+  --panel:#ffffff;
+  --ink:#1a2027;
+  --muted:#5b6672;
+  --line:#dfe4ea;
+  --line-strong:#cbd2da;
+  --accent:#2d6cdf;
+  --accent-soft:#e6eefc;
+  --display:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --body:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --shadow:0 1px 2px rgba(20,30,50,.05);
+  --shadow-lg:0 6px 20px rgba(20,30,50,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- Top bar (shared with home and manifesto) ---------- */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(150%) blur(8px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.topbar .logo{display:flex;align-items:center;gap:10px;font-family:var(--display);
+  font-weight:600;color:var(--ink)}
+.topbar .logo img{width:30px;height:30px;display:block}
+.topbar .logo span{font-size:15px;letter-spacing:-.01em}
+.topbar nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:13px;padding:7px 11px;border-radius:7px}
+.topbar nav a:hover{color:var(--ink);background:var(--accent-soft);text-decoration:none}
+.topbar nav a.active{color:var(--accent);font-weight:600;border:1px solid #cfe0fb;
+  background:var(--accent-soft)}
+.topbar .x{color:var(--ink);font-weight:600}
+
+.navtoggle{
+  display:none;margin-left:auto;width:44px;height:44px;flex:none;
+  align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:9px;
+  color:var(--ink);cursor:pointer;padding:0;
+}
+.navtoggle:hover{border-color:var(--accent);color:var(--accent)}
+.navtoggle .bars{display:block;width:18px;height:2px;background:currentColor;position:relative}
+.navtoggle .bars::before,.navtoggle .bars::after{
+  content:"";position:absolute;left:0;width:18px;height:2px;background:currentColor}
+.navtoggle .bars::before{top:-6px}
+.navtoggle .bars::after{top:6px}
+.navtoggle[aria-expanded="true"] .bars{background:transparent}
+.navtoggle[aria-expanded="true"] .bars::before{top:0;transform:rotate(45deg)}
+.navtoggle[aria-expanded="true"] .bars::after{top:0;transform:rotate(-45deg)}
+
+/* ---------- Footer (shared) ---------- */
+footer{border-top:1px solid var(--line);margin-top:56px;padding:34px 0 40px;
+  color:var(--muted);font-size:14px;background:var(--panel)}
+footer .sig{font-family:var(--display);font-weight:600;color:var(--ink);font-size:16px}
+footer .links{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0}
+footer .built{font-size:13px;color:var(--muted);margin-top:8px}
+
+@media (max-width:900px){
+  .navtoggle{display:inline-flex}
+  .topbar nav{
+    position:absolute;top:100%;left:0;right:0;
+    margin-left:0;display:none;flex-direction:column;gap:2px;flex-wrap:nowrap;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    box-shadow:var(--shadow-lg);padding:10px 20px 16px;
+  }
+  .topbar nav.open{display:flex}
+  .topbar nav a{font-size:15.5px;padding:0 12px;min-height:44px;
+    display:flex;align-items:center;border-radius:8px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/*
+  Without JavaScript the panel cannot be toggled, so the links are shown
+  inline. On narrow screens they wrap under the logo and the bar is allowed
+  to grow, instead of being clipped by the fixed 60px height.
+*/
+.nojs .navtoggle{display:none}
+.nojs .topbar nav{position:static;display:flex;flex-direction:row;flex-wrap:wrap;
+  box-shadow:none;border-bottom:0;padding:0;margin-left:auto;background:transparent}
+@media (max-width:900px){
+  .nojs .topbar .wrap{height:auto;min-height:56px;flex-wrap:wrap;padding-bottom:8px;gap:10px}
+  .nojs .topbar nav{margin-left:0;width:100%;gap:4px 6px}
+  .nojs .topbar nav a{font-size:14.5px;min-height:40px;padding:0 10px;
+    display:flex;align-items:center;border:1px solid var(--line);border-radius:8px}
+}
+
+.post-head{padding:44px 0 30px;border-bottom:1px solid var(--line);
+  background:radial-gradient(820px 280px at 50% -40%,var(--accent-soft),transparent 70%)}
+.post-head .wrap{max-width:760px}
+.post-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:14px}
+.post-head h1{font-family:var(--display);font-weight:600;font-size:40px;
+  letter-spacing:-.02em;line-height:1.12;margin:0 0 14px}
+.post-meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+  font-size:13px;color:var(--muted)}
+.post-meta .dot{width:4px;height:4px;border-radius:50%;background:var(--line-strong)}
+
+.article{max-width:760px;margin:0 auto;padding:34px 20px 8px}
+.article p{font-size:17px;line-height:1.8;color:#36404b;margin:0 0 20px}
+.article p strong{color:var(--ink);font-weight:600}
+.article h2{font-family:var(--display);font-weight:600;font-size:25px;
+  letter-spacing:-.01em;margin:38px 0 14px;padding-bottom:10px;
+  border-bottom:1px solid var(--line-strong)}
+.article ol{padding-left:22px;margin:0 0 20px}
+.article li{font-size:17px;line-height:1.8;color:#36404b;margin-bottom:14px}
+.article li strong{color:var(--ink);font-weight:600}
+.article figure{margin:30px 0}
+.article figure img{width:100%;height:auto;display:block;border-radius:var(--radius);
+  border:1px solid var(--line);box-shadow:var(--shadow)}
+.article hr{border:0;border-top:1px solid var(--line-strong);margin:34px 0 22px}
+.article .disclaimer{font-size:14px;color:var(--muted);font-style:italic;line-height:1.7}
+
+.back{max-width:760px;margin:26px auto 0;padding:0 20px 8px}
+.back a{font-size:14px;font-weight:600}
+
+@media (max-width:700px){
+  .post-head{padding:30px 0 24px}
+  .post-head h1{font-size:29px}
+  .article{padding:28px 18px 8px}
+  .article h2{font-size:22px;margin-top:32px}
+  .article figure{margin:24px -18px}
+  .article figure img{border-radius:0;border-left:0;border-right:0}
+}
+@media (max-width:400px){
+  .post-head h1{font-size:25px}
+  .wrap{padding:0 15px}
+  .article{padding:24px 16px 8px}
+  .article figure{margin:22px -16px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <a class="logo" href="../index.html"><img src="../pitura/logo/Logo_nero.svg" alt="Bitcoin After Life logo"><span translate="no">Bitcoin After Life</span></a>
+    <button class="navtoggle" id="navToggle" type="button"
+            aria-expanded="false" aria-controls="mainNav" aria-label="Open menu">
+      <span class="bars"></span>
+    </button>
+    <nav id="mainNav">
+      <a href="../index.html#features">Features</a>
+      <a href="../index.html#how">How it works</a>
+      <a href="../index.html#plugin">Plugin</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a class="active" href="../blog.html">Blog</a>
+      <a href="../manifesto.html">Manifesto</a>
+      <a class="x" href="https://x.com/BitcoinAfterLif" title="@BitcoinAfterLif on X">@X</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+<header class="post-head">
+  <div class="wrap">
+    <span class="eyebrow">Blog</span>
+    <h1>Six Billion Dollars in Twenty Minutes: What the Binance Hack Proves About Keys</h1>
+    <div class="post-meta">
+      <time datetime="2026-11-01">1 November 2026</time>
+      <span class="dot"></span>
+      <span translate="no">Bitcoin After Life</span>
+      <span class="dot"></span>
+      <span>6 min read</span>
+    </div>
+  </div>
+</header>
+
+<article class="article">
+<figure>
+<img src="img/binance-hack-not-your-keys-cover.webp" width="1600" height="900" fetchpriority="high" alt="Tether and USDC coins frozen inside blocks of ice, while a Bitcoin coin stands free beside its key">
+</figure>
+
+<p>On 29 October 2026, at around four in the afternoon New York time, the largest theft in the history of money began. It lasted about twenty minutes. When it was over, roughly <a href="https://www.cnbc.com/2026/10/30/binance-hack-stolen-crypto-recovery.html" target="_blank" rel="noopener">$6.3 billion in digital assets</a> had left the hot wallets of Binance, the world's largest cryptocurrency exchange, across ten different blockchains. Investigators at <a href="https://www.trmlabs.com/resources/blog/north-korea-steals-usd-6-36-billion-from-binance-in-the-largest-hack-in-history" target="_blank" rel="noopener">TRM Labs</a> attribute the attack to TraderTraitor, a group tied to North Korea's Lazarus — the same actors behind the Bybit hack of 2025, which held the previous record at a quarter of this size.</p>
+<p>Binance, to its credit, responded the way a serious company responds. It halted trading, suspended withdrawals, promised to cover every loss from its own reserves, and within days said it had replenished most of what was taken. If that holds, no customer will lose a single satoshi.</p>
+<p>This article is not an attack on Binance. It is about what those twenty minutes revealed: three things that were always true, and that six billion dollars made impossible to ignore.</p>
+
+<h2>One building held six billion dollars</h2>
+<p>An account on an exchange is not a wallet. It is an entry in a company's database: the coins sit in the company's wallets, under the company's keys, and what you own is a promise. Most days the difference is invisible. On 29 October it became the whole story — because when the keys that matter are someone else's, so is the decision of what happens next.</p>
+<p>That evening, millions of people who had done nothing wrong discovered that their balance had an off switch, and that the switch was in someone else's hands. Withdrawals were suspended for days. The happy ending — Binance absorbing the loss — depended entirely on one company being both solvent and honest. This time it was. <strong>"Not your keys, not your coins"</strong> stopped being a slogan that evening and became a line item: $6.3 billion, gone in the time it takes to drink a coffee.</p>
+
+<h2>Three billion dollars frozen with a click</h2>
+<p>While the stolen funds were still moving, something remarkable happened. Tether and Circle — the companies behind the stablecoins USDT and USDC — <a href="https://www.npr.org/2026/10/31/nx-s1-6024426/binance-crypto-heist-cyber-criminals-north-korea" target="_blank" rel="noopener">froze roughly $3 billion</a> of the loot. Tether blocked the attacker's haul less than two hours after the theft. It was the right thing to do, and it will likely save Binance billions.</p>
+<p>But stop and look at what that click means. A stablecoin is an entry in an issuer's ledger. The issuer can mark any address unspendable — remotely, instantly, without your key and without asking you. This week that power was pointed at thieves. The mechanism, however, does not know the difference between a thief and you: it simply executes a decision taken in an office. Issuers freeze addresses routinely, at the request of governments and courts around the world.</p>
+<p>A banknote can be stolen, but it cannot be switched off from a desk on another continent. A freezable token can. In that precise sense, <strong>a token with a freeze function is weaker than cash</strong>: it looks like money right up to the moment someone decides it isn't.</p>
+
+<h2>The coins nobody could freeze</h2>
+<p>About $1.5 billion of the stolen funds were in bitcoin. That part was not frozen — not because nobody tried, but because <strong>there is nobody to call</strong>. Bitcoin has no issuer, no administrator, no freeze function. The only weapons against the thieves are the public ledger, which records every move forever, and the exchanges that will refuse the coins when they surface.</p>
+<p>Let's be honest: in this story, that property helped the attackers. It would be dishonest marketing to pretend otherwise.</p>
+<p>But the property does not choose sides, and that is exactly the point. The same rule that shields a thief this week shields a saver every week: the person fleeing a collapsing currency, the dissident whose accounts were closed, or simply you, holding savings that no office can switch off. An asset either has a kill switch or it does not. If it has one, history says it will eventually be used — and not only on thieves.</p>
+<p>Bitcoin held with your own keys is the one asset whose ownership is enforced by mathematics, verified by tens of thousands of independent nodes, and beyond the reach of any single company or government. That is why the BAL protocol is built on Bitcoin and nothing else — the reasoning we laid out in <a href="liquid-network-and-why-we-trust-only-bedrock.html">why we trust only bedrock</a>.</p>
+
+<h2>The excuse the hack should bury</h2>
+<p>If the lesson is "hold your own keys", why do so many people still keep their savings on exchanges? Convenience, yes. But there is a quieter reason, and we hear it constantly: <strong>inheritance</strong>. "If something happens to me, at least there's a company my family can write to." A custodian's support desk feels like an inheritance plan. Your own keys feel like a dead end that dies with you.</p>
+<p>Bitcoin After Life exists to remove exactly that excuse. With BAL, your keys never leave your wallet. You sign a time-locked Bitcoin transaction today that delivers your coins to your heirs on a date you choose, and as long as you are alive your wallet quietly keeps pushing that date forward. Independent <a href="what-a-will-executor-can-see.html">Will-Executor servers</a> hold the signed transaction and broadcast it when — and only when — the time comes. They cannot spend it, cannot change it, and cannot see who you are.</p>
+<p>Notice what is missing: the honeypot. There is no building where six billion dollars sits behind one company's keys. A Will-Executor holds nothing a thief can use — only transactions that can go to one place, on one date, written by you. The coins stay where they belong, under your keys, until the day they move to the people you love.</p>
+<p>Six billion dollars sat in one place, and twenty minutes was enough. Your savings — and your family's future — should not depend on any building, any database, or any company's promise. Only on keys you hold, and rules that mathematics enforces.</p>
+
+<aside class="related">
+<h2>Keep reading</h2>
+<ul style="padding-left:22px">
+<li><a href="inheritance-when-trust-fails.html">The vanishing inheritance: when trust fails, mathematics doesn't</a></li>
+<li><a href="what-happens-to-your-bitcoin.html">What Happens to Your Bitcoin When You're Gone?</a></li>
+<li><a href="should-you-tell-your-family-about-your-bitcoin.html">Should You Tell Your Family About Your Bitcoin? What They Need to Know, and What They Don't</a></li>
+</ul>
+<p>New to Bitcoin After Life? Read the <a href="https://bitcoin-after.life/docs/">user manual</a> or <a href="../index.html#plugin">get the Electrum plugin</a>.</p>
+</aside>
+
+<hr>
+<p class="disclaimer">Figures about the hack come from public reporting by <a href="https://www.cnbc.com/2026/10/30/binance-hack-stolen-crypto-recovery.html" target="_blank" rel="noopener">CNBC</a>, <a href="https://www.npr.org/2026/10/31/nx-s1-6024426/binance-crypto-heist-cyber-criminals-north-korea" target="_blank" rel="noopener">NPR</a> and <a href="https://www.trmlabs.com/resources/blog/north-korea-steals-usd-6-36-billion-from-binance-in-the-largest-hack-in-history" target="_blank" rel="noopener">TRM Labs</a>, and may be revised as the investigation continues. Bitcoin After Life is open source and Bitcoin-only. Explore the plugin and the server on <a href="https://bitcoin-after.life/gitea/bitcoinafterlife" target="_blank" rel="noopener">Gitea</a> and read the full manual at <a href="https://bitcoin-after.life/docs/" target="_blank" rel="noopener">bitcoin-after.life/docs</a>.</p>
+</article>
+
+<div class="back">
+  <a href="../blog.html">← Back to the blog</a>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="sig">Svātantrya</div>
+    <div>Signed — <span translate="no">Bitcoin After Life</span> Protocol</div>
+    <div class="links">
+      <a href="https://bitcoin-after.life">bitcoin-after.life</a>
+      <a href="mailto:info@bitcoin-after.life">info@bitcoin-after.life</a>
+      <a href="https://x.com/BitcoinAfterLif">@BitcoinAfterLif</a>
+      <a href="https://bitcoin-after.life/pgp">PGP Key</a>
+      <a href="https://bitcoin-after.life/gitea/bitcoinafterlife">Source Code</a>
+    </div>
+    <div class="built">Built with ₿itcoin. No FIAT was used in the making of this protocol.</div>
+  </div>
+</footer>
+
+<script>
+/* Mobile menu toggle -- identical behaviour across all pages. */
+(function () {
+  const toggle = document.getElementById('navToggle');
+  const nav = document.getElementById('mainNav');
+  if (!toggle || !nav) return;
+
+  function setOpen(open) {
+    nav.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    toggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+
+  toggle.addEventListener('click', function () {
+    setOpen(!nav.classList.contains('open'));
+  });
+  nav.addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') setOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+})();
+</script>
+</body>
+</html>

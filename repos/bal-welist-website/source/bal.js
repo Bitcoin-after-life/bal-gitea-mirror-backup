@@ -76,18 +76,40 @@ async function fetchDataAndPopulateTable(url,params,fnPopulateTable,downloadOpt,
   function make_paginator(){
     document.getElementById("chainth").innerHTML = chain;
     const pag = document.getElementById("paginator");
-
-    pag.appendChild(document.createTextNode("_"));
-    if (page > 0) {
-      pag.appendChild(createlink("<","?page="+paginator.prev));
+    pag.innerHTML = "";
+    const currentPage = paginator && paginator.page != null
+      ? paginator.page
+      : (Number(page) || 0);
+    const prevPage = paginator && paginator.prev != null
+      ? paginator.prev
+      : Math.max(currentPage - 1, 0);
+    const nextPage = paginator && paginator.next != null
+      ? paginator.next
+      : currentPage + 1;
+    const hasPrev = paginator && paginator.hasPrev != null
+      ? paginator.hasPrev
+      : currentPage > 0;
+    const hasNext = paginator && paginator.hasNext != null
+      ? paginator.hasNext
+      : true;
+    // prev (a plain, dimmed arrow on the first page), "page N", next
+    if (hasPrev) {
+      pag.appendChild(createlink("&lsaquo;","?page="+prevPage));
+    } else {
+      const off = document.createElement("span");
+      off.className = "pg-off"; off.innerHTML = "&lsaquo;";
+      pag.appendChild(off);
     }
-    else{
-      pag.appendChild(document.createTextNode("<"));
+    const lbl = document.createElement("span");
+    lbl.className = "pg-label"; lbl.textContent = "page " + currentPage;
+    pag.appendChild(lbl);
+    if (hasNext) {
+      pag.appendChild(createlink("&rsaquo;","?page="+nextPage));
+    } else {
+      const off = document.createElement("span");
+      off.className = "pg-off"; off.innerHTML = "&rsaquo;";
+      pag.appendChild(off);
     }
-    pag.appendChild(document.createTextNode("_"));
-    pag.appendChild(document.createTextNode(page));
-    pag.appendChild(document.createTextNode("_"));
-    pag.appendChild(createlink(">","?page="+paginator.next));
   }
 }
 
