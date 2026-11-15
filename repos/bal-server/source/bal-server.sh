@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/lib.sh"
+
+dev_only_guard "bal-server.sh" \
+    "This launcher uses trace logging, the local PostgreSQL database, loopback binding, and the development key pair." "$@"
+
+# Load local, gitignored environment overrides (e.g. BAL_PG_PASSWORD).
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . "$SCRIPT_DIR/.env"
+    set +a
+fi
 
 WORKING_DIR=$(pwd)
 if [ ! -f "$WORKING_DIR/public_key.pem" ]; then

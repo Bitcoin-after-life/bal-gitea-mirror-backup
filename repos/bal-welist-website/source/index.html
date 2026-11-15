@@ -20,7 +20,6 @@
 <meta name="twitter:description" content="Public directory of Bitcoin After Life Will-Executor servers: the independent nodes that hold and broadcast time-locked Bitcoin inheritance transactions for the BAL Protocol.">
 <meta name="twitter:image" content="https://bitcoin-after.life/pitura/og-default.png">
 <link rel="icon" href="Logo_nero.ico" type="image/x-icon">
-<script src="qrcode.min.js"></script>
 <script src="purify.min.js"></script>
 <style>
 :root{
@@ -145,20 +144,12 @@ tbody tr:hover{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .score{font-family:var(--display);font-weight:600;font-size:15px}
 
-.add-grid{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:24px;margin:40px 0;align-items:stretch}
-.add-grid>.panel{display:flex;flex-direction:column}
 .panel{
   background:var(--panel);border:1px solid var(--line);
   border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);
 }
 .panel h2{font-family:var(--display);font-size:19px;margin:0 0 6px}
 .panel p.lead{color:var(--muted);font-size:14px;margin:0 0 18px}
-.form-row{display:flex;gap:10px;flex-wrap:wrap}
-.form-row input{
-  flex:1 1 220px;font:inherit;font-size:14px;padding:11px 13px;
-  border:1px solid var(--line-strong);border-radius:8px;
-  background:var(--bg);color:var(--ink);font-family:var(--mono);
-}
 .btn{
   font:inherit;font-size:14px;font-weight:600;cursor:pointer;
   padding:11px 20px;border-radius:8px;border:1px solid var(--accent);
@@ -174,74 +165,10 @@ tbody tr:hover{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
   padding:7px 12px;margin:0 0 12px;
 }
 .freshness-note strong{color:var(--ink)}
-.btn-share{
-  display:block;margin:0 auto 8px;font:inherit;font-size:13px;cursor:pointer;
-  padding:8px 16px;border-radius:8px;border:1px solid var(--line-strong);
-  background:var(--panel);color:var(--accent);
-}
 
-.invoice{display:none}
-.invoice.show{display:block}
-.invoice .row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
-.invoice .row:last-child{border-bottom:0}
-.invoice .row span:first-child{color:var(--muted)}
-.invoice .row span:last-child{font-family:var(--mono);text-align:right;word-break:break-all}
-.invoice .row a{color:var(--accent);text-decoration:none}
-.invoice .row a:hover{text-decoration:underline}
-#qrcode{margin:18px auto 4px;width:160px}
-#qrcode canvas,#qrcode img{width:160px!important;height:160px!important;max-width:100%}
-#qr-overlay{
-  display:none;position:fixed;inset:0;z-index:999;
-  background:rgba(0,0,0,.7);cursor:pointer;
-  align-items:center;justify-content:center;
-}
-#qr-overlay.show{display:flex}
-#qr-big{padding:24px;background:#fff;border-radius:12px}
-#qr-big canvas,#qr-big img{width:280px!important;height:280px!important;max-width:90vw}
 .ok-line{color:var(--ok);font-weight:600;font-size:14px;margin-bottom:14px}
 .err-line{color:#d32f2f;font-weight:600;font-size:14px;margin-bottom:14px}
-.terms-box{display:none;margin:16px 0;padding:20px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius)}
-.terms-box.show{display:block}
-.terms-box .lead{margin:0 0 12px;color:var(--ink);font-weight:600}
-.terms-box a.mono{font-size:14px;word-break:break-all}
-.terms-box label{font-size:14px;cursor:pointer}
-.terms-box .btn{margin-top:14px}
-.btn-row{display:flex;gap:8px;margin-top:8px}
-.btn-row .btn{flex:1;margin-top:0}
 [hidden]{display:none!important}
-/* Add / Check tabs of the panel, and its two columns (form + side notes). */
-.mode-seg{margin-bottom:18px;align-self:flex-start}
-.mode-seg button{font-size:14px;padding:9px 16px;display:inline-flex;align-items:center;gap:8px}
-.mode-seg button svg{width:16px;height:16px}
-.mode-seg button[aria-selected="true"]{background:var(--accent-soft);color:var(--ink);font-weight:600}
-.panel-body{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:28px;align-items:start}
-.panel-side{border-left:1px solid var(--line);padding-left:24px;font-size:13px;color:var(--muted);line-height:1.5}
-.side-title{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:6px 0 12px}
-.mini-steps{list-style:none;margin:0 0 14px;padding:0;counter-reset:ms}
-.mini-steps li{position:relative;padding:0 0 14px 34px;counter-increment:ms}
-.mini-steps li::before{content:counter(ms);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;
-  background:var(--accent-soft);color:var(--accent);font-family:var(--mono);font-size:12px;display:flex;align-items:center;justify-content:center}
-.mini-steps b{display:block;color:var(--ink);font-size:13.5px;margin-bottom:2px}
-.side-link{color:var(--accent);text-decoration:none;font-weight:600}
-/* Renewal status result */
-.renewal-card{margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);padding:18px 20px}
-.rc-main{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
-.rc-label{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.rc-date{font-family:var(--display);font-size:30px;font-weight:600;line-height:1.1;color:var(--ink)}
-.rc-sub{font-size:13px;color:var(--muted)}
-.rc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:13px}
-.rc-grid div{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:8px}
-.rc-grid span{color:var(--muted)}
-.rc-grid b{font-family:var(--mono);font-weight:600}
-.rc-link{display:inline-block;margin-top:14px;color:var(--accent);text-decoration:none;font-weight:600;font-size:13px}
-.rc-link:hover{text-decoration:underline}
-.rc-open{color:var(--ok)}
-.side-link:hover{text-decoration:underline}
-@media (max-width:1024px){
-  .panel-body{grid-template-columns:1fr}
-  .panel-side{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:16px}
-}
-
 .intro-card{
   background:var(--panel);border:1px solid var(--line);
   border-left:4px solid var(--accent);
@@ -257,7 +184,7 @@ tbody tr:hover{background:color-mix(in srgb,var(--accent-soft) 50%,transparent)}
 .after-table .fee-disclaimer{margin:0;flex:1 1 420px}
 .add-cta{color:var(--accent);font-weight:600;white-space:nowrap}
 .add-cta svg{width:16px;height:16px}
-#we-panel{scroll-margin-top:16px}
+.panel-ranking{margin:24px 0 40px}
 
 .info-section{margin:48px 0}
 .info-section h2{font-family:var(--display);font-size:22px;margin:0 0 8px}
@@ -280,7 +207,6 @@ footer a{color:var(--accent);text-decoration:none}
      that inner scroll competes with the normal page scroll and makes the list
      hard to read. On mobile the list now flows naturally with the page. */
   .mobile-list{display:grid;gap:12px}
-  .add-grid{grid-template-columns:1fr}
   .info-grid{grid-template-columns:1fr}
   .hero-stats{gap:20px}
   .brand h1{font-size:24px}
@@ -303,22 +229,21 @@ footer a{color:var(--accent);text-decoration:none}
 
 /* ---------------------------------------------------------------------------
    Phone layout (<=600px).
-   Scope: header, filter bar and server list only. The "Add your Will Executor"
-   panel, the invoice and the QR code are intentionally left untouched, because
-   payments are expected to be made from a desktop browser.
+   Scope: header, filter bar and server list only. The renewal-status panel is
+   intentionally left untouched, because it is a read-only convenience.
    --------------------------------------------------------------------------- */
 @media (max-width:600px){
   .controls{gap:10px}
 
-  /* WHY: the four chain buttons form a single non-wrapping row about 340px wide.
+  /* WHY: the chain buttons form a single non-wrapping row about 340px wide.
      Inside a 360-390px phone screen (minus page padding) it overflowed the
-     viewport and produced horizontal scrolling. A 2x2 grid across the full
-     width removes the overflow. min-height:44px matches the recommended
-     minimum touch target size. */
-  .seg{display:grid;grid-template-columns:1fr 1fr;width:100%;border-radius:8px}
-  .seg button{font-size:14px;min-height:44px;padding:8px 10px;border-bottom:1px solid var(--line)}
-  .seg button:nth-child(2n){border-right:0}          /* right column: no inner divider */
-  .seg button:nth-child(n+3){border-bottom:0}        /* last row: no bottom divider */
+     viewport and produced horizontal scrolling. A grid across the full width
+     removes the overflow. min-height:44px matches the recommended minimum touch
+     target size. The grid auto-fits because inactive chains are hidden and
+     `nth-child` counts hidden buttons too, so fixed column rules would drift. */
+  .seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));width:100%;border-radius:8px}
+  .seg button{font-size:14px;min-height:44px;padding:8px 10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
 
   /* Give the toggle and the JSON link a full-size touch area. */
   .field{min-height:44px}
@@ -387,7 +312,6 @@ footer a{color:var(--accent);text-decoration:none}
         </div>
         <a class="hero-cta" href="/terms.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg><span>How to get listed<small>Terms &amp; yearly fee</small></span></a>
       </div>
-    </div>
   </header>
 
   <main class="wrap">
@@ -438,11 +362,10 @@ footer a{color:var(--accent);text-decoration:none}
 
     <div class="mobile-list" id="mlist"></div>
 
-    <!-- Under the table: the disclaimer on the left and, on the right, the way to the
-         "Add your Will Executor" panel further down (owner, 2026-11-06: it was easy to miss). -->
+    <!-- Under the table: the disclaimer only. Registration and renewal status live
+         in the plugin; this page is a public directory. -->
     <div class="after-table">
       <p class="fee-disclaimer">* Info, Fee and Version data may not reflect actual values or may be outdated. Refer to the <a href="https://bitcoin-after.life" target="_blank" rel="noopener">Bitcoin After Life plugin</a> for up-to-date information.</p>
-      <a class="btn-ghost add-cta" href="#we-panel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add your Will Executor</a>
     </div>
 
     <section class="intro-card">
@@ -450,117 +373,15 @@ footer a{color:var(--accent);text-decoration:none}
       <p>This page displays all Will Executor servers that manage the inheritance processing for the Bitcoin After Life plugin on Electrum. Will Executors operate in a competitive environment, racing to broadcast inheritance transactions to network nodes and earn the associated transaction fees.</p>
     </section>
 
-    <div class="add-grid">
-      <!-- One panel, two jobs (owner, 2026-11-06): the tabs choose between adding a
-           server (pay, invoice) and checking a listed one (read-only). Elements marked
-           data-add / data-check belong to one tab; the script hides the others.
-           ?mode=check in the address opens the Check tab (the Terms FAQ links to it). -->
-      <div class="panel" id="we-panel" data-mode="add">
-        <div class="seg mode-seg" role="tablist" aria-label="Add or check a server">
-          <button type="button" role="tab" aria-selected="true" data-mode="add">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add a server
-          </button>
-          <button type="button" role="tab" aria-selected="false" data-mode="check">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Renewal status
-          </button>
-        </div>
-        <div class="panel-body">
-        <div class="panel-form">
-        <h2 data-add>Add your Will Executor</h2>
-        <h2 data-check hidden>Renewal status of your Will Executor</h2>
-        <p class="lead" data-add>Enter your server URL. It will appear in the list once your deposit is confirmed (typically about 30 minutes).</p>
-        <p class="lead" data-check hidden>Enter the exact URL of your server as it appears in the list: you see its expiry date and when you can renew. Nothing is charged.</p>
-        <div class="form-row">
-          <input type="text" id="url" placeholder="https://we.bitcoin-after.life">
-        </div>
-        <div style="margin-top:8px" data-add>
-          <input type="text" id="contact" placeholder="Email, npub or Telegram (optional)" style="width:100%;font:inherit;font-size:14px;padding:9px 12px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--ink)">
-        </div>
-        <div class="btn-row">
-          <button class="btn" id="submit" data-add>Add server</button>
-          <button class="btn" id="check" data-check hidden>Show renewal status</button>
-        </div>
-
-        <div class="ok-line" id="iv-status"></div>
-
-        <!-- Renewal status result: filled by the "Show renewal status" button. -->
-        <div class="renewal-card" id="renewal-card" hidden>
-          <div class="rc-main">
-            <span class="rc-label">Expiry date</span>
-            <b class="rc-date" id="rc-expiry">&mdash;</b>
-            <span class="rc-sub" id="rc-days">&mdash;</span>
-          </div>
-          <div class="rc-grid">
-            <div><span>Renewal window</span><b id="rc-window">&mdash;</b></div>
-            <div><span>Position</span><b id="rc-pos">&mdash;</b></div>
-            <div><span>Balance</span><b id="rc-balance">&mdash;</b></div>
-            <div><span>Donations</span><b id="rc-donations">&mdash;</b></div>
-          </div>
-          <a class="rc-link" id="rc-link" href="#">View the server page &rarr;</a>
-        </div>
-
-        <div class="terms-box" id="terms-box">
-          <p class="lead">You are about to add this server:</p>
-          <p><a id="terms-url" href="#" target="_blank" rel="noopener" class="mono"></a></p>
-          <p style="font-size:13px;margin-top:4px"><strong>Make sure the link above works correctly before paying. No refunds after payment. URL changes require proof of ownership — see the <a href="/terms.html" target="_blank">Terms</a>.</strong></p>
-          <p style="font-size:14px">
-            <label>
-              <input type="checkbox" id="terms-check">
-              I accept the <a href="/terms.html" target="_blank">terms and conditions</a>
-            </label>
-          </p>
-          <button class="btn" id="terms-accept" disabled>Accept & Show Invoice</button>
-        </div>
-
-        <div class="invoice" id="invoice">
-          <div class="row"><span>Annual fee</span><span id="iv-min">—</span></div>
-          <div class="row"><span>Chain</span><span id="iv-chain">—</span></div>
-          <div class="row"><span>Address</span><span id="iv-addr">—</span></div>
-          <div class="row"><span>Balance</span><span id="iv-balance">—</span></div>
-          <div class="row"><span>Donations</span><span id="iv-donations">—</span></div>
-          <div class="row"><span>Contact</span><span id="iv-contact">—</span></div>
-          <div class="row"><span>Server</span><span id="iv-url">—</span></div>
-          <div class="row"><span>Will Executor</span><span><a id="iv-weinfo" href="#" target="_blank">—</a></span></div>
-          <div class="row" id="iv-nextdep-row" style="display:none"><span>Next renewal</span><span id="iv-nextdep">—</span></div>
-          <div id="qrcode"></div>
-          <button class="btn-share" id="share-btn">Share invoice</button>
-          <p class="note">
-            <strong>Please make sure your server is online before you attempt to add it.</strong>
-          </p>
-        </div>
-
-        </div>
-        <aside class="panel-side">
-          <div data-add>
-            <p class="side-title">What happens next</p>
-            <ol class="mini-steps">
-              <li><b>Pay the yearly fee</b><span>50,000 sats, shown in the payment request</span></li>
-              <li><b>3 confirmations</b><span>about 30 minutes, then your server is listed for 365 days</span></li>
-              <li><b>Renew from 6 months before expiry</b><span>the new year is added on top of the time left</span></li>
-            </ol>
-          </div>
-          <div data-check hidden>
-            <p class="side-title">What you get</p>
-            <ol class="mini-steps">
-              <li><b>Expiry date</b><span>shown only here and on the server page, not in the main table</span></li>
-              <li><b>Renewal window</b><span>it opens 6 months before expiry; you see whether it is open or when it opens</span></li>
-              <li><b>Position, balance, donations</b><span>and a link to the server page with its WeTime activity</span></li>
-            </ol>
-          </div>
-          <a class="side-link" href="/terms.html">How listing works (15 s) &rarr;</a>
-        </aside>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>How ranking works</h2>
-        <p class="lead">Ordered by excess donated, then total paid, then base fee (lower first), then WeTime points.</p>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Yearly fee</span><b class="mono"><span id="thr-min">50,000</span> sats</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Listing period</span><b>365 days</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Renewal window</span><b>from 6 months before expiry</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:var(--muted)">Plugin integration</span><b>automatic</b></div>
-        <p class="lead" style="margin:16px 0 0">Paying more than the yearly fee moves your server up: the excess counts first in the order and never decays. Points are only a tie-breaker. <a href="/terms.html#faq" style="color:var(--accent);text-decoration:none;font-weight:600">Details in the Terms &rarr;</a></p>
-      </div>
+    <div class="panel panel-ranking">
+      <h2>How ranking works</h2>
+      <p class="lead">Ordered by excess donated, then total paid, then base fee (lower first), then WeTime points.</p>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Yearly fee</span><b class="mono"><span id="thr-min">50,000</span> sats</b></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Listing period</span><b><span id="thr-cycle">365</span> days</b></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Renewal</span><b>automatic from your credit</b></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:var(--muted)">Plugin integration</span><b>automatic</b></div>
+      <p class="lead" style="margin:16px 0 0">Paying more than the yearly fee moves your server up: the excess counts first in the order and never decays. Points are only a tie-breaker. <a href="/terms.html#faq" style="color:var(--accent);text-decoration:none;font-weight:600">Details in the Terms &rarr;</a></p>
+      <p class="lead" style="margin:14px 0 0;font-size:13px">The fee column shows the <strong>base fee</strong> each executor advertises. Executors may also publish a <strong>daily fee</strong>: the minimum they charge is the higher of the base fee and the daily fee multiplied by the remaining days of the inheritance. Both are signed metadata and do not affect the ranking. <a href="/terms.html#fees" style="color:var(--accent);text-decoration:none;font-weight:600">Who charges what? &rarr;</a></p>
     </div>
 
     <section class="info-section">
@@ -580,7 +401,7 @@ footer a{color:var(--accent);text-decoration:none}
         <div class="info-block">
           <span class="ic">03</span>
           <h3>Listing &amp; Renewal</h3>
-          <p>A flat yearly fee buys 365 days of presence in the list, starting when your payment reaches 3 confirmations. You can renew for one additional year at any time from 6 months before expiry; listings that are not renewed are removed at expiry. See the <a href="/terms.html" target="_blank">Terms</a> for details.</p>
+          <p>A flat yearly fee buys 365 days of presence in the list, starting when your payment reaches 3 confirmations. Anything you deposit above one period stays as credit: when a period ends, the days that credit can pay for are granted automatically, with no renewal window. When the credit cannot pay for another day, the server leaves the list. See the <a href="/terms.html" target="_blank">Terms</a> for details.</p>
         </div>
 
         <div class="info-block">
@@ -604,16 +425,47 @@ footer a{color:var(--accent);text-decoration:none}
   </footer>
 
 <script>
-if (window.location.hostname !== 'localhost') {
-  const regtestBtn = document.querySelector('#chainSeg [data-c="regtest"]');
-  if (regtestBtn) {
-    regtestBtn.style.display = 'none';
-    regtestBtn.setAttribute('aria-pressed', 'false');
+// The chain buttons are shown only for the chains the backend reports as active.
+// `GET /api/info` without a `chain` filter returns one entry per active chain, so
+// the buttons always match what this deployment actually serves. This replaces the
+// old hostname check: `127.0.0.1` is not `localhost`, which used to hide Regtest on
+// a local node whose only active chain is Regtest.
+const CHAIN_ORDER = ['bitcoin', 'testnet4', 'testnet', 'signet', 'regtest'];
+
+async function loadActiveChains() {
+  try {
+    const response = await fetch('/api/info?limit=1');
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return Object.keys(data).filter(c => data[c] && typeof data[c] === 'object');
+  } catch (err) {
+    // Cannot tell which chains are live: keep every button rather than hide them
+    // all, so a temporary outage does not empty the selector.
+    console.error('Could not load the active chains:', err);
+    return null;
   }
+}
+
+// Hide the buttons of inactive chains and return the first active one, honouring
+// the canonical order below. Returns null when the list could not be loaded.
+function applyActiveChains(active) {
+  if (!active) return null;
+  const set = new Set(active);
+  document.querySelectorAll('#chainSeg button').forEach(b => {
+    const isActive = set.has(b.dataset.c);
+    b.hidden = !isActive;
+    b.style.display = isActive ? '' : 'none';
+    if (!isActive) b.setAttribute('aria-pressed', 'false');
+  });
+  const ordered = CHAIN_ORDER.filter(c => set.has(c));
+  const first = ordered.length ? ordered[0] : active[0];
+  return first || null;
 }
 let allServers = [];
 let withTor = true, q = "";
-let minAmount = 50000;
+// First chain active on this deployment, resolved once at startup. Used as the
+// fallback when the address names a chain that is not served here.
+let firstActiveChain = null;
 
 const fmt = n => (n != null ? Number(n).toLocaleString('en-US') : '—');
 const trunc = (s, m=40) => s && s.length > m ? s.slice(0, m) + '…' : s;
@@ -624,10 +476,12 @@ function getChain() {
 }
 
 // The selected chain lives in the address (?chain=testnet4), so a chain's list
-// can be shared as a link. Bitcoin is the default and keeps the plain address.
+// can be shared as a link. Bitcoin stays the default and keeps the plain address.
+// A chain whose button has been hidden is not active on this deployment, so it is
+// rejected here instead of leaving the list empty.
 function setChain(chain) {
   const buttons = [...document.querySelectorAll('#chainSeg button')];
-  const target = buttons.find(b => b.dataset.c === chain && b.style.display !== 'none');
+  const target = buttons.find(b => b.dataset.c === chain && !b.hidden);
   if (!target) return false;
   buttons.forEach(b => b.setAttribute('aria-pressed', b === target ? 'true' : 'false'));
   return true;
@@ -690,17 +544,20 @@ function render() {
 
 async function fetchData() {
   const chain = getChain();
-  const params = new URLSearchParams({ page: 0, limit: 100 });
-  if (!withTor) params.append("onion", "no");
+  // `/api/info` returns, per chain, the chain header, the ranking settings and the
+  // already-ordered executor list. One request feeds the table, the counters and
+  // the fee panel, and there is no unauthenticated fallback left to drift from
+  // the backend. NOTE: unlike `/datalist`, `/api/info` includes onion executors by
+  // default (`onion=yes`), so the Tor checkbox must always be sent explicitly.
+  const params = new URLSearchParams({ chain, page: 0, limit: 100 });
+  params.append("onion", withTor ? "yes" : "no");
   try {
-    // NOTE: /data/{chain} returns a HashMap, whose JSON key order is not
-    // guaranteed (it can change on every backend restart). /datalist/{chain}
-    // returns an ordered array (Vec) that preserves the server-side sort
-    // (donation DESC, balance DESC, base_fee ASC, wetime_points DESC) — see terms.html §3.
-    const response = await fetch(`/datalist/${chain}?${params}`);
+    const response = await fetch(`/api/info?${params}`);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const list = await response.json();
-    allServers = list;
+    const data = await response.json();
+    const info = data[chain] || {};
+    allServers = Array.isArray(info.willexecutors) ? info.willexecutors : [];
+    updateFeePanel(info.ranking);
     render();
   } catch (err) {
     console.error('Fetch error:', err);
@@ -709,19 +566,15 @@ async function fetchData() {
   }
 }
 
-async function fetchMinAmount() {
-  const chain = getChain();
-  try {
-    const r = await fetch('/ranking_info/' + chain);
-    const data = await r.json();
-    const val = parseInt(data.amount, 10);
-    if (isNaN(val)) throw new Error('invalid');
-    minAmount = val;
-    document.getElementById('thr-min').textContent = fmt(val);
-  } catch (err) {
-    minAmount = 50000;
-    document.getElementById('thr-min').textContent = '50,000';
-  }
+// The fee panel is informational: it shows only what the backend published.
+// When the ranking block is missing the values stay as rendered (the last known
+// ones), instead of inventing a price.
+function updateFeePanel(ranking) {
+  if (!ranking) return;
+  const amount = parseInt(ranking.amount, 10);
+  if (!isNaN(amount)) document.getElementById('thr-min').textContent = fmt(amount);
+  const cycle = parseInt(ranking.billing_cycle, 10);
+  if (!isNaN(cycle)) document.getElementById('thr-cycle').textContent = cycle;
 }
 
 document.getElementById('onion').addEventListener('change', e => {
@@ -743,324 +596,27 @@ document.getElementById('chainSeg').addEventListener('click', e => {
   else url.searchParams.set('chain', b.dataset.c);
   history.pushState(null, '', url);
   fetchData();
-  fetchMinAmount();
 });
 
-// Browser Back/Forward: follow the address, an unknown chain falls back to Bitcoin.
+// Browser Back/Forward: follow the address, an unknown or inactive chain falls
+// back to the first active one.
 window.addEventListener('popstate', () => {
-  if (!setChain(chainFromUrl())) setChain('bitcoin');
+  if (!setChain(chainFromUrl()) && firstActiveChain) setChain(firstActiveChain);
   fetchData();
-  fetchMinAmount();
 });
 
-// After an invoice is shown, ask the server page every 30 seconds whether the
-// payment has been seen, so the visitor does not have to reload. The status only
-// moves forward: unconfirmed_balance may go back to 0 before the deposit is
-// credited, and that must not look as if the payment had disappeared.
-const DEPOSIT_POLL_MS = 30000;
-const DEPOSIT_POLL_MAX_MS = 24 * 60 * 60 * 1000;
-let depositWatch = null;
-
-function stopDepositWatch() {
-  if (depositWatch) clearInterval(depositWatch.timer);
-  depositWatch = null;
-}
-
-async function pollDeposit() {
-  const watch = depositWatch;
-  if (!watch) return;
-  if (Date.now() - watch.started > DEPOSIT_POLL_MAX_MS) return stopDepositWatch();
-  let data;
-  try {
-    const response = await fetch(`/weinfodata/${watch.chain}/${watch.id}`);
-    if (!response.ok) return;
-    data = await response.json();
-  } catch (err) {
-    return;  // temporary network problem: try again at the next round
-  }
-  if (watch !== depositWatch || !data) return;
-  const expiry = data.expiry_date || null;
-  // The first answer is the reference: listing or renewal changes the expiry date.
-  if (watch.expiry === undefined) watch.expiry = expiry;
-  const status = document.getElementById('iv-status');
-  const bal = data.balance != null ? fmt(data.balance) : null;
-  const unc = data.unconfirmed_balance != null ? fmt(data.unconfirmed_balance) : null;
-  if (bal) document.getElementById('iv-balance').textContent = unc ? bal + ' (' + unc + ')' : bal;
-  if (expiry && expiry !== watch.expiry) {
-    status.className = 'ok-line';
-    status.textContent = '✓ Payment confirmed: your server is now listed.';
-    stopDepositWatch();
-    fetchData();
-  } else if (Number(data.unconfirmed_balance) > 0 && !watch.detected) {
-    watch.detected = true;
-    status.className = 'ok-line';
-    status.textContent = 'Payment detected: ' + fmt(data.unconfirmed_balance) + ' sats, waiting for 3 confirmations (about 30 minutes). This page updates by itself, or use the "Follow your payment" link below.';
-  }
-}
-
-function startDepositWatch(chain, id) {
-  stopDepositWatch();
-  if (!id) return;
-  depositWatch = { chain, id, started: Date.now(), detected: false, expiry: undefined };
-  depositWatch.timer = setInterval(pollDeposit, DEPOSIT_POLL_MS);
-  pollDeposit();
-}
-
-// "Check server" is read-only: it looks the URL up in the list (GET /datalist) and
-// shows the server's expiry and balance from /weinfodata. It never POSTs to /data,
-// so checking a URL that is not listed creates nothing.
-function normalizeUrl(u) {
-  u = u.trim();
-  if (!u) return '';
-  if (!u.startsWith('http://') && !u.startsWith('https://')) u = 'https://' + u;
-  return u.replace(/\/+$/, '');
-}
-function hidePaymentRows() {
-  document.getElementById('iv-min').parentElement.style.display = 'none';
-  document.getElementById('iv-addr').parentElement.style.display = 'none';
-  document.getElementById('qrcode').style.display = 'none';
-  document.getElementById('share-btn').style.display = 'none';
-}
-document.getElementById('check').addEventListener('click', async () => {
-  stopDepositWatch();
-  const urlInput = document.getElementById('url');
-  const url = normalizeUrl(urlInput.value);
-  if (!url) return;
-  urlInput.value = url;
-  const chain = getChain();
-  const status = document.getElementById('iv-status');
-  const inv = document.getElementById('invoice');
-  inv.classList.remove('show');
-  document.getElementById('terms-box').classList.remove('show');
-  document.getElementById('renewal-card').hidden = true;
-  status.className = '';
-  status.textContent = 'Checking…';
-  try {
-    const listResp = await fetch(`/datalist/${chain}?page=0&limit=100`);
-    if (!listResp.ok) throw new Error(`HTTP ${listResp.status}`);
-    const list = await listResp.json();
-    const idx = list.findIndex(d => normalizeUrl(d.url || '').toLowerCase() === url.toLowerCase());
-    if (idx < 0) {
-      status.className = 'err-line';
-      status.textContent = `Not in the ${chain} list: no server with this exact URL. To list it, use the "Add a server" tab.`;
-      return;
-    }
-    const d = list[idx];
-    const infoResp = await fetch(`/weinfodata/${chain}/${d.id}`);
-    const info = infoResp.ok ? await infoResp.json() : {};
-    const expiry = (info.expiry_date || '').slice(0, 10);   // '2027-07-16 00:00:00' -> the date
-    const bal = info.balance != null ? fmt(info.balance) : null;
-    const unc = info.unconfirmed_balance != null ? fmt(info.unconfirmed_balance) : null;
-    // Renewal window: from 6 months before expiry (Terms, Section 1).
-    let daysText = '—', windowText = '—', windowOpen = false;
-    if (expiry) {
-      const exp = new Date(expiry + 'T00:00:00Z');
-      const win = new Date(exp); win.setUTCMonth(win.getUTCMonth() - 6);
-      const days = Math.ceil((exp - Date.now()) / 86400000);
-      daysText = days > 0 ? `${days} days left` : 'expired';
-      windowOpen = Date.now() >= win.getTime() && days > 0;
-      windowText = windowOpen ? 'open now: you can renew' : `opens on ${win.toISOString().slice(0, 10)}`;
-    }
-    document.getElementById('rc-expiry').textContent = expiry || '—';
-    document.getElementById('rc-days').textContent = daysText;
-    const winEl = document.getElementById('rc-window');
-    winEl.textContent = windowText;
-    winEl.className = windowOpen ? 'rc-open' : '';
-    document.getElementById('rc-pos').textContent = `#${idx + 1} of ${list.length}`;
-    document.getElementById('rc-balance').textContent = bal ? (unc ? bal + ' (' + unc + ')' : bal) : '—';
-    document.getElementById('rc-donations').textContent = info.donation != null ? fmt(info.donation) : '—';
-    document.getElementById('rc-link').href = `/weinfo/${chain}/${d.id}`;
-    status.className = 'ok-line';
-    status.textContent = windowOpen ? '✓ Listed. The renewal window is open.' : '✓ Listed.';
-    const card = document.getElementById('renewal-card');
-    card.hidden = false;
-    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  } catch (err) {
-    status.className = 'err-line';
-    status.textContent = 'Could not check the list right now. Please try again in a moment.';
-  }
-});
-document.getElementById('submit').addEventListener('click', async () => {
-  stopDepositWatch();
-  const urlInput = document.getElementById('url');
-  let url = urlInput.value.trim();
-  if (!url) return;
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url;
-    urlInput.value = url;
-  }
-  const inv = document.getElementById('invoice');
-  inv.classList.remove('show');
-  document.getElementById('iv-status').className = '';
-  document.getElementById('iv-status').textContent = '';
-  document.getElementById('iv-min').textContent = '—';
-  document.getElementById('iv-chain').textContent = '—';
-  document.getElementById('iv-addr').textContent = '—';
-  document.getElementById('iv-balance').textContent = '—';
-  document.getElementById('iv-donations').textContent = '—';
-  document.getElementById('iv-url').textContent = '—';
-  document.getElementById('iv-contact').textContent = '—';
-  document.getElementById('iv-weinfo').href = '#';
-  document.getElementById('iv-weinfo').textContent = '—';
-  document.getElementById('iv-nextdep-row').style.display = 'none';
-  document.getElementById('iv-nextdep').textContent = '—';
-  document.getElementById('iv-min').parentElement.style.display = '';
-  document.getElementById('iv-addr').parentElement.style.display = '';
-  document.getElementById('qrcode').style.display = '';
-  document.getElementById('share-btn').style.display = '';
-  document.getElementById('qrcode').innerHTML = '';
-  document.getElementById('qrcode').style.cursor = '';
-  document.getElementById('qr-overlay').classList.remove('show');
-  document.getElementById('share-btn').textContent = 'Share invoice';
-  document.getElementById('terms-box').classList.remove('show');
-  document.getElementById('terms-box').style.display = '';
-  document.getElementById('terms-check').checked = false;
-  document.getElementById('terms-accept').disabled = true;
-  const chain = getChain();
-  const infoUrl = url + '/' + chain + '/info';
-  document.getElementById('terms-url').href = infoUrl;
-  document.getElementById('terms-url').textContent = url;
-  document.getElementById('terms-box').classList.add('show');
-  document.getElementById('terms-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-});
-
-document.getElementById('terms-check').addEventListener('change', function () {
-  document.getElementById('terms-accept').disabled = !this.checked;
-});
-
-document.getElementById('terms-accept').addEventListener('click', async function () {
-  document.getElementById('terms-box').classList.remove('show');
-  const urlInput = document.getElementById('url');
-  let url = urlInput.value.trim();
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url;
-  }
-  const chain = getChain();
-  try {
-    const response = await fetch('/data', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, chain, contact: document.getElementById('contact').value.trim() || undefined })
-    });
-    const result = await response.json();
-    if (!response.ok) {
-      document.getElementById('iv-status').className = 'err-line';
-      document.getElementById('iv-status').textContent = 'Error: ' + (result.message || result.error || JSON.stringify(result));
-      return;
-    }
-    document.getElementById('iv-min').textContent = fmt(result.min_amount != null ? result.min_amount : minAmount) + ' sats';
-    document.getElementById('iv-chain').textContent = result.chain || chain;
-    document.getElementById('iv-addr').textContent = result.address || '—';
-    const balStr = result.balance != null ? fmt(result.balance) : null;
-    const uncStr = result.unconfirmed_balance != null ? fmt(result.unconfirmed_balance) : null;
-    document.getElementById('iv-balance').textContent = balStr ? (uncStr ? balStr + ' (' + uncStr + ')' : balStr) : '—';
-    document.getElementById('iv-donations').textContent = result.donation != null ? fmt(result.donation) : '—';
-    document.getElementById('iv-contact').textContent = document.getElementById('contact').value.trim() || '—';
-    const weLink = result.id ? `/weinfo/${result.chain || chain}/${result.id}` : null;
-    const weinfoEl = document.getElementById('iv-weinfo');
-    if (weLink) {
-      weinfoEl.href = weLink;
-      weinfoEl.textContent = 'View page';
-    } else {
-      weinfoEl.href = '#';
-      weinfoEl.textContent = '—';
-    }
-    const serverUrl = result.url || url;
-    document.getElementById('iv-url').textContent = serverUrl;
-    if (result.payment_needed === false) {
-      document.getElementById('iv-min').parentElement.style.display = 'none';
-      document.getElementById('iv-addr').parentElement.style.display = 'none';
-      document.getElementById('qrcode').style.display = 'none';
-      document.getElementById('share-btn').style.display = 'none';
-      document.getElementById('iv-nextdep').textContent = result.next_deposit_date || '—';
-      document.getElementById('iv-nextdep-row').style.display = 'flex';
-      document.getElementById('iv-status').className = 'ok-line';
-      document.getElementById('iv-status').textContent = 'Server is already listed. Next renewal: ' + (result.next_deposit_date || '—');
-      const inv = document.getElementById('invoice');
-      inv.classList.add('show');
-      inv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      return;
-    }
-    // Fixed address: whoever pays can close this invoice and follow the deposit there.
-    if (weLink) weinfoEl.textContent = 'Follow your payment';
-    const amountSats = result.min_amount != null ? result.min_amount : minAmount;
-    const amountBtc = (amountSats / 1e8).toFixed(8).replace(/\.?0+$/, '');
-    const invoiceuri = `bitcoin:${result.address}?amount=${amountBtc}&label=BAL&message=Order+For+url+%26+${encodeURIComponent(url)}`;
-    const qrEl = document.getElementById('qrcode');
-    qrEl.innerHTML = '';
-    new QRCode(qrEl, { text: invoiceuri, width: 160, height: 160 });
-    qrEl.style.cursor = 'pointer';
-    qrEl.onclick = function () {
-      const overlay = document.getElementById('qr-overlay');
-      const big = document.getElementById('qr-big');
-      big.innerHTML = '';
-      new QRCode(big, { text: invoiceuri, width: 280, height: 280 });
-      overlay.classList.add('show');
-    };
-    document.getElementById('qr-overlay').onclick = function () {
-      this.classList.remove('show');
-    };
-    const shareBtn = document.getElementById('share-btn');
-    shareBtn.textContent = 'Share invoice';
-    shareBtn.onclick = function () {
-      if (navigator.share) {
-        navigator.share({ title: 'BAL Invoice', text: invoiceuri });
-      } else {
-        navigator.clipboard.writeText(invoiceuri).then(() => {
-          this.textContent = 'Copied!';
-          setTimeout(() => this.textContent = 'Share invoice', 2000);
-        });
-      }
-    };
-    document.getElementById('iv-status').className = 'ok-line';
-    document.getElementById('iv-status').textContent = '✓ Server verified: ' + serverUrl + '. Pay the invoice — it will be listed after 3 confirmations.';
-    const inv = document.getElementById('invoice');
-    inv.classList.add('show');
-    inv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    startDepositWatch(result.chain || chain, result.id);
-  } catch (err) {
-    document.getElementById('iv-status').className = 'err-line';
-    document.getElementById('iv-status').textContent = 'Network error. Please try again.';
-  }
-});
-
-// Add / Check tabs: show the elements of one tab, clear any previous result.
-(function () {
-  const panel = document.getElementById('we-panel');
-  const tabs = Array.from(panel.querySelectorAll('.mode-seg button'));
-  function setMode(mode) {
-    panel.dataset.mode = mode;
-    tabs.forEach(b => b.setAttribute('aria-selected', b.dataset.mode === mode ? 'true' : 'false'));
-    panel.querySelectorAll('[data-add]').forEach(el => { el.hidden = mode !== 'add'; });
-    panel.querySelectorAll('[data-check]').forEach(el => { el.hidden = mode !== 'check'; });
-    stopDepositWatch();
-    const status = document.getElementById('iv-status');
-    status.className = ''; status.textContent = '';
-    document.getElementById('terms-box').classList.remove('show');
-    document.getElementById('invoice').classList.remove('show');
-    document.getElementById('renewal-card').hidden = true;
-  }
-  tabs.forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
-  if (new URLSearchParams(location.search).get('mode') === 'check') {
-    setMode('check');
-    // arriving from the Terms FAQ: land on the panel, not at the top of the page
-    panel.scrollIntoView({ block: 'start' });
-  }
-})();
-
-document.getElementById('url').addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  const mode = document.getElementById('we-panel').dataset.mode;
-  document.getElementById(mode === 'check' ? 'check' : 'submit').click();
-});
 
 (async function init() {
-  setChain(chainFromUrl());
-  await Promise.all([fetchData(), fetchMinAmount()]);
+  // Learn which chains are active before choosing one: the buttons must reflect
+  // the backend, and the default chain is the first active one rather than
+  // Bitcoin, which a Testnet-only or Regtest-only deployment does not serve.
+  const firstActive = applyActiveChains(await loadActiveChains());
+  firstActiveChain = firstActive;
+  if (!setChain(chainFromUrl()) && firstActive) setChain(firstActive);
+  await fetchData();
   const blob = new Blob([JSON.stringify(allServers, null, 2)], { type: 'application/json' });
   document.getElementById('download').href = URL.createObjectURL(blob);
 })();
 </script>
-<div id="qr-overlay"><div id="qr-big"></div></div>
 </body>
 </html>

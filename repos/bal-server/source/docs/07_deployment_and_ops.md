@@ -64,11 +64,31 @@ the handler (including request body reading) exceeds the limit.
 | `BAL_SERVER_DB_FILE` | `"bal.db"` | Path to the SQLite database file |
 | `BAL_PUSHER_BITCOIN_DIR` | `""` | Bitcoin data directory (for cookie file path resolution) |
 | `BAL_PUSHER_SEND_STATS` | `false` | Enable/disable remote stats reporting |
-| `BAL_SERVER_URL` | `"http://127.0.0.1:9133"` | URL of the bal-server for internal communication |
+| `BAL_SERVER_URL` | `"http://127.0.0.1:9133"` | Public URL signed in WeTime pings; trimmed of surrounding whitespace and trailing slashes for v1, and must be a canonical origin for v2/v3 |
 | `SSL_KEY_PATH` | `"privkey.pem"` | Path to Ed25519 private key for signing stats |
 | `BAL_PUSHER_PREFER_IPV6` | `false` | Pin HTTP connection to first IPv6 address (for broken IPv4 routes) |
 | `WELIST_SERVER_URL` | `"https://welist.bitcoin-after.life"` | URL to POST signed stats to (validated against SSRF) |
 | `WELIST_SKIP_URL_VALIDATION` | `false` | Bypass SSRF URL validation (for testing only) |
+| `WELIST_PING_SIG_VERSION` | `1` | WeTime ping signature scheme: `1` (legacy), `2` (canonical JSON, `/.pub_key.pem` key) or `3` (canonical JSON, DNSSEC/onion key) |
+| `WELIST_PING_DELEGATION_FILE` | unset | Onion only, v3 only: JSON delegation certificate issued by the onion identity key |
+| `BAL_PUSHER_DELEGATION_WARN_DAYS` | `7` | Days before delegation expiry at which the pusher warns; `0` disables the warning |
+| `BAL_PUSHER_MAX_DELEGATION_DAYS` | `366` | Maximum onion delegation lifetime in days; `0` disables the cap |
+
+The pusher reads `info`, `base_fee` and `version` from
+`tbl_executor_metadata`, written by `bal-server` at startup. It never fetches
+`/{chain}/info` over HTTP. Metadata is best effort: if the table or row is
+missing, the pusher signs `null` values instead of refusing to send. When the
+row contains `pubkey_pem`, the pusher verifies that it matches `SSL_KEY_PATH`
+and skips the ping on a mismatch. `bal-server` caches the PEM at startup, so
+restart it after changing `BAL_SERVER_PUB_KEY_PATH` to update both
+`/.pub_key.pem` and the database row.
+
+For v3 DNS hosts the pusher also performs one TXT consistency check before the
+first WeTime ping after startup. It uses the system resolver, without local
+DNSSEC validation. A definitive mismatch is retried once after 30 seconds and
+then skips WeTime pings until restart; NXDOMAIN and empty answers count as
+mismatches. Timeout/SERVFAIL is transient and does not block. The service
+remains the authoritative DNSSEC verifier.
 
 #### Per-Network Settings
 
@@ -200,11 +220,44 @@ export $(grep -v '^#' bal-server.env | xargs)
 RUST_LOG=info cargo run --bin=bal-server 2>&1
 ```
 
+These launchers are development-only: they enable trace logging, local
+databases and keys, and (for the pusher) disable WELIST URL validation and
+default to the legacy v1 signature. They print a warning and require typing
+`yes` before starting. Pass `-ok-dev` or set `BAL_DEV=true` for non-interactive
+use:
+
+```bash
+./bal-server.sh -ok-dev
+BAL_DEV=true ./bal-server.sh
+```
+
+Without a terminal and without either override, the script exits with status 1.
+
+### `pg-server.sh` (Local PostgreSQL)
+Starts the `bal-pg` Docker container used when `BAL_SERVER_DB_BACKEND=postgresql`.
+
+- Requires `BAL_PG_PASSWORD` (loaded from `.env` by the startup scripts).
+- Publishes port `5432` on `127.0.0.1` only by default. Set
+  `BAL_PG_BIND_ADDR=0.0.0.0` only if remote access is really required; the
+  script prints a warning when the database is not bound to loopback.
+- Stores data in the Docker volume `BAL_PG_VOLUME` (default `bal-pg-data`), so
+  the container can be recreated without losing data.
+- Fails if the existing container publishes the port on a different interface.
+  Run `./pg-server.sh --recreate` to recreate it; the data volume is preserved
+  (and migrated to `BAL_PG_VOLUME` if it changed).
+
 ### `bal-pusher.sh` (Development Pusher Startup)
 Sources `bal-pusher.env` and runs the pusher with a network argument:
 ```bash
 export $(grep -v '^#' bal-pusher.env | xargs)
 RUST_LOG=info cargo run --bin=bal-pusher $1
+```
+
+The same development guard applies:
+
+```bash
+./bal-pusher.sh -ok-dev
+BAL_DEV=true ./bal-pusher.sh
 ```
 
 ### `sendtx.sh` (Test Transaction Sender)
@@ -282,6 +335,7 @@ Key points:
 - [ ] Database file owned by `bal` user (`chown bal:bal /var/bal/bal.db`).
 - [ ] Database file permissions `600` (`chmod 600 /var/bal/bal.db`).
 - [ ] `.env` files in `.gitignore` and not committed.
+- [ ] PostgreSQL (if used) published on `127.0.0.1` only (`BAL_PG_BIND_ADDR`).
 - [ ] `private_key.pem` / `privkey.pem` not in the repository.
 - [ ] `public_key.pem` readable by Nginx if served directly.
 

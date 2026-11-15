@@ -121,6 +121,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_stats_chain ON tbl_stats(chain);
 - **Purpose:** Stores aggregate statistics for each network. The pusher calculates and upserts stats (`ON CONFLICT(chain) DO UPDATE`). The server reads from it for the `stats` endpoint if `expose_stats` is enabled.
 - **Relationships:** `chain` has a unique index. Data is updated by `bal-pusher` via `calculate_stats`.
 
+### `tbl_executor_metadata` (Shared Executor Metadata)
+
+```sql
+CREATE TABLE IF NOT EXISTS tbl_executor_metadata (
+    chain TEXT PRIMARY KEY,              -- Canonical chain name
+    info TEXT NOT NULL,                  -- Server info string
+    base_fee INTEGER NOT NULL,           -- Per-chain fixed fee (BIGINT in PostgreSQL)
+    version TEXT NOT NULL,               -- bal-server version
+    pubkey_pem TEXT,                     -- Raw PEM served at /.pub_key.pem, or NULL
+    date_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+- **Purpose:** Single source of truth for the values the pusher signs in a v2 or
+  v3 WeTime ping. `bal-server` upserts one row per enabled chain at startup from
+  its effective configuration and from `BAL_SERVER_PUB_KEY_PATH`.
+- **Readers:** `bal-pusher` reads the row for its canonical `chain` on each
+  report. It signs `info`, `base_fee` and `version`, and checks `pubkey_pem`
+  against `SSL_KEY_PATH` before sending. A missing row or key is signed as
+  `null`; a malformed PEM or key mismatch skips the ping.
+- **Consistency:** `pubkey_pem` is the same string served at `/.pub_key.pem`,
+  cached at server startup, so the database and the HTTP endpoint cannot
+  disagree. Rotating the key requires a server restart.
+- **Notes:** `info` and `version` are global values duplicated per chain;
+  `base_fee` is per chain. The table contains public data only. The xpub and
+  derived address state remain in `tbl_xpub` / `tbl_address`.
+
 ---
 
 ## Data Query Strategy

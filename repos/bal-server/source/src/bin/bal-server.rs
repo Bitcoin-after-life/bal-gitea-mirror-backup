@@ -22,6 +22,7 @@ use bal_server::db::{
     DatabasePool, InsertInpData, InsertOutData, InsertTxData, check_duplicate_txids,
     create_database, get_all_addresses_by_xpub, get_last_used_address_by_ip,
     get_next_address_index, get_stats, insert_xpub, open_database, save_new_address, search_tx,
+    upsert_executor_metadata,
 };
 use bal_server::xpub::new_address_from_xpub;
 
@@ -207,6 +208,9 @@ fn parse_actix_config() -> ActixConfig {
 struct AppState {
     db: DatabasePool,
     cfg: MyConfig,
+    /// Public key PEM cached at startup and also stored in
+    /// `tbl_executor_metadata` for the pusher consistency check.
+    pub_key_pem: Option<String>,
 }
 
 async fn echo_home(data: web::Data<AppState>) -> impl Responder {
@@ -214,12 +218,11 @@ async fn echo_home(data: web::Data<AppState>) -> impl Responder {
 }
 
 async fn echo_pub_key(data: web::Data<AppState>) -> impl Responder {
-    match fs::read_to_string(&data.cfg.pub_key_path) {
-        Ok(pub_key) => HttpResponse::Ok().body(pub_key),
-        Err(e) => {
+    match data.pub_key_pem.as_ref() {
+        Some(pub_key) => HttpResponse::Ok().body(pub_key.clone()),
+        None => {
             error!(
-                "Failed to read public key file {}: {}",
-                data.cfg.pub_key_path, e
+                "Public key is unavailable; check BAL_SERVER_PUB_KEY_PATH and restart the server"
             );
             HttpResponse::InternalServerError().body("error")
         }
@@ -813,10 +816,41 @@ fn parse_env_netconfig(cfg: &mut MyConfig, chain: &str) {
     }
 }
 
-async fn init_network(pool: &DatabasePool, cfg: &MyConfig) {
+async fn init_network(pool: &DatabasePool, cfg: &MyConfig, pub_key_pem: Option<&str>) {
     for network in NETWORKS {
         let netconfig = cfg.get_net_config(network);
         insert_xpub(pool, &netconfig.name.to_string(), &netconfig.address).await;
+
+        if !netconfig.enabled {
+            continue;
+        }
+
+        let base_fee = match i64::try_from(netconfig.fixed_fee) {
+            Ok(value) => value,
+            Err(_) => {
+                error!(
+                    "fixed_fee {} for {} does not fit in i64; skipping executor metadata row",
+                    netconfig.fixed_fee, netconfig.name
+                );
+                continue;
+            }
+        };
+
+        if let Err(e) = upsert_executor_metadata(
+            pool,
+            &netconfig.name,
+            &cfg.info,
+            base_fee,
+            VERSION,
+            pub_key_pem,
+        )
+        .await
+        {
+            error!(
+                "Failed to store executor metadata for {}: {}",
+                netconfig.name, e
+            );
+        }
     }
 }
 
@@ -851,12 +885,26 @@ async fn main() -> std::io::Result<()> {
         .await
         .map_err(|e| std::io::Error::other(format!("Failed to create database: {}", e)))?;
 
+    // Read the public key once. The same value is served at /.pub_key.pem and
+    // stored for the pusher consistency check, so the two cannot disagree.
+    let pub_key_pem = match fs::read_to_string(&cfg.pub_key_path) {
+        Ok(pem) => Some(pem),
+        Err(e) => {
+            error!(
+                "Failed to read public key file {}: {}; /.pub_key.pem will be unavailable and pings will be skipped until it is fixed",
+                cfg.pub_key_path, e
+            );
+            None
+        }
+    };
+
     // Initialize networks
-    init_network(&db, &cfg).await;
+    init_network(&db, &cfg, pub_key_pem.as_deref()).await;
 
     let data = web::Data::new(AppState {
         db,
         cfg: cfg.clone(),
+        pub_key_pem,
     });
 
     let bind_address = data.cfg.bind_address.clone();

@@ -85,6 +85,34 @@ This module handles the derivation of Bitcoin addresses from extended public key
 
 ---
 
+## `url_policy.rs` (Canonical v3 Executor URL)
+
+**Location:** `src/url_policy.rs` (identical copy in `bal-welist`)
+
+Defines the single canonical origin form signed by v3 WeTime pings. The service
+and the pusher must produce the same string; otherwise every v3 signature fails.
+
+### Key Function
+
+| Function | Signature | Purpose |
+|---|---|---|
+| `canonical_executor_url` | `pub fn canonical_executor_url(raw: &str) -> Result<String, UrlPolicyError>` | Returns `scheme://host[:port]` or a policy error. |
+
+### Rules
+
+1. ASCII only; raw Unicode is rejected. Use the `xn--` A-label form.
+2. Scheme must be `http` or `https`.
+3. No userinfo, path (other than `/`), query, or fragment.
+4. No explicit default port (`:80` for http, `:443` for https); non-default
+   ports are preserved.
+5. No IP literal and no `localhost`/`.localhost`.
+6. Host is lowercase, has no trailing dot, and uses valid LDH labels
+   (1–63 bytes, total ≤253).
+7. The caller must require `data.url == canonical_executor_url(data.url)`; the
+   function normalizes, the caller rejects non-canonical input.
+
+---
+
 ## `validation.rs` (SSRF Protection)
 
 **Location:** `src/validation.rs`
@@ -193,6 +221,80 @@ This is the async daemon that monitors the blockchain and pushes pending transac
 - Stats are inserted into `tbl_stats` with `ON CONFLICT(chain) DO UPDATE`.
 - The stats payload is signed with Ed25519 and POSTed to `{welist_url}/ping`.
 - The `WELIST_SERVER_URL` is validated via `is_valid_welist_url()` before sending (can be bypassed with `WELIST_SKIP_URL_VALIDATION=true`).
+- `WELIST_PING_SIG_VERSION` selects the signature scheme:
+  - `1` (default): legacy concatenation of URL, chain, height, median time and
+    block hash. The WeTime service verifies it against `/.pub_key.pem`. The
+    signature authenticates liveness only: the pusher does not send `info`,
+    `base_fee` or `version`, and the service refreshes `last_update` without
+    persisting executor metadata. Use v2 or v3 when metadata must be published
+    and authenticated.
+  - `2`: canonical JSON signed with the `WELIST-PING-V2\n` prefix. The payload
+    is identical to v3 except for the prefix and `sig_version`; the WeTime
+    service verifies it against `/.pub_key.pem` instead of using DNSSEC or the
+    onion identity key. The pusher reads `info`, `base_fee` and `version` from
+    `tbl_executor_metadata`; absent metadata is signed as `null`. v2 does not
+    use DNSSEC, onion keys or delegation; a `delegation` object is never sent.
+  - `3`: canonical JSON signed with the `WELIST-PING-V3\n` prefix. The pusher
+    reads `info`, `base_fee` and `version` from `tbl_executor_metadata` and
+    signs them together with the block metadata. The lookup is keyed by the
+    canonical `NetworkParams.chain` name (`bitcoin`, `testnet`, `testnet4`,
+    `signet`, `regtest`), not by the overridable `db_field`. Onion pings receive
+    the same metadata as DNS hosts. The WeTime service discovers the public key
+    from a DNSSEC-validated `_welist-key.<host>` TXT record, from a v3 onion
+    address, or from a ping key delegated by that onion identity key, so no HTTP
+    callback is needed.
+  - The v1 message signs the URL after trimming surrounding whitespace and
+    trailing slashes, which is exactly what the service does before rebuilding
+    the message. v2 and v3 sign the canonical origin computed from
+    `BAL_SERVER_URL` by the shared `url_policy` module.
+  - Metadata is best effort. If `tbl_executor_metadata` or the row is missing,
+    v1/v2/v3 proceed with `null` metadata instead of blocking the ping. When
+    `pubkey_pem` is present, the pusher verifies that it matches
+    `SSL_KEY_PATH`; a malformed PEM or key mismatch skips the ping. `bal-server`
+    reads the PEM once at startup and serves that cached value, so the endpoint
+    and the database cannot disagree; rotating the key requires a server
+    restart.
+  - For v3 DNS hosts, the pusher performs one TXT consistency check before the
+    first WeList ping after startup. It queries `_welist-key.<host>` through the
+    system resolver without local DNSSEC validation (the service remains
+    authoritative), parses `v=we1; alg=ed25519; key=<base64>`, and compares it
+    with `SSL_KEY_PATH`. NXDOMAIN, empty answers, malformed records, or a
+    mismatching key trigger one retry after 30 seconds; two definitive
+    mismatches skip WeTime pings until restart. Timeout/SERVFAIL is transient
+    and does not block. The result is cached per signing key for the process
+    lifetime.
+  - When onion delegation is configured, the pusher sends the certificate only
+    with v3 pings and verifies at startup that it is bound to the configured
+    onion host, is structurally valid, is not expired, is within
+    `BAL_PUSHER_MAX_DELEGATION_DAYS` (default 366), verifies its Ed25519
+    signature against the identity key embedded in the onion address, and
+    delegates to the key at `SSL_KEY_PATH`. The expiry is also checked again
+    on every ping, and
+    `BAL_PUSHER_DELEGATION_WARN_DAYS` controls an advance warning. If a check
+    fails the pusher disables delegation and signs directly, which the service
+    rejects unless `SSL_KEY_PATH` is the onion identity key. A leaked key is
+    stopped with `contrib/make_ping_key_revocation.py` (onion:
+    identity-signed; DNS: self-signed), submitted to the WeTime
+    `/ping-keys/revoke` endpoint.
+- `bal-pusher.sh` defaults to `WELIST_PING_SIG_VERSION=1` for the development
+  setup; a `localhost` URL cannot use the canonical URL policy required by
+  v2/v3, so the dev pusher uses the legacy scheme verified against
+  `/.pub_key.pem`. v2 uses canonical JSON with `/.pub_key.pem` key discovery; v3
+  uses canonical JSON with a public DNS hostname or a v3 onion address.
+  Development launchers
+  require `-ok-dev` or `BAL_DEV=true`; otherwise they ask for interactive
+  confirmation and refuse to start without a terminal. The scripts resolve their
+  own directory with `${BASH_SOURCE[0]}`, so they also work when sourced from a
+  tmux launcher.
+- To publish the v3 public key, derive the base64 SubjectPublicKeyInfo DER:
+  `openssl pkey -in private_key.pem -pubout -outform DER | base64 -w0` and
+  publish it in a DNSSEC-signed TXT record named `_welist-key.<host>` with value
+  `v=we1; alg=ed25519; key=<base64>`. A v3 onion URL needs no DNS record: its
+  Ed25519 identity key is embedded in the address, and the recommended setup
+  keeps that key offline while it certifies a dedicated ping key
+  (`WELIST_PING_DELEGATION_FILE`). See
+  [`10_dnssec_key_publishing.md`](10_dnssec_key_publishing.md) for the full
+  operator guide.
 
 ### ZMQ Timeout Handling
 - Uses `set_rcvtimeo(5000)` (5-second timeout).
@@ -208,5 +310,6 @@ All configuration is via environment variables (no config files):
 - `SSL_KEY_PATH`: Path to Ed25519 private key for signing stats.
 - `WELIST_SERVER_URL`: URL to POST stats to (validated against SSRF).
 - `WELIST_SKIP_URL_VALIDATION`: Bypass URL validation (for testing).
+- `WELIST_PING_SIG_VERSION`: WeTime ping signature scheme (`1` legacy, `2` canonical JSON).
 - `BAL_PUSHER_PREFER_IPV6`: Pin HTTP connection to IPv6 address.
 - Per-network: `BAL_PUSHER_{NETWORK}_HOST`, `_PORT`, `_DIR_PATH`, `_DB_FIELD`, `_COOKIE_FILE`, `_RPC_USER`, `_RPC_PASSWORD`, `_ZMQ_HASHBLOCK`.

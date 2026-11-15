@@ -144,7 +144,7 @@ footer a{color:var(--accent);text-decoration:none}
         <p class="big" id="weexpiry">&nbsp;</p>
         <p class="days" id="wedays">&nbsp;</p>
         <div class="kv">
-          <div><span>Renewal window</span><b id="wewindow">—</b></div>
+          <div><span>Continues automatically</span><b id="wecredit">—</b></div>
           <div><span>Balance</span><b id="webalance">—</b></div>
           <div><span>Donations</span><b id="wedonations">—</b></div>
           <div><span>Domain</span><b id="wetld">—</b></div>
@@ -156,7 +156,8 @@ footer a{color:var(--accent);text-decoration:none}
         <div class="tiles">
           <div class="tile"><div class="n" id="wepoints">—</div><div class="l">Points</div></div>
           <div class="tile"><div class="n" id="wewin">—</div><div class="l">Wins</div></div>
-          <div class="tile"><div class="n" id="wefees">—</div><div class="l">Fee (sats)</div></div>
+          <div class="tile"><div class="n" id="wefees">—</div><div class="l">Base fee (sats)</div></div>
+          <div class="tile"><div class="n" id="wedailyfee">—</div><div class="l">Daily fee (sats/day)</div></div>
           <div class="tile"><div class="n" id="weheight">—</div><div class="l">Height</div></div>
           <div class="tile wide"><div class="l" style="margin:0">Last update</div><div class="n" id="weupdate">—</div></div>
         </div>
@@ -211,6 +212,9 @@ footer a{color:var(--accent);text-decoration:none}
       const PAYMENT_POLL_MAX_MS = 24 * 60 * 60 * 1000;
       const paymentStarted = Date.now();
       let paymentTimer = null, paymentSeen = false, paymentAmount = 0, firstExpiry;
+      // Price of one listing period, from `/api/info`; 0 until it is known, which
+      // makes the expiry card avoid promising a continuation it cannot verify.
+      let minPeriod = 0;
 
       const fmt = n => (n != null ? Number(n).toLocaleString('en-US') : '—');
       const pad = n => String(n).padStart(2, '0');
@@ -219,21 +223,38 @@ footer a{color:var(--accent);text-decoration:none}
                pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
       }
 
-      // Expiry card: the date big, the days left, the renewal window (from 6 months
-      // before expiry, Terms Section 1).
-      function showExpiry(expiryRaw) {
+      // Expiry card: the date big and the days left. There is no renewal window any
+      // more (Terms Section 1): when a period ends the days the balance can pay for
+      // are granted automatically, so the card says whether that will happen now.
+      function showExpiry(expiryRaw, balance) {
         const expiry = (expiryRaw || '').slice(0, 10);
         document.getElementById('weexpiry').textContent = expiry ? 'Expires ' + expiry : 'Not listed';
         const daysEl = document.getElementById('wedays');
-        const winEl = document.getElementById('wewindow');
-        if (!expiry) { daysEl.textContent = 'No listing time: see the Terms to get listed.'; winEl.textContent = '—'; winEl.className = ''; return; }
+        if (!expiry) {
+          daysEl.textContent = 'No listing time: see the Terms to get listed.';
+          setContinuation(null, '—');
+          return;
+        }
         const exp = new Date(expiry + 'T00:00:00Z');
-        const win = new Date(exp); win.setUTCMonth(win.getUTCMonth() - 6);
         const days = Math.ceil((exp - Date.now()) / 86400000);
         daysEl.textContent = days > 0 ? days + ' days of listing left' : 'Listing expired';
-        const open = Date.now() >= win.getTime() && days > 0;
-        winEl.textContent = open ? 'open now' : 'opens on ' + win.toISOString().slice(0, 10);
-        winEl.className = open ? 'open' : '';
+        // One period is charged at expiry when the balance covers it. Without the
+        // published price the balance is reported as is, without promising anything.
+        const held = Number(balance);
+        if (!Number.isFinite(held)) {
+          setContinuation(null, '—');
+        } else if (!minPeriod) {
+          setContinuation(null, held > 0 ? 'from the balance' : 'no balance');
+        } else {
+          const covers = held >= minPeriod;
+          setContinuation(covers, covers ? 'yes, from the balance' : 'no, add credit');
+        }
+      }
+
+      function setContinuation(covered, text) {
+        const el = document.getElementById('wecredit');
+        el.textContent = text;
+        el.className = covered === true ? 'open' : '';
       }
 
       function showPayment(text, ok) {
@@ -268,7 +289,7 @@ footer a{color:var(--accent);text-decoration:none}
         const bal = data.balance != null ? fmt(data.balance) : null;
         const unc = data.unconfirmed_balance != null ? fmt(data.unconfirmed_balance) : null;
         document.getElementById('webalance').textContent = bal ? (unc ? bal + ' (' + unc + ')' : bal) : '—';
-        showExpiry(expiry);
+        showExpiry(expiry, data.balance);
         if (expiry && expiry !== firstExpiry) {
           showPayment('✓ Payment confirmed: this server is now listed.', true);
           stopPayment();
@@ -299,6 +320,9 @@ footer a{color:var(--accent);text-decoration:none}
           document.getElementById('wechain').textContent   = data.chain || chain;
           document.getElementById('weinfo').textContent    = data.info || '';
           document.getElementById('wefees').textContent    = fmt(data.base_fee);
+          // `daily_fee` is optional: executors that do not publish it return null,
+          // which renders as an em dash instead of a misleading 0.
+          document.getElementById('wedailyfee').textContent = fmt(data.daily_fee);
           document.getElementById('weheight').textContent  = fmt(data.last_block);
           document.getElementById('wepoints').textContent  = fmt(data.points);
           document.getElementById('wewin').textContent     = fmt(data.count_win);
@@ -309,7 +333,7 @@ footer a{color:var(--accent);text-decoration:none}
           document.getElementById('wedonations').textContent = fmt(data.donation);
           document.getElementById('weversion').textContent = data.version || '—';
           document.getElementById('weupdate').textContent  = data.last_update || '—';
-          showExpiry(data.expiry_date);
+          showExpiry(data.expiry_date, data.balance);
           const statusMap = {
             'OK': 'Health check passed',
             'TIMEOUT': 'Connection timeout',
@@ -361,7 +385,25 @@ footer a{color:var(--accent);text-decoration:none}
         },{elementName:"download",fileName:"weinfo_"+cdate+".json",linkText:"download"})
       }
 
-      getWeInfo();
+      // The price of one period comes from the same aggregated endpoint the list
+      // uses. It is resolved before the first render so the expiry card can qualify
+      // the balance without a second render racing the payment poller. A failure is
+      // not fatal: the card then just reports the balance.
+      (async function init() {
+        const path = window.location.pathname.split('/').filter(p => p !== '');
+        const chain = path[1];
+        try {
+          const r = await fetch('/api/info?chain=' + encodeURIComponent(chain) + '&limit=1');
+          if (r.ok) {
+            const data = await r.json();
+            const val = parseInt(data[chain] && data[chain].ranking && data[chain].ranking.amount, 10);
+            if (!isNaN(val)) minPeriod = val;
+          }
+        } catch (err) {
+          // No price: showExpiry() reports the balance without a promise.
+        }
+        getWeInfo();
+      })();
     </script>
 </body>
 </html>

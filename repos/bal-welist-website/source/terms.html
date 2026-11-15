@@ -21,13 +21,14 @@
 <meta name="twitter:image" content="https://bitcoin-after.life/pitura/og-default.png">
 <link rel="icon" href="Logo_nero.ico" type="image/x-icon">
 <!--
-  Sections 2-4 rewritten on 2026-07 for the yearly-listing model
-  (flat yearly fee, renewal from 6 months before expiry). The list
-  is ordered by total excess donated, then total amount paid, then
-  base fee, then WeTime points as a tie-breaker (see Section 3),
-  matching the server-side get_list() ordering. Section 1, header,
-  footer and the dynamic min-deposit script are unchanged from the
-  previous version.
+  Sections 2-4 rewritten on 2026-07 for the yearly-listing model.
+  2026-11-13: Section 1 rewritten for the prepaid-credit billing model
+  (no renewal window; deposits become credit, the 365-day charge is taken
+  from it at expiry). The timeline SVG was redrawn accordingly and the
+  fee is read from /api/info. The list is ordered by total excess donated,
+  then total amount paid, then base fee, then WeTime points as a
+  tie-breaker (see Section 2), matching the server-side get_list()
+  ordering.
   2026-11-06: the page opens with an animated SVG timeline (.lt) of the
   listing lifecycle, played when it scrolls into view; the four-step
   .lifecycle strip is kept for small screens only. Sections reordered
@@ -232,23 +233,23 @@ footer a{color:var(--accent);text-decoration:none}
    "name": "I paid less than the yearly fee. What happens?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "A payment below the yearly fee is treated as a donation: it does not add listing time."
+    "text": "The minimum deposit is one listing period. A deposit is credited when it is at least that amount, or when your existing credit is below one period and the deposit completes the amount still missing. A deposit that is neither does not add listing time and is recorded as a donation; the credit you already hold is untouched."
    }
   },
   {
    "@type": "Question",
-   "name": "When and how do I renew?",
+   "name": "How does renewal work?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Any time from 6 months before your expiry date, by paying the yearly fee for the exact same server URL as published in the list. The new year is added on top of the time you have left, so renewing early never costs you days."
+    "text": "There is no renewal window and nothing to do. Any deposit you make while listed stays as credit, and when the current period ends the days that credit can pay for are granted automatically. A balance covering a full period always buys exactly 365 days; a smaller balance buys the days it can pay for, at a slightly higher daily rate. The minimum deposit is one listing period, or whatever is still missing to complete one period when you hold less than that."
    }
   },
   {
    "@type": "Question",
-   "name": "What happens if I do not renew?",
+   "name": "What happens when my credit runs out?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Your server is removed from the list at expiry. Users who already added it to their plugin keep it, because the plugin's server list is add-only. Being listed matters for reaching new users."
+    "text": "The server leaves the list at expiry, because no days can be paid. Its remaining credit is kept, so a later deposit puts it back in the list. Users who already added it to their plugin keep it, because the plugin's server list is add-only. Being listed matters for reaching new users."
    }
   },
   {
@@ -256,15 +257,23 @@ footer a{color:var(--accent);text-decoration:none}
    "name": "Where do I see my expiry date?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "On the home page, open the “Renewal status” tab, enter the exact URL of your server as it appears in the list and press “Show renewal status”. Nothing is charged: you see the expiry date, the days left, whether the renewal window is open (or when it opens), the position in the list, the balance and the donations, with a link to the server page. The date is not shown in the main table, so you need the exact URL. Knowing it also tells you when your renewal window opens (6 months before). Since the price per day is fixed and public, the expiry date shows how much a server has paid: this is intentional transparency."
+    "text": "The public list does not show the expiry date. Click any server in the list to open its server page: there you see the expiry date, the days left, the balance that will pay for the following periods, the donations and both fees. The date is not shown in the main table, so you need to find your server there first. Since the price per day is fixed and public, the expiry date shows how much a server has paid: this is intentional transparency. Registration and renewal are handled in the Bitcoin After Life plugin."
+
    }
   },
   {
    "@type": "Question",
+   "name": "Who charges what?",
+   "acceptedAnswer": {
+    "@type": "Answer",
+    "text": "Two separate fees. The listing fee (50,000 sats for 365 days) is paid to this service to appear in the list. The executor fee is what a server operator charges to actually produce an inheritance transaction: each executor publishes a base_fee and a daily_fee, and the minimum it accepts is max(base_fee, daily_fee x remaining days of the locktime). Both values are signed by the executor, so they are authenticated, but they are self-reported and can change at any time. Confirm the fee with the executor before relying on it. The daily fee does not affect the order of this list."
+   }
+  },
+  {
    "name": "How is the order of the list decided?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "By four criteria, in this order: total excess donated (higher first), total amount paid (higher first), base fee charged (lower first) and, as a tie-breaker, WeTime points (higher first). Excess donated never decays, so paying more than the exact yearly fee is the fastest way to move up."
+    "text": "By four criteria, in this order: total excess donated (higher first), total amount paid (higher first), base fee charged (lower first) and, as a tie-breaker, WeTime points (higher first). Excess donated never decays, so paying more than the exact yearly fee is the fastest way to move up. The executor's daily fee plays no part in the order."
    }
   },
   {
@@ -435,7 +444,7 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
       <button class="replay" type="button">&#8635; Replay</button>
       <svg viewBox="0 0 1000 318" role="img" aria-labelledby="lt-title lt-desc">
         <title id="lt-title">Listing timeline</title>
-        <desc id="lt-desc">Pay the yearly fee; after 3 confirmations the server is listed for 365 days. From 6 months before expiry you can renew: a new year is added on top. If you do not renew, the server is removed at expiry.</desc>
+        <desc id="lt-desc">Deposit the yearly fee; after 3 confirmations the server is listed for 365 days. Anything above one period stays as credit. When the period ends, the days the credit can pay for are granted automatically, so there is no renewal window. When the credit cannot pay for a single day, the server leaves the list.</desc>
         <defs>
           <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="8" height="8" fill="#e6eefc"/><line x1="0" y1="0" x2="0" y2="8" stroke="#2d6cdf" stroke-opacity=".35" stroke-width="2"/>
@@ -482,17 +491,15 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         <text x="220" y="140" text-anchor="middle" font-size="13" font-weight="600" fill="#fff" style="pointer-events:none">Listed &middot; year 1</text>
         <circle class="dot" cx="120" cy="136" r="7" fill="#fff" stroke="#1f9d57" stroke-width="3"/>
 
-        <!-- renewal window: months 6-12, glued under the bar -->
+        <!-- credit: extra deposit held on the account, spread under year 1 -->
         <g class="win">
-          <!-- the window marked on the bar itself, and two guides down to its caption -->
-          <rect x="320" y="124" width="200" height="24" rx="6" fill="none" stroke="#2d6cdf" stroke-width="2" stroke-dasharray="5 4"/>
           <rect x="320" y="150" width="200" height="16" fill="url(#hatch)" stroke="#2d6cdf" stroke-opacity=".5" rx="3"/>
-          <g class="pay pay1"><text x="420" y="114" text-anchor="middle" class="small" fill="#1a2027" font-weight="600">Renewal paid</text><circle cx="420" cy="136" r="9" fill="#f7931a" stroke="#fff" stroke-width="2"/><text x="420" y="140" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">&#8383;</text></g>
-          <text x="320" y="204" class="lbl-acc">Renewal window</text>
-          <text x="320" y="220" class="small">from 6 months before expiry: pay the yearly fee again</text>
-          <text x="320" y="235" class="small">for the same URL &mdash; the new year is added on top.</text>
-            <text x="320" y="250" class="small">Renewing early never costs you days.</text>
-            <text x="320" y="265" class="small">The same window opens every year.</text>
+          <g class="pay pay1"><text x="420" y="114" text-anchor="middle" class="small" fill="#1a2027" font-weight="600">Extra deposit &#8594; credit</text><circle cx="420" cy="136" r="9" fill="#f7931a" stroke="#fff" stroke-width="2"/><text x="420" y="140" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">&#8383;</text></g>
+          <text x="320" y="204" class="lbl-acc">No renewal window</text>
+          <text x="320" y="220" class="small">Anything above one period stays as credit.</text>
+          <text x="320" y="235" class="small">It is charged automatically when the period ends.</text>
+          <text x="320" y="250" class="small">Deposits smaller than one period are donated,</text>
+          <text x="320" y="265" class="small">unless they complete the period you still miss.</text>
         </g>
 
         <!-- the two outcomes at month 12 -->
@@ -500,14 +507,13 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
           <!-- renewed: the bar continues -->
           <rect class="bar-y2" x="520" y="124" width="400" height="24" rx="6" fill="#1f9d57" fill-opacity=".55"/>
           <text x="620" y="140" text-anchor="middle" font-size="13" font-weight="600" fill="#fff">Renewed &middot; year 2</text>
-          <!-- the renewal window repeats every year: months 18-24 of year 2 -->
-          <rect x="720" y="124" width="200" height="24" rx="6" fill="none" stroke="#2d6cdf" stroke-width="2" stroke-dasharray="5 4"/>
+          <!-- the credit pays for the following period, again without a window -->
           <rect x="720" y="150" width="200" height="16" fill="url(#hatch)" stroke="#2d6cdf" stroke-opacity=".5" rx="3"/>
-          <g class="pay pay2"><text x="820" y="114" text-anchor="middle" class="small" fill="#1a2027" font-weight="600">Renewal paid</text><circle cx="820" cy="136" r="9" fill="#f7931a" stroke="#fff" stroke-width="2"/><text x="820" y="140" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">&#8383;</text></g>
+          <g class="pay pay2"><text x="820" y="114" text-anchor="middle" class="small" fill="#1a2027" font-weight="600">Credit charged</text><circle cx="820" cy="136" r="9" fill="#1f9d57" stroke="#fff" stroke-width="2"/><path d="M815.5 136 l3 3 l6 -6" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
           <path d="M520 98 v18" stroke="#1f9d57" stroke-width="2"/>
           <polygon points="515,116 520,124 525,116" fill="#1f9d57"/>
-          <text x="660" y="78" class="lbl-ok">Renewed in time</text>
-          <text x="660" y="93" class="small">+365 days added on top of the time left</text>
+          <text x="660" y="78" class="lbl-ok">Renewed automatically</text>
+          <text x="660" y="93" class="small">+365 days from the credit, nothing to do</text>
 
           <!-- not renewed: removed at expiry -->
           <path d="M524 156 h116 v58 h12" stroke="#9aa4b0" stroke-width="2" fill="none"/>
@@ -515,15 +521,15 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
           <rect x="660" y="200" width="292" height="28" rx="14" fill="#eceff3" stroke="#dfe4ea"/>
           <line x1="676" y1="208" x2="688" y2="220" stroke="#9aa4b0" stroke-width="2.4" stroke-linecap="round"/>
           <line x1="688" y1="208" x2="676" y2="220" stroke="#9aa4b0" stroke-width="2.4" stroke-linecap="round"/>
-          <text x="698" y="218" class="lbl-off">Not renewed &rarr; removed at expiry</text>
-          <text x="660" y="248" class="small">Users who already added your server keep it:</text>
-          <text x="660" y="263" class="small">the plugin list is add-only.</text>
+          <text x="698" y="218" class="lbl-off">Credit exhausted &rarr; removed at expiry</text>
+          <text x="660" y="248" class="small">The remaining credit is kept, not lost. Users who</text>
+          <text x="660" y="263" class="small">already added your server keep it: add-only list.</text>
         </g>
 
         <!-- note: the paid total never decays -->
         <g>
           <rect x="20" y="282" width="960" height="1" fill="#dfe4ea"/>
-          <text x="20" y="304" class="small"><tspan font-weight="600" fill="#1a2027">Your paid total never decays:</tspan> it is kept across renewals and sets your position in the list (Section 2). Payments below the yearly fee are donations and add no time.</text>
+          <text x="20" y="304" class="small"><tspan font-weight="600" fill="#1a2027">Your paid total never decays:</tspan> it is kept across renewals and sets your position in the list (Section 2). Only credit counts as paid time: a deposit that is not credited is a donation.</text>
         </g>
       </svg>
           </div>
@@ -531,19 +537,21 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
 
     <section class="info-section">
       <h2>1. Listing &amp; Renewal</h2>
-      <p class="sub">A listing works like a hosting plan: a flat yearly fee buys your server one year of presence in the list. Your paid amount accumulates and never decays — it is preserved across renewals and also determines your position in the list (see Section&nbsp;2). Payments are non-refundable (see Section&nbsp;3) — double-check your server URL before paying.</p>
+      <p class="sub">A listing works like a prepaid plan: you deposit satoshis, the deposit becomes credit on your account, and each 365-day listing period is charged from that credit. There is no renewal window and nothing to do at expiry — the time is paid in advance. Your paid total accumulates and never decays: it is preserved across charges and also determines your position in the list (see Section&nbsp;2). Payments are non-refundable (see Section&nbsp;3) — double-check your server URL before paying.</p>
       <div class="info-grid">
         <div class="info-block">
           <span class="ic">01 · PAYMENT</span>
-          <h3>One Year at a Time</h3>
-          <p>The listing fee is <span id="thr-min">50,000</span> sats for 365 days, paid one year at a time. The exact amount in satoshi is shown in the payment request. Your server appears in the list once the payment reaches 3 confirmations on the blockchain (typically around 30 minutes), and your listing period starts at that moment.</p>
-          <p>Payments below the yearly fee will be considered donations and do not add listing time.</p>
+          <h3>Prepaid Credit</h3>
+          <p>One listing period costs <span class="fee-amount">50,000</span> sats for 365 days. The exact amount in satoshi is shown in the payment request. When a deposit reaches 3 confirmations on the blockchain (typically around 30 minutes) it is credited to your balance. If the resulting balance covers one listing period, the period is charged immediately and your server enters the list; the 365 days start from the median time of the block that confirmed the deposit.</p>
+          <p>Any amount beyond the first period stays as credit on the account. It covers the following periods, and it is what keeps you listed later without paying again.</p>
+          <p>The minimum deposit is one listing period (<span class="fee-amount">50,000</span> sats). A deposit is credited when it is at least that amount, or when your existing credit is below one period and the deposit completes what is still missing to reach it. A deposit that is neither — for example a few thousand satoshis sent while you already hold a full period of credit — does not add listing time and is recorded as a donation. Your existing credit is never touched by a deposit that is not credited.</p>
         </div>
         <div class="info-block">
           <span class="ic">02 · RENEWAL</span>
-          <h3>Renew From 6 Months Before Expiry</h3>
-          <p>You can renew for one additional year at any time starting 6 months before your expiry date, by paying the yearly fee for the exact same server URL as published in the list. The new year is added on top of your remaining time — renewing early never costs you days.</p>
-          <p>If the listing is not renewed, the server is removed from the list at expiry.</p>
+          <h3>No Renewal Window</h3>
+          <p>There is no renewal window to wait for. You can deposit at any time: while your server is already listed the deposit does not extend the current period, it simply becomes credit.</p>
+          <p>When a period ends, the time the credit can pay for is granted again automatically and the listing continues. A balance that covers a full period always buys exactly 365 days, so a single larger deposit can keep a server listed for several periods in a row.</p>
+          <p>If the credit covers less than a full period, the days it can pay for are still granted rather than lost, and the daily rate of that shorter period is rounded up slightly. The server leaves the list when not even one day can be paid, and because it keeps its remaining credit, a later deposit puts it back.</p>
         </div>
         <div class="info-block">
           <span class="ic">03 · CAPACITY</span>
@@ -554,7 +562,8 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         <div class="info-block">
           <span class="ic">04 · TRANSITION</span>
           <h3>Deposits Made Under the Previous Rules</h3>
-          <p>Balances deposited under the previous, balance-based rules are converted into listing time pro-rata at the same yearly rate (e.g. a 5,000-sat balance becomes 36.5 days of listing). Countdowns for converted balances start on 17 July 2026. To stay listed beyond the converted time, renew as described above.</p>
+          <p>Balances funded under the previous, balance-based rules were converted into listing time pro-rata at the same yearly rate (e.g. a 5,000-sat balance became 36.5 days of listing), with countdowns starting on 17 July 2026.</p>
+          <p>The prepaid system keeps that history: existing rows keep their balance and their expiry date, and the 365-day charge consumes the remaining credit one period at a time. To stay listed beyond the time already bought, add credit as described above.</p>
         </div>
         <div class="lifecycle">
           <div class="step">
@@ -566,12 +575,12 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
             <p>After 3 confirmations your server appears; 365 days start.</p>
           </div>
           <div class="step">
-            <h3>Renewal window</h3>
-            <p>From 6 months before expiry you can add another year.</p>
+            <h3>Credit</h3>
+            <p>Anything above one period stays on the account and pays the next ones.</p>
           </div>
           <div class="step">
-            <h3>Expiry</h3>
-            <p>If not renewed, the server is removed from the list.</p>
+            <h3>Automatic renewal</h3>
+            <p>At each expiry the days your credit can pay for are granted again, with no window to wait for. With no credit even for a single day, the server leaves the list.</p>
           </div>
         </div>
       </div>
@@ -584,8 +593,19 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         <div class="info-block">
           <span class="ic">ORDER</span>
           <h3>How Position Is Determined</h3>
-          <p>Servers are sorted by four criteria, in order: first by the total excess donated (higher first), then by the total paid amount (higher first), then by the base fee they charge (lower first), and finally by WeTime points (higher first) to break any remaining ties.</p>
+          <p>Servers are sorted by four criteria, in order: first by the total excess donated (higher first), then by the total paid amount (higher first), then by the <span class="mono">base_fee</span> they charge (lower first), and finally by WeTime points (higher first) to break any remaining ties.</p>
           <p>Because excess donated comes first and never decays, over-paying or tipping more — on top of any payment — directly and permanently moves a server up the list. Paying more than the exact yearly fee is the fastest way to improve position.</p>
+          <p>The <span class="mono">daily_fee</span> described below is <strong>not</strong> part of the order: only the base fee is used.</p>
+        </div>
+        <div class="info-block" id="fees">
+          <span class="ic">FEES</span>
+          <h3>Who Charges What</h3>
+          <p>Two different fees appear on this site and they must not be confused.</p>
+          <p><strong>The listing fee</strong> is paid to this service: <span class="fee-amount">50,000</span> sats for 365 days of presence in the list. It buys visibility and nothing else.</p>
+          <p><strong>The executor fee</strong> is charged by each server operator for actually producing an inheritance transaction. Every executor publishes two values with its signed metadata: a <span class="mono">base_fee</span> and a <span class="mono">daily_fee</span>. The minimum fee it accepts is the higher of the two:</p>
+          <p class="mono" style="text-align:center">max(base_fee, daily_fee × remaining days of the locktime)</p>
+          <p>The <span class="mono">base_fee</span> is a floor, the <span class="mono">daily_fee</span> grows with the time still to wait before the funds can be spent. A server that does not publish a daily fee has no per-day component: its fee is the base fee alone.</p>
+          <p>Both values are part of the metadata the executor signs with its own key, so they cannot be altered in transit by a third party. They are nevertheless <strong>self-reported</strong>: this service stores and displays them without verifying the price an executor will actually ask. An executor can change them at any time by sending a new signed update, and can simply refuse to work for a fee it does not like. Always confirm the fee with the executor before relying on it — the plugin shows the current values.</p>
         </div>
         <div class="info-block">
           <span class="ic">POINTS</span>
@@ -596,7 +616,8 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         <div class="info-block">
           <span class="ic">DETAILS</span>
           <h3>Server Detail Page</h3>
-          <p>Clicking a server in the list opens its detail page, showing the server URL, the listing expiry date, and its WeTime activity. The expiry date is shown only there, not in the main list. Since the price per day is fixed and public, the expiry date necessarily reflects how much a server has paid: this is intentional transparency.</p>
+          <p>Clicking a server in the list opens its detail page, showing the server URL, the listing expiry date, its WeTime activity and both fees. The expiry date is shown only there, not in the main list. Since the price per day is fixed and public, the expiry date necessarily reflects how much a server has paid: this is intentional transparency.</p>
+          <p>A daily fee shown as “—” has not been published by that executor; it is not the same as a fee of zero.</p>
         </div>
       </div>
     </section>
@@ -643,7 +664,7 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
       <div class="faq">
         <details open>
           <summary><span>How much does it cost to be listed?</span></summary>
-          <p>50,000 sats for 365 days, paid one year at a time. The exact amount in satoshi is shown in the payment request. The fee can be reviewed once a year, around 17 July; time you have already bought stays valid under the conditions in force when you paid.</p>
+          <p><span class="fee-amount">50,000</span> sats for 365 days, paid one year at a time. The exact amount in satoshi is shown in the payment request. The fee can be reviewed once a year, around 17 July; time you have already bought stays valid under the conditions in force when you paid.</p>
         </details>
         <details>
           <summary><span>When does my server appear in the list?</span></summary>
@@ -651,23 +672,27 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         </details>
         <details>
           <summary><span>I paid less than the yearly fee. What happens?</span></summary>
-          <p>A payment below the yearly fee is treated as a donation: it does not add listing time.</p>
+          <p>The minimum deposit is one listing period (<span class="fee-amount">50,000</span> sats). A deposit is credited when it is at least that amount, or when your existing credit is below one period and the deposit completes the amount still missing. A deposit that is neither does not add listing time and is recorded as a donation; the credit you already hold is untouched.</p>
         </details>
         <details>
-          <summary><span>When and how do I renew?</span></summary>
-          <p>Any time from 6 months before your expiry date, by paying the yearly fee for the exact same server URL as published in the list. The new year is added on top of the time you have left, so renewing early never costs you days.</p>
+          <summary><span>How does renewal work?</span></summary>
+          <p>There is no renewal window and nothing to do. Any deposit you make while listed stays as credit, and when the current period ends the days that credit can pay for are granted automatically. A balance covering a full period always buys exactly 365 days; a smaller balance buys the days it can pay for, at a slightly higher daily rate. The minimum deposit is one listing period (<span class="fee-amount">50,000</span> sats), or whatever is still missing to complete one period when you hold less than that.</p>
         </details>
         <details>
-          <summary><span>What happens if I do not renew?</span></summary>
-          <p>Your server is removed from the list at expiry. Users who already added it to their plugin keep it, because the plugin's server list is add-only. Being listed matters for reaching new users.</p>
+          <summary><span>What happens when my credit runs out?</span></summary>
+          <p>The server leaves the list at expiry, because no days can be paid. Its remaining credit is kept, so a later deposit puts it back in the list. Users who already added it to their plugin keep it, because the plugin's server list is add-only. Being listed matters for reaching new users.</p>
         </details>
         <details>
           <summary><span>Where do I see my expiry date?</span></summary>
-          <p>On the home page, open the “Renewal status” tab, enter the exact URL of your server as it appears in the list and press “Show renewal status”. Nothing is charged: you see the expiry date, the days left, whether the renewal window is open (or when it opens), the position in the list, the balance and the donations, with a link to the server page. The date is not shown in the main table, so you need the exact URL. Knowing it also tells you when your renewal window opens (6 months before). Since the price per day is fixed and public, the expiry date shows how much a server has paid: this is intentional transparency. <a href="/?mode=check#we-panel">Open the Renewal status tab &rarr;</a></p>
+          <p>The public list does not show the expiry date. Click any server in the list to open its server page: there you see the expiry date, the days left, the balance that will pay for the following periods, the donations and both fees. The date is not shown in the main table, so you need to find your server there first. Since the price per day is fixed and public, the expiry date shows how much a server has paid: this is intentional transparency. Registration and renewal are handled in the Bitcoin After Life plugin. <a href="https://bitcoin-after.life" target="_blank" rel="noopener">Open the plugin &rarr;</a></p>
+        </details>
+        <details>
+          <summary><span>Who charges what?</span></summary>
+          <p>Two separate fees. The <strong>listing fee</strong> (<span class="fee-amount">50,000</span> sats for 365 days) is paid to this service to appear in the list. The <strong>executor fee</strong> is what a server operator charges to actually produce an inheritance transaction: each executor publishes a <span class="mono">base_fee</span> and a <span class="mono">daily_fee</span>, and the minimum it accepts is <span class="mono">max(base_fee, daily_fee × remaining days of the locktime)</span>. Both values are signed by the executor, so they are authenticated, but they are self-reported and can change at any time. Confirm the fee with the executor before relying on it. The daily fee does not affect the order of this list. See <a href="#fees">Who Charges What</a> in Section 2.</p>
         </details>
         <details>
           <summary><span>How is the order of the list decided?</span></summary>
-          <p>By four criteria, in this order: total excess donated (higher first), total amount paid (higher first), base fee charged (lower first) and, as a tie-breaker, WeTime points (higher first). Excess donated never decays, so paying more than the exact yearly fee is the fastest way to move up.</p>
+          <p>By four criteria, in this order: total excess donated (higher first), total amount paid (higher first), base fee charged (lower first) and, as a tie-breaker, WeTime points (higher first). Excess donated never decays, so paying more than the exact yearly fee is the fastest way to move up. The executor's daily fee plays no part in the order.</p>
         </details>
         <details>
           <summary><span>What are WeTime points?</span></summary>
@@ -719,21 +744,25 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
   lt.querySelector('.replay').addEventListener('click', play);
 })();
 (async function() {
-  // Unchanged from the previous version: fetches the current yearly fee
-  // from the server so the number on this page always matches reality.
-  // The #thr-min span is inside Section 1 (01 · PAYMENT).
-  const chain = location.hash ? location.hash.slice(1) : 'bitcoin';
+  // Fetches the current yearly fee from the server so the number on this page
+  // always matches reality. `/api/info` carries the ranking block per chain and
+  // replaced the removed `/ranking_info/{chain}` route; the chain comes from the
+  // hash (`#bitcoin`, `#testnet`, ...) and defaults to Bitcoin when absent.
+  const chain = (location.hash ? location.hash.slice(1) : '') || 'bitcoin';
   try {
-    const r = await fetch('/ranking_info/' + chain);
+    const r = await fetch('/api/info?chain=' + encodeURIComponent(chain) + '&limit=1');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
-    const val = parseInt(data.amount, 10);
+    const val = parseInt(data[chain] && data[chain].ranking && data[chain].ranking.amount, 10);
     if (!isNaN(val)) {
       const txt = Number(val).toLocaleString('en-US');
-      document.getElementById('thr-min').textContent = txt;
+      document.querySelectorAll('#thr-min, .fee-amount').forEach(el => { el.textContent = txt; });
       const svgFee = document.getElementById('thr-min-lt');
       if (svgFee) svgFee.textContent = txt;
     }
-  } catch (err) {}
+  } catch (err) {
+    // Keep the static values already rendered in the markup.
+  }
 })();
 </script>
 </body>

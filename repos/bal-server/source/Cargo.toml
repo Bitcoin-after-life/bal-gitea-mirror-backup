@@ -7,7 +7,16 @@ edition = "2024"
 [features]
 default = ["server", "pusher"]
 server = ["dep:actix-web", "dep:actix-governor", "dep:actix-rt", "dep:chrono", "dep:hex-conservative"]
-pusher = ["dep:zmq", "dep:reqwest", "dep:byteorder", "dep:base64", "dep:ed25519-dalek"]
+pusher = [
+    "dep:zmq",
+    "dep:reqwest",
+    "dep:byteorder",
+    "dep:base64",
+    "dep:ed25519-dalek",
+    "dep:data-encoding",
+    "dep:sha3",
+    "dep:hickory-resolver",
+]
 
 [dependencies]
 bs58 = 			{ version = "0.4.0" }
@@ -38,6 +47,9 @@ reqwest = 		{ version = "0.12.24", features = ["json","socks"], optional = true 
 byteorder = 		{ version = "1.5.0", optional = true }
 base64 = 		{ version = "0.22.1", optional = true }
 ed25519-dalek = 	{ version = "2", features = ["pem", "pkcs8"], optional = true }
+data-encoding = 	{ version = "2", optional = true }
+sha3 = 			{ version = "0.10.8", optional = true }
+hickory-resolver = 	{ version = "0.26", optional = true }
 sha2 = 			{ version = "0.10.8" }
 
 [profile.release]

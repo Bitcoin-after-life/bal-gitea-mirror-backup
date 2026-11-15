@@ -112,6 +112,19 @@ pub async fn create_sqlite_schema(pool: &SqlitePool) -> Result<(), sqlx::Error> 
         .execute(pool)
         .await?;
 
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS tbl_executor_metadata (
+            chain TEXT PRIMARY KEY,
+            info TEXT NOT NULL,
+            base_fee INTEGER NOT NULL,
+            version TEXT NOT NULL,
+            pubkey_pem TEXT,
+            date_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+    )
+    .execute(pool)
+    .await?;
+
     sqlx::query("UPDATE tbl_tx SET network='bitcoin' WHERE network='mainnet'")
         .execute(pool)
         .await?;
@@ -231,6 +244,19 @@ pub async fn create_pg_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query("CREATE UNIQUE INDEX IF NOT EXISTS idx_stats_chain ON tbl_stats(chain)")
         .execute(pool)
         .await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS tbl_executor_metadata (
+            chain TEXT PRIMARY KEY,
+            info TEXT NOT NULL,
+            base_fee BIGINT NOT NULL,
+            version TEXT NOT NULL,
+            pubkey_pem TEXT,
+            date_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+    )
+    .execute(pool)
+    .await?;
 
     sqlx::query("UPDATE tbl_tx SET network='bitcoin' WHERE network='mainnet'")
         .execute(pool)

@@ -8,6 +8,7 @@
 - **I am a security auditor** → Go straight to [`08_security_audit.md`](08_security_audit.md)
 - **I am deploying or operating this software** → Check [`07_deployment_and_ops.md`](07_deployment_and_ops.md)
 - **I need to integrate with the API** → Reference [`05_api_reference.md`](05_api_reference.md)
+- **I need to publish the v3 WeTime public key, delegate onion ping signing or revoke a key** → Follow [`10_dnssec_key_publishing.md`](10_dnssec_key_publishing.md)
 - **I need to understand the database** → Use [`06_database_schema.md`](06_database_schema.md)
 - **I need to understand Bitcoin concepts** → See [`02_glossary_and_bitcoin_domain.md`](02_glossary_and_bitcoin_domain.md)
 - **I need source code references or external links** → Check [`09_references_and_links.md`](09_references_and_links.md)
@@ -25,6 +26,7 @@
 | 7 | [`07_deployment_and_ops.md`](07_deployment_and_ops.md) | Environment variables, systemd, nginx, scripts, Tor, installation |
 | 8 | [`08_security_audit.md`](08_security_audit.md) | Threat model, vulnerability assessment, hardening recommendations |
 | 9 | [`09_references_and_links.md`](09_references_and_links.md) | Source code links, Cargo dependencies, existing file mapping |
+| 10 | [`10_dnssec_key_publishing.md`](10_dnssec_key_publishing.md) | Publishing the v3 WeTime key via DNSSEC TXT, v3 onion identity, delegated onion ping key, and key revocation |
 
 ---
 

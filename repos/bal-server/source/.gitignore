@@ -54,6 +54,8 @@ download_bal_db.sh
 # Misc
 *.swp
 *.swo
+__pycache__/
+*.pyc
 src/xpub.rs2
 public_key.pem
 .gitsecret/

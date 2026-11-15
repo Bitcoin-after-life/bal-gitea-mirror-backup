@@ -260,6 +260,115 @@ pub async fn insert_xpub(pool: &DatabasePool, network: &str, xpub: &str) {
     }
 }
 
+/// Metadata published by the executor and signed in a v2 or v3 WeTime ping.
+#[derive(Debug, Clone)]
+pub struct ExecutorMetadataRow {
+    pub info: String,
+    pub base_fee: i64,
+    pub version: String,
+    /// Raw PEM contents served at `/.pub_key.pem`, or `None` when the server
+    /// could not read the configured public key file.
+    pub pubkey_pem: Option<String>,
+}
+
+/// Store the metadata snapshot written by bal-server at startup.
+pub async fn upsert_executor_metadata(
+    pool: &DatabasePool,
+    chain: &str,
+    info: &str,
+    base_fee: i64,
+    version: &str,
+    pubkey_pem: Option<&str>,
+) -> Result<(), sqlx::Error> {
+    match pool {
+        DatabasePool::SQLite(p) => {
+            sqlx::query(
+                "INSERT INTO tbl_executor_metadata(chain, info, base_fee, version, pubkey_pem, date_update)
+                 VALUES(?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                 ON CONFLICT(chain) DO UPDATE SET
+                    info = excluded.info,
+                    base_fee = excluded.base_fee,
+                    version = excluded.version,
+                    pubkey_pem = excluded.pubkey_pem,
+                    date_update = CURRENT_TIMESTAMP",
+            )
+            .bind(chain)
+            .bind(info)
+            .bind(base_fee)
+            .bind(version)
+            .bind(pubkey_pem)
+            .execute(p)
+            .await?;
+        }
+        DatabasePool::PostgreSQL(p) => {
+            sqlx::query(
+                "INSERT INTO tbl_executor_metadata(chain, info, base_fee, version, pubkey_pem, date_update)
+                 VALUES($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+                 ON CONFLICT (chain) DO UPDATE SET
+                    info = EXCLUDED.info,
+                    base_fee = EXCLUDED.base_fee,
+                    version = EXCLUDED.version,
+                    pubkey_pem = EXCLUDED.pubkey_pem,
+                    date_update = CURRENT_TIMESTAMP",
+            )
+            .bind(chain)
+            .bind(info)
+            .bind(base_fee)
+            .bind(version)
+            .bind(pubkey_pem)
+            .execute(p)
+            .await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Read the metadata snapshot for one canonical chain.
+pub async fn get_executor_metadata(
+    pool: &DatabasePool,
+    chain: &str,
+) -> Result<Option<ExecutorMetadataRow>, sqlx::Error> {
+    match pool {
+        DatabasePool::SQLite(p) => {
+            let row = sqlx::query(
+                "SELECT info, base_fee, version, pubkey_pem
+                 FROM tbl_executor_metadata WHERE chain = ?",
+            )
+            .bind(chain)
+            .fetch_optional(p)
+            .await?;
+            row.map(|row| {
+                Ok(ExecutorMetadataRow {
+                    info: row.try_get("info")?,
+                    base_fee: row.try_get("base_fee")?,
+                    version: row.try_get("version")?,
+                    pubkey_pem: row.try_get("pubkey_pem")?,
+                })
+            })
+            .transpose()
+        }
+        DatabasePool::PostgreSQL(p) => {
+            let row = sqlx::query(
+                "SELECT info, base_fee, version, pubkey_pem
+                 FROM tbl_executor_metadata WHERE chain = $1",
+            )
+            .bind(chain)
+            .fetch_optional(p)
+            .await?;
+            row.map(|row| {
+                Ok(ExecutorMetadataRow {
+                    info: row.try_get("info")?,
+                    base_fee: row.try_get("base_fee")?,
+                    version: row.try_get("version")?,
+                    pubkey_pem: row.try_get("pubkey_pem")?,
+                })
+            })
+            .transpose()
+        }
+    }
+}
+
 pub async fn get_last_used_address_by_ip(
     pool: &DatabasePool,
     network: &str,

@@ -1,24 +1,50 @@
+// Each test runs in its own PostgreSQL schema, so the suite can run in
+// parallel even when BAL_TEST_PG_DSN points at a shared database.
+
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use bal_server::db::{
     DatabasePool, calculate_and_upsert_stats, check_duplicate_txids, create_database,
-    get_all_addresses_by_xpub, get_next_address_index, get_pending_txs, get_stats, insert_xpub,
-    open_database, save_new_address, search_tx, update_tx_status,
+    get_all_addresses_by_xpub, get_executor_metadata, get_next_address_index, get_pending_txs,
+    get_stats, insert_xpub, open_database, save_new_address, search_tx, update_tx_status,
+    upsert_executor_metadata,
 };
-use sqlx::Row;
+use sqlx::{Connection, Row};
 
 fn pg_dsn() -> Option<String> {
     std::env::var("BAL_TEST_PG_DSN").ok()
 }
 
+static TEST_SCHEMA_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Return a process-unique schema name for one test.
+fn next_test_schema() -> String {
+    let counter = TEST_SCHEMA_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("bal_test_{}_{}", std::process::id(), counter)
+}
+
 async fn setup_pg() -> Option<DatabasePool> {
     let dsn = pg_dsn()?;
-    let pool = open_database("postgresql", &dsn).await.ok()?;
-    // Drop and recreate schema for clean test
-    if let DatabasePool::PostgreSQL(p) = &pool {
-        sqlx::query("DROP SCHEMA public CASCADE; CREATE SCHEMA public")
-            .execute(p)
-            .await
-            .ok()?;
-    }
+    let schema = next_test_schema();
+
+    // Create the schema on a short-lived connection. The pool's `search_path`
+    // is fixed through startup options, so every pooled connection uses it.
+    let mut admin = sqlx::postgres::PgConnection::connect(&dsn).await.ok()?;
+    sqlx::query(&format!("CREATE SCHEMA IF NOT EXISTS {schema}"))
+        .execute(&mut admin)
+        .await
+        .ok()?;
+    drop(admin);
+
+    let options: sqlx::postgres::PgConnectOptions = dsn.parse().ok()?;
+    let options = options.options([("search_path", schema.as_str())]);
+    let pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(10)
+        .connect_with(options)
+        .await
+        .ok()?;
+
+    let pool = DatabasePool::PostgreSQL(pool);
     create_database(&pool).await.ok()?;
     Some(pool)
 }
@@ -50,6 +76,44 @@ async fn test_pg_create_schema() {
         "Creating PG schema twice should be idempotent: {:?}",
         result.err()
     );
+}
+
+#[tokio::test]
+async fn test_pg_executor_metadata() {
+    let Some(pool) = setup_pg().await else {
+        eprintln!("skipped: PostgreSQL not available");
+        return;
+    };
+
+    assert!(
+        get_executor_metadata(&pool, "bitcoin")
+            .await
+            .unwrap()
+            .is_none()
+    );
+
+    upsert_executor_metadata(&pool, "bitcoin", "info", 50000, "0.3.2", Some("PEM"))
+        .await
+        .unwrap();
+    let row = get_executor_metadata(&pool, "bitcoin")
+        .await
+        .unwrap()
+        .expect("row exists");
+    assert_eq!(row.info, "info");
+    assert_eq!(row.base_fee, 50000);
+    assert_eq!(row.version, "0.3.2");
+    assert_eq!(row.pubkey_pem.as_deref(), Some("PEM"));
+
+    upsert_executor_metadata(&pool, "bitcoin", "info2", 1234, "0.4.0", None)
+        .await
+        .unwrap();
+    let row = get_executor_metadata(&pool, "bitcoin")
+        .await
+        .unwrap()
+        .expect("row exists");
+    assert_eq!(row.info, "info2");
+    assert_eq!(row.base_fee, 1234);
+    assert!(row.pubkey_pem.is_none());
 }
 
 #[tokio::test]
@@ -198,7 +262,7 @@ async fn test_pg_update_tx_status() {
             .fetch_one(p)
             .await
             .unwrap();
-        let status: i64 = row.try_get("status").unwrap();
+        let status: i32 = row.try_get("status").unwrap();
         assert_eq!(status, 1, "Status should be updated to 1");
     }
 
@@ -211,7 +275,7 @@ async fn test_pg_update_tx_status() {
             .fetch_one(p)
             .await
             .unwrap();
-        let status: i64 = row.try_get("status").unwrap();
+        let status: i32 = row.try_get("status").unwrap();
         let push_err: Option<String> = row.try_get("push_err").unwrap();
         assert_eq!(status, 2);
         assert_eq!(push_err.as_deref(), Some("test error"));
@@ -265,9 +329,9 @@ async fn test_pg_stats() {
         sqlx::query(
             "INSERT INTO tbl_tx (txid, wtxid, ntxid, tx, locktime, network, status, our_fees)
              VALUES
-                ('stx1', 'w', 'n', 'r', 100, 'testnet', 0, '0.0001'),
-                ('stx2', 'w', 'n', 'r', 100, 'testnet', 1, '0.0002'),
-                ('stx3', 'w', 'n', 'r', 100, 'testnet', 2, '0.0003')",
+                ('stx1', 'w', 'n', 'r', 100, 'testnet', 0, '1000'),
+                ('stx2', 'w', 'n', 'r', 100, 'testnet', 1, '2000'),
+                ('stx3', 'w', 'n', 'r', 100, 'testnet', 2, '3000')",
         )
         .execute(p)
         .await
@@ -319,7 +383,7 @@ async fn test_pg_sql_injection_via_push_err() {
             .fetch_one(p)
             .await
             .unwrap();
-        let status: i64 = row.try_get("status").unwrap();
+        let status: i32 = row.try_get("status").unwrap();
         let push_err: String = row.try_get("push_err").unwrap();
         assert_eq!(status, 2);
         assert_eq!(push_err, malicious);

@@ -21,13 +21,16 @@
 |---|---|---|
 | Release script | `make_release.sh` | Builds release, creates tag, uploads to Gitea (token from `.env`) |
 | DB download script | `download_bal_db.sh` | `scp` from remote |
-| Server dev script | `bal-server.sh` | Sources `bal-server.env`, `cargo run` |
-| Pusher dev script | `bal-pusher.sh` | Sources `bal-pusher.env`, `cargo run` |
+| Server dev script | `bal-server.sh` | Sources `bal-server.env`, `cargo run`; requires `-ok-dev` or `BAL_DEV=true` |
+| Pusher dev script | `bal-pusher.sh` | Sources `bal-pusher.env`, `cargo run`; requires `-ok-dev` or `BAL_DEV=true` |
 | Send transaction script | `sendtx.sh` | `bitcoin-cli` wrapper for testing |
 | Utility scripts | `lib.sh` | Colored echo functions |
 | Contrib (install) | `contrib/download_and_install_bal.sh` | Nginx, Certbot, systemd setup |
 | Contrib (install bitcoind) | `contrib/download_and_install_bitcoincore.sh` | Bitcoind download, GPG verify, systemd, config |
 | Contrib (install Tor) | `contrib/install_tor.sh` | Tor repository, `ControlPort 9051` |
+| Contrib (onion delegation) | `contrib/make_onion_delegation.py` | Issues the v3 onion ping delegation certificate from a Tor or PKCS#8 identity key |
+| Contrib (key revocation) | `contrib/make_ping_key_revocation.py` | Issues an onion (identity-signed) or DNS (self-signed) ping key revocation |
+| Contrib (TXT helper) | `contrib/make_welist_txt.sh` | Prints the `_welist-key` TXT record; generates an Ed25519 key pair when omitted |
 | Nginx template | `contrib/nginx/bal-server.conf` | TLS termination, security headers, rate limiting |
 | Dockerfile | `Dockerfile` | Multi-stage build from source, non-root user, tini, healthcheck |
 | Dockerfile.release | `Dockerfile.release` | Download latest release from Gitea, SHA-256 verification |
@@ -122,6 +125,9 @@
 | `contrib/download_and_install_bal.sh` | Full deployment setup | `07_deployment_and_ops.md` (Nginx, SSL) |
 | `contrib/download_and_install_bitcoincore.sh` | Bitcoin Core install/verify | `07_deployment_and_ops.md` (Systemd) |
 | `contrib/install_tor.sh` | Tor installation script | `07_deployment_and_ops.md` (Tor) |
+| `contrib/make_onion_delegation.py` | Onion delegation certificate issuer | `10_dnssec_key_publishing.md` (Onion URLs) |
+| `contrib/make_ping_key_revocation.py` | Ping key revocation issuer (onion and DNS) | `10_dnssec_key_publishing.md` (Revocation and lifetime) |
+| `contrib/make_welist_txt.sh` | `_welist-key` TXT record helper | `10_dnssec_key_publishing.md` (sections 2–3) |
 | `contrib/nginx/bal-server.conf` | Nginx TLS config template | `07_deployment_and_ops.md` (Nginx) |
 | `Dockerfile` | Multi-stage Docker build | `07_deployment_and_ops.md` (Docker) |
 

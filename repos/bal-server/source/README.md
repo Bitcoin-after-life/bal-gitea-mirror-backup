@@ -77,8 +77,8 @@ The `bal-server` application can be configured using environment variables.
 | `BAL_SERVER_BIND_PORT` | Port to listen on. | `9137` |
 | `BAL_SERVER_INFO` | Server info string returned by the `/` endpoint. | - |
 | `BAL_SERVER_PUB_KEY_PATH` | Ed25519 public key for signature verification. | `public_key.pem` |
-| `BAL_SERVER_URL` | Public URL of this server (used for stats reporting). | - |
-| `SSL_KEY_PATH` | Ed25519 private key for signing stats reports. | `private_key.pem` |
+| `BAL_SERVER_URL` | Public URL signed in WeTime pings (used by `bal-pusher`). | - |
+| `SSL_KEY_PATH` | Ed25519 private key for signing stats reports (used by `bal-pusher`). | `private_key.pem` |
 | `RUST_LOG` | Log level (`error`, `warn`, `info`, `debug`, `trace`). | `info` |
 
 ### Per-network addresses and fees
@@ -145,9 +145,27 @@ If no network is specified, defaults to `bitcoin`.
 | --- | --- | --- |
 | `BAL_SERVER_DB_FILE` | Path to the SQLite3 database file. | `bal.db` |
 | `BAL_PUSHER_SEND_STATS` | Send stats to welist server. | `false` |
-| `BAL_SERVER_URL` | URL of bal-server (for stats reporting). | - |
+| `BAL_SERVER_URL` | Public URL signed in WeTime pings. Must be a canonical origin when using v2 or v3 (ASCII `scheme://host[:port]`, lowercase host, no path/query). | - |
 | `SSL_KEY_PATH` | Ed25519 private key for signing stats reports. | `private_key.pem` |
 | `WELIST_SERVER_URL` | Welist server URL. | `https://welist.bitcoin-after.life` |
+| `WELIST_PING_SIG_VERSION` | WeTime ping signature scheme (`1` legacy, `2` canonical JSON with `/.pub_key.pem` key discovery, `3` canonical JSON with DNSSEC/onion keys). | `1` |
+| `WELIST_PING_DELEGATION_FILE` | Onion only, v3 only: delegation certificate issued by the onion identity key. | unset |
+| `BAL_PUSHER_DELEGATION_WARN_DAYS` | Days before delegation expiry to start warning; `0` disables the warning. | `7` |
+| `BAL_PUSHER_MAX_DELEGATION_DAYS` | Maximum onion delegation lifetime in days; `0` disables the cap. | `366` |
+
+For v3 DNS hosts the pusher performs one `_welist-key` TXT consistency check
+before the first ping after startup. It uses the system resolver without local
+DNSSEC validation; a definitive mismatch is retried after 30 seconds and then
+skips WeTime pings until restart. Timeout/SERVFAIL continues. Onion delegation
+certificates are also verified locally against the identity key embedded in the
+onion address and are capped at `BAL_PUSHER_MAX_DELEGATION_DAYS`.
+
+`BAL_SERVER_URL` must be a canonical origin for v2 and v3: ASCII
+`scheme://host[:port]`, lowercase host, no trailing dot, no
+path/query/fragment/userinfo, and no explicit default port. Raw Unicode must use
+the `xn--` form. Values that can be normalized (host case, trailing dot, trailing
+slash) are rewritten to the canonical origin; values that cannot (IP literal,
+path, query, raw Unicode) are logged and v2/v3 pings are skipped.
 
 ### Per-network configuration
 
