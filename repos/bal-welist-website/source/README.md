@@ -1,153 +1,77 @@
-# Server Status: Complete Explanation and Reference Guide
+# WeList web pages
 
-This page explains all the **Will Executor server health statuses** used throughout the BAL Web Interface. Each status type provides critical information about server operation, health checks, and potential issues for administrators monitoring the Bitcoin After Life network.
+Static pages for the Bitcoin After Life Will-Executor list, served by the
+`bal-welist` webservice from its `WELIST_STATIC_DIR` (the `www` directory). There
+is no build step: the files are served as they are, and pushing to `main`
+republishes them through the server hook.
 
-## Status Code Overview
+| File | Page |
+|------|------|
+| `index.html` | Leaderboard: the ordered list of executors |
+| `weinfo.html` | Server detail page (`/weinfo/{chain}/{id}`) |
+| `terms.html` | Terms and conditions |
+| `w3.css`, `bal.js`, `qrcode.min.js`, `purify.min.js` | Shared assets |
 
-| Status | Description | When It Occurs |
-|--------|-------------|----------------|
-| `OK` | Health check passed | Server is online, functioning normally |
-| `TIMEOUT: <message>` | Connection timeout | Server response took too long |
-| `CONNECTION: <message>` | Connection error | Network connectivity issues |
-| `STATUS: <code>` | HTTP error (from server) | Server returned non-200 status |
-| `WRONG REPLY: <message>` | Invalid JSON response | Server response couldn't be parsed |
-| `REQUEST: <message>` | Request error | Client-side request failed |
-| `BODY: <message>` | Body read error | Failed to read response body |
-| `DECODE: <message>` | Decode error | Failed to decode response content |
-| `KO` | Generic error | Unknown or unspecified error |
+## Header statistics
 
-## Status Types Explained
+`index.html` reads one `/api/info?chain=…` request per chain, which already
+carries the chain header, the ranking settings and the ordered executor list.
+The hero shows four values:
 
-### 🟢 Good Statuses
-**`OK`** - Everything is functioning correctly:
-- Server is online and responding
-- Health check completed successfully
-- Ready for new registration/processing
+| Stat | Source | Notes |
+|------|--------|-------|
+| **At tip** | count of executors whose `status` is `OK` | Not "online": see below |
+| **Servers** | length of the returned list | The page's page size, not the total |
+| **Block** | `height` | Tip height, `—` when the chain has no synced block |
+| **Median time** | `median_time` | Rendered in the visitor's own locale and timezone |
 
-### 🟡 Warning/Moderate Issues
-**`TIMEOUT: <message>`** - Connection timed out:
-- Server took too than expected to respond
-- Could indicate server overload or network issues
-- Requires attention but server may still be functional
+The block and median are refreshed every 60 seconds, skipped while the tab is in
+the background. Median time is the median-time-past of the last block (the median
+of the last 11 blocks), so it normally reads about an hour behind the current
+time; the element's tooltip says so.
 
-**`CONNECTION: <message>`** - Connection error:
-- Network connectivity problems
-- Server might be reachable but cannot communicate
-- Potential infrastructure or configuration issue
+## Executor status
 
-**`STATUS: <code>`** - HTTP error:
-- Server responded with an error code (4xx or 5xx)
-- Could indicate misconfiguration, maintenance, or issues |
-- Different error codes mean different things
+`status` is derived by the server at read time and answers one question: **is the
+executor's last accepted ping at the chain tip?** Reachability plays no part — an
+executor that answers HTTP but stopped pinging is not healthy.
 
-### 🔴 Critical Issues
-**`WRONG REPLY`** - Invalid JSON response:
-- Server response format is incorrect
-- May indicate server software bug or corruption
-- Prevents proper data processing
-
-**`REQUEST`** - Request error:
-- Client request failed
-- Network or protocol issue
-- Server may be unreachable
-
-**`BODY`** - Body read error:
-- Failed to read response body after successful connection
-- Could indicate server processing issues
-- Data corruption or transmission problems
-
-**`DECODE`** - Decode error:
-- Failed to decode response content
-- Encoding mismatch or corrupted data
-- Prevents proper data interpretation
-
-**`KO`** - Generic error:
-- Unknown or unspecified error
-- Fallback for all other unidentified issues
-- Indicates something went wrong but exact cause unknown
-
-## Example Status Messages
-
-### Normal Operations
-```
-Status: OK
-Meaning: Health check passed
-Display: Server is healthy and ready
+```text
+no ping height (signed or verified WeTime ping) -> KO
+no synced tip for the chain                     -> KO
+tip older than WELIST_TIP_MAX_AGE_SECS          -> KO   (updater down)
+ping height >= tip - WELIST_PING_MAX_LAG_BLOCKS -> OK
+otherwise                                       -> KO
 ```
 
-### Network/Time Issues
-```
-Status: TIMEOUT: Connection timed out after 30 seconds
-Meaning: Server took too long to respond
-Display: "Connection timeout (Connection timed out after 30 seconds)"
-```
+- `OK` / `KO` are the only two values.
+- The ping height is the signed ping height for v2/v3/onion executors, and the
+  last verified WeTime ping height for legacy v1 executors, which record no
+  replay state.
+- `WELIST_PING_MAX_LAG_BLOCKS` (default `6`) allows for the delay between a new
+  block and the next ping; `WELIST_TIP_MAX_AGE_SECS` (default `900`) is how long
+  a tip may go unrefreshed before it counts as unknown. When the updater stops,
+  every executor reads `KO` instead of the list freezing green.
 
-### HTTP Errors
-```
-Status: STATUS: 500
-Meaning: Server returned HTTP 500 Internal Server Error
-Display: "HTTP error (HTTP error)"
-```
+### Server detail page
 
-### Response Processing Issues
-```
-Status: WRONG REPLY: Invalid JSON
-Meaning: Server response could not be parsed as JSON
-Display: "Invalid JSON response (Invalid JSON)"
-```
+`weinfo.html` shows the same status as a badge, with the reason:
 
-## Practical Usage Guide
+| Badge | Meaning |
+|-------|---------|
+| **At chain tip** | `OK` |
+| **Behind by N blocks** | `KO`, with the distance from the tip |
+| **Updater not reporting** | `KO` because the tip itself is stale |
 
-### For Server Administrators
-- **OK**: Check server resources and logs if needed
-- **TIMEOUT/CONNECTION**: Check server network connectivity
-- **STATUS**: Review server logs and restart if needed
-- **WRONG REPLY/DECODE/REQUEST**: Investigate server software issues
-- **KO**: Review server errors and restart
+The badge reads `ping_height`, `tip_height`, `tip_fresh` and `blocks_behind`
+from `/weinfodata/{chain}/{id}`, alongside the listing dates, balance, donations,
+WeTime activity and fees.
 
-### For Users
-- **OK**: Server is working correctly
-- **TIMEOUT/CONNECTION**: Temporary issue, try again later
-- **STATUS**: Server may be down for maintenance
-- **Other errors**: Server issue, contact support if persistent
+## Related documentation
 
-## Monitoring Tips
+The server-side behaviour, the API and the business rules live in the
+`bal-welist` repository:
 
-1. **Continuous Monitoring**: Regular checks of status codes help detect issues early
-2. **Alert Setup**: Configure alerts for non-OK statuses
-3. **Log Analysis**: Correlate status codes with server logs
-4. **Capacity Planning**: Address persistent timeouts/connections with infrastructure improvements
-
-## Status Processing Logic
-
-### Status Code Processing
-```javascript
-const statusMap = {
-  'OK': 'Health check passed',
-  'TIMEOUT': 'Connection timeout',
-  'CONNECTION': 'Connection error',
-  'STATUS': 'HTTP error',
-  'WRONG REPLY': 'Invalid JSON response',
-  'REQUEST': 'Request error',
-  'BODY': 'Body read error',
-  'DECODE': 'Decode error',
-  'KO': 'Generic error'
-};
-
-// Extract base status from status message
-const st = (data.status||'').split(':')[0];
-
-// Display only the description (e.g., "Connection timeout" instead of "TIMEOUT: Connection timeout")
-statusDisplay = statusMap[st] || '—';
-```
-
-## Related Documentation
-
-For more details on server setup, monitoring, and troubleshooting, refer to:
-- [Server Administration Guide](./administration)
-- [Status Monitoring Setup](./monitoring-setup)
-- [Error Resolution Handbook](./error-resolve)
-
-## Additional Information
-
-This status system provides a clear, human-readable way to understand server health at a glance, making it easier for administrators to quickly identify and respond to issues.
+- `knowledge/webservice.md` — endpoints and the derived status
+- `docs/api-reference.md` — every HTTP endpoint
+- `docs/payment-and-ranking.md` — deposits, balances, donations and list order

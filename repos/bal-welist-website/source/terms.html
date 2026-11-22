@@ -25,10 +25,13 @@
   2026-11-13: Section 1 rewritten for the prepaid-credit billing model
   (no renewal window; deposits become credit, the 365-day charge is taken
   from it at expiry). The timeline SVG was redrawn accordingly and the
-  fee is read from /api/info. The list is ordered by total excess donated,
-  then total amount paid, then base fee, then WeTime points as a
-  tie-breaker (see Section 2), matching the server-side get_list()
-  ordering.
+  fee is read from /api/info. The list is ordered by total deposited,
+  then amount donated, then WeTime points, then base fee, with the server
+  id as a stable final tie-breaker (see Section 2), matching the
+  server-side get_list_page() ordering.
+  2026-11-17: ranking FAQ, id tie-break, crediting rules and the
+  transition wording aligned with src/deposit.rs, src/billing.rs and
+  src/willexecutor.rs.
   2026-11-06: the page opens with an animated SVG timeline (.lt) of the
   listing lifecycle, played when it scrolls into view; the four-step
   .lifecycle strip is kept for small screens only. Sections reordered
@@ -109,7 +112,7 @@ header.hero{padding:48px 0 28px;border-bottom:1px solid var(--line)}
 
 /* --- Added for the yearly-listing model (2026-07) ---
    Listing lifecycle: a small horizontal timeline that encodes the real
-   sequence pay -> listed -> renewal window -> expiry. Spans both grid
+   sequence pay -> listed -> credit -> automatic renewal. Spans both grid
    columns so the four steps read left to right. */
 .lifecycle{grid-column:1 / -1;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
   background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
@@ -217,7 +220,7 @@ footer a{color:var(--accent);text-decoration:none}
    "name": "How much does it cost to be listed?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "50,000 sats for 365 days, paid one year at a time. The exact amount in satoshi is shown in the payment request. The fee can be reviewed once a year, around 17 July; time you have already bought stays valid under the conditions in force when you paid."
+    "text": "The yearly listing fee is shown in the payment request and covers 365 days, paid one period at a time. The fee can be reviewed once a year, around 17 July; listing time already granted stays valid, while unspent credit is consumed at the price in force when each period is charged."
    }
   },
   {
@@ -225,7 +228,7 @@ footer a{color:var(--accent);text-decoration:none}
    "name": "When does my server appear in the list?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "As soon as your payment reaches 3 confirmations on the blockchain, typically around 30 minutes. Your 365 days start at that moment."
+    "text": "As soon as your payment reaches the confirmations this service requires (3 today), typically around 30 minutes. The listing period starts from the median time of the block that confirmed the payment."
    }
   },
   {
@@ -233,7 +236,7 @@ footer a{color:var(--accent);text-decoration:none}
    "name": "I paid less than the yearly fee. What happens?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "The minimum deposit is one listing period. A deposit is credited when it is at least that amount, or when your existing credit is below one period and the deposit completes the amount still missing. A deposit that is neither does not add listing time and is recorded as a donation; the credit you already hold is untouched."
+    "text": "A deposit is credited when it is at least one listing period, or when your existing credit is below one period and the deposit completes the amount still missing. A deposit that is neither does not add listing time and is recorded as a donation in full; the credit you already hold is untouched."
    }
   },
   {
@@ -241,7 +244,7 @@ footer a{color:var(--accent);text-decoration:none}
    "name": "How does renewal work?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "There is no renewal window and nothing to do. Any deposit you make while listed stays as credit, and when the current period ends the days that credit can pay for are granted automatically. A balance covering a full period always buys exactly 365 days; a smaller balance buys the days it can pay for, at a slightly higher daily rate. The minimum deposit is one listing period, or whatever is still missing to complete one period when you hold less than that."
+    "text": "There is no renewal window and nothing to do. Any deposit you make while listed stays as credit, and when the current period ends the days that credit can pay for are granted automatically. A balance covering a full period always buys exactly 365 days; a smaller balance buys the days it can pay for, at a slightly higher daily rate. A deposit is credited when it is at least one listing period, or whatever is still missing to complete one period when you hold less than that."
    }
   },
   {
@@ -266,14 +269,15 @@ footer a{color:var(--accent);text-decoration:none}
    "name": "Who charges what?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Two separate fees. The listing fee (50,000 sats for 365 days) is paid to this service to appear in the list. The executor fee is what a server operator charges to actually produce an inheritance transaction: each executor publishes a base_fee and a daily_fee, and the minimum it accepts is max(base_fee, daily_fee x remaining days of the locktime). Both values are signed by the executor, so they are authenticated, but they are self-reported and can change at any time. Confirm the fee with the executor before relying on it. The daily fee does not affect the order of this list."
+    "text": "Two separate fees. The listing fee (the yearly amount shown on this page, for 365 days) is paid to this service to appear in the list. The executor fee is what a server operator charges to actually produce an inheritance transaction: each executor publishes a base_fee and a daily_fee, and the minimum it accepts is max(base_fee, daily_fee x remaining days of the locktime). Both values are signed by the executor, so they are authenticated, but they are self-reported and can change at any time. Confirm the fee with the executor before relying on it. The daily fee does not affect the order of this list."
    }
   },
   {
+   "@type": "Question",
    "name": "How is the order of the list decided?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "By four criteria, in this order: total excess donated (higher first), total amount paid (higher first), base fee charged (lower first) and, as a tie-breaker, WeTime points (higher first). Excess donated never decays, so paying more than the exact yearly fee is the fastest way to move up. The executor's daily fee plays no part in the order."
+    "text": "By four criteria, in this order: total deposited (higher first), amount donated (higher first), WeTime points (higher first) and base fee charged (lower first); when all four are equal, the server id keeps the order stable. The total deposited and the amount donated never decay, so paying more is the fastest way to move up. The executor's daily fee plays no part in the order."
    }
   },
   {
@@ -281,7 +285,7 @@ footer a{color:var(--accent);text-decoration:none}
    "name": "What are WeTime points?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Points earned in WeTime rounds: each executor periodically submits its block hash, and the faster the response within the same block, the more points. They are not transferable, have no monetary value and only break ties in this list. They measure presence and reactivity, not how a server will handle inheritance transactions."
+    "text": "Points earned in WeTime rounds: each executor periodically submits its block hash, and the faster the response within the same block, the more points. They are not transferable, have no monetary value and are the third ranking criterion in this list. They measure presence and reactivity, not how a server will handle inheritance transactions."
    }
   },
   {
@@ -313,7 +317,7 @@ footer a{color:var(--accent);text-decoration:none}
    "name": "I had a balance from before the yearly model. What happened to it?",
    "acceptedAnswer": {
     "@type": "Answer",
-    "text": "Balances deposited under the previous rules were converted into listing time at the same yearly rate (for example, 5,000 sats became 36.5 days). Those countdowns started on 17 July 2026; to stay listed beyond that time, renew as usual."
+    "text": "Balances deposited under the previous rules were converted into listing time at the same yearly rate. Those countdowns started on 17 July 2026; to stay listed beyond that time, add credit as described above."
    }
   },
   {
@@ -444,7 +448,7 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
       <button class="replay" type="button">&#8635; Replay</button>
       <svg viewBox="0 0 1000 318" role="img" aria-labelledby="lt-title lt-desc">
         <title id="lt-title">Listing timeline</title>
-        <desc id="lt-desc">Deposit the yearly fee; after 3 confirmations the server is listed for 365 days. Anything above one period stays as credit. When the period ends, the days the credit can pay for are granted automatically, so there is no renewal window. When the credit cannot pay for a single day, the server leaves the list.</desc>
+        <desc id="lt-desc">Deposit the yearly fee; after the required confirmations the server is listed for 365 days. Anything above one period stays as credit. When the period ends, the days the credit can pay for are granted automatically, so there is no renewal window. When the credit cannot pay for a single day, the server leaves the list.</desc>
         <defs>
           <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="8" height="8" fill="#e6eefc"/><line x1="0" y1="0" x2="0" y2="8" stroke="#2d6cdf" stroke-opacity=".35" stroke-width="2"/>
@@ -463,7 +467,7 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
           <polygon points="226,37 234,42 226,47" fill="#cbd2da"/>
           <rect x="238" y="22" width="186" height="40" rx="20" fill="#fff" stroke="#dfe4ea"/>
           <circle cx="260" cy="42" r="11" fill="none" stroke="#2d6cdf" stroke-width="2"/><path d="M260 35 v7 l5 3" stroke="#2d6cdf" stroke-width="2" fill="none" stroke-linecap="round"/>
-          <text x="280" y="38" font-weight="600">3 confirmations</text>
+          <text x="280" y="38" font-weight="600">Required confirmations</text>
           <text x="280" y="54" class="small">about 30 minutes</text>
         </g>
         <g class="pill p3">
@@ -542,9 +546,9 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         <div class="info-block">
           <span class="ic">01 · PAYMENT</span>
           <h3>Prepaid Credit</h3>
-          <p>One listing period costs <span class="fee-amount">50,000</span> sats for 365 days. The exact amount in satoshi is shown in the payment request. When a deposit reaches 3 confirmations on the blockchain (typically around 30 minutes) it is credited to your balance. If the resulting balance covers one listing period, the period is charged immediately and your server enters the list; the 365 days start from the median time of the block that confirmed the deposit.</p>
+          <p>One listing period costs <span class="fee-amount">50,000</span> sats for 365 days. The exact amount in satoshi is shown in the payment request. When a deposit reaches the confirmations this service requires (3 today, typically around 30 minutes) it is credited to your balance. If the server is not currently listed and the resulting balance covers one listing period, that period is charged immediately and the server enters the list; the 365 days start from the median time of the block that confirmed the deposit.</p>
           <p>Any amount beyond the first period stays as credit on the account. It covers the following periods, and it is what keeps you listed later without paying again.</p>
-          <p>The minimum deposit is one listing period (<span class="fee-amount">50,000</span> sats). A deposit is credited when it is at least that amount, or when your existing credit is below one period and the deposit completes what is still missing to reach it. A deposit that is neither — for example a few thousand satoshis sent while you already hold a full period of credit — does not add listing time and is recorded as a donation. Your existing credit is never touched by a deposit that is not credited.</p>
+          <p>A deposit is credited when it is at least one listing period (<span class="fee-amount">50,000</span> sats), or when your existing credit is below one period and the deposit completes what is still missing to reach it. A deposit that is neither — for example a few thousand satoshis sent while you already hold a full period of credit — does not add listing time and is recorded as a donation in full. Your existing credit is never touched by a deposit that is not credited.</p>
         </div>
         <div class="info-block">
           <span class="ic">02 · RENEWAL</span>
@@ -556,13 +560,13 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         <div class="info-block">
           <span class="ic">03 · CAPACITY</span>
           <h3>No Cap on Listings</h3>
-          <p>There is no fixed number of slots: every server with remaining listing time is shown. Paying buys presence in the list; the total amount paid also affects your position in it (see Section&nbsp;2).</p>
+          <p>There is no fixed number of slots: every server with remaining listing time is shown. Paying buys presence in the list; the total deposited also affects your position in it (see Section&nbsp;2).</p>
           <p>Removal from the list does not affect users who already have your server in their plugin: the plugin's server list is add-only. Being listed matters for reaching new users.</p>
         </div>
         <div class="info-block">
           <span class="ic">04 · TRANSITION</span>
           <h3>Deposits Made Under the Previous Rules</h3>
-          <p>Balances funded under the previous, balance-based rules were converted into listing time pro-rata at the same yearly rate (e.g. a 5,000-sat balance became 36.5 days of listing), with countdowns starting on 17 July 2026.</p>
+          <p>Balances funded under the previous, balance-based rules were converted into listing time at the same yearly rate, with countdowns starting on 17 July 2026.</p>
           <p>The prepaid system keeps that history: existing rows keep their balance and their expiry date, and the 365-day charge consumes the remaining credit one period at a time. To stay listed beyond the time already bought, add credit as described above.</p>
         </div>
         <div class="lifecycle">
@@ -572,7 +576,7 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
           </div>
           <div class="step">
             <h3>Listed</h3>
-            <p>After 3 confirmations your server appears; 365 days start.</p>
+            <p>After the required confirmations your server appears; 365 days start.</p>
           </div>
           <div class="step">
             <h3>Credit</h3>
@@ -588,13 +592,13 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
 
     <section class="info-section">
       <h2>2. List Order &amp; Server Page</h2>
-      <p class="sub">The list is ordered by four criteria: first by total excess donated (higher first), then by total amount paid in balance (higher first), then by the base fee charged (lower first), and finally by WeTime points (higher first) as a tie-breaker.</p>
+      <p class="sub">The list is ordered by four criteria: first by the total deposited (higher first), then by the amount donated (higher first), then by WeTime points (higher first), and finally by the base fee charged (lower first). If all four are equal, the server id keeps the order stable.</p>
       <div class="info-grid">
         <div class="info-block">
           <span class="ic">ORDER</span>
           <h3>How Position Is Determined</h3>
-          <p>Servers are sorted by four criteria, in order: first by the total excess donated (higher first), then by the total paid amount (higher first), then by the <span class="mono">base_fee</span> they charge (lower first), and finally by WeTime points (higher first) to break any remaining ties.</p>
-          <p>Because excess donated comes first and never decays, over-paying or tipping more — on top of any payment — directly and permanently moves a server up the list. Paying more than the exact yearly fee is the fastest way to improve position.</p>
+          <p>Servers are sorted by four criteria, in order: first by the total deposited (higher first), then by the amount donated (higher first), then by WeTime points (higher first), and finally by the <span class="mono">base_fee</span> they charge (lower first). When all four are equal, the server id breaks the tie, so the order is stable and pages do not shift.</p>
+          <p>The total deposited accumulates and never decays: every deposit counts, whether it bought listing time or was recorded as a donation. The donated amount is the second criterion, and a deposit that is not credited is donated in full while still counting in the total deposited, so it affects both criteria. Paying more is the fastest way to improve position.</p>
           <p>The <span class="mono">daily_fee</span> described below is <strong>not</strong> part of the order: only the base fee is used.</p>
         </div>
         <div class="info-block" id="fees">
@@ -611,12 +615,12 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
           <span class="ic">POINTS</span>
           <h3>WeTime Points</h3>
           <p>Points are earned by participating in WeTime rounds. Each executor periodically submits its block hash; the faster the response within the same block, the more points awarded. The win count tracks how many times an executor was the fastest responder.</p>
-          <p>Points are not transferable, not redeemable and have no monetary value: within this list they act only as a tie-breaker. Points measure presence and reactivity — they do not certify how a server will handle inheritance transactions.</p>
+          <p>Points are not transferable, not redeemable and have no monetary value: within this list they are the third ranking criterion. Points measure presence and reactivity — they do not certify how a server will handle inheritance transactions.</p>
         </div>
         <div class="info-block">
           <span class="ic">DETAILS</span>
           <h3>Server Detail Page</h3>
-          <p>Clicking a server in the list opens its detail page, showing the server URL, the listing expiry date, its WeTime activity and both fees. The expiry date is shown only there, not in the main list. Since the price per day is fixed and public, the expiry date necessarily reflects how much a server has paid: this is intentional transparency.</p>
+          <p>Clicking a server in the list opens its detail page, showing the server URL, the listing expiry date, the balance and donations held, its WeTime activity and both fees. The expiry date is shown only there, not in the main list. Since the price per day is fixed and public, the expiry date necessarily reflects how much a server has paid: this is intentional transparency.</p>
           <p>A daily fee shown as “—” has not been published by that executor; it is not the same as a fee of zero.</p>
         </div>
       </div>
@@ -646,7 +650,7 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         <div class="info-block">
           <span class="ic">REVIEW</span>
           <h3>Annual Review</h3>
-          <p>Prices and rules are expected to be reviewed once a year, around 17 July, reflecting the growth of the protocol and market demand. Listing time already purchased remains valid under the conditions in force when it was bought; updated rules apply to new payments and renewals.</p>
+          <p>Prices and rules are expected to be reviewed once a year, around 17 July, reflecting the growth of the protocol and market demand. Listing time already granted (your expiry date) stays valid; unspent credit is consumed at the price in force when each period is charged, so a price change applies only to credit not yet spent.</p>
         </div>
         <div class="info-block">
           <span class="ic">SCOPE</span>
@@ -664,19 +668,19 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
       <div class="faq">
         <details open>
           <summary><span>How much does it cost to be listed?</span></summary>
-          <p><span class="fee-amount">50,000</span> sats for 365 days, paid one year at a time. The exact amount in satoshi is shown in the payment request. The fee can be reviewed once a year, around 17 July; time you have already bought stays valid under the conditions in force when you paid.</p>
+          <p><span class="fee-amount">50,000</span> sats for 365 days, paid one period at a time. The exact amount in satoshi is shown in the payment request. The fee can be reviewed once a year, around 17 July; listing time already granted stays valid, while unspent credit is consumed at the price in force when each period is charged.</p>
         </details>
         <details>
           <summary><span>When does my server appear in the list?</span></summary>
-          <p>As soon as your payment reaches 3 confirmations on the blockchain, typically around 30 minutes. Your 365 days start at that moment.</p>
+          <p>As soon as your payment reaches the confirmations this service requires (3 today), typically around 30 minutes. The listing period starts from the median time of the block that confirmed the payment.</p>
         </details>
         <details>
           <summary><span>I paid less than the yearly fee. What happens?</span></summary>
-          <p>The minimum deposit is one listing period (<span class="fee-amount">50,000</span> sats). A deposit is credited when it is at least that amount, or when your existing credit is below one period and the deposit completes the amount still missing. A deposit that is neither does not add listing time and is recorded as a donation; the credit you already hold is untouched.</p>
+          <p>A deposit is credited when it is at least one listing period (<span class="fee-amount">50,000</span> sats), or when your existing credit is below one period and the deposit completes the amount still missing. A deposit that is neither does not add listing time and is recorded as a donation in full; the credit you already hold is untouched.</p>
         </details>
         <details>
           <summary><span>How does renewal work?</span></summary>
-          <p>There is no renewal window and nothing to do. Any deposit you make while listed stays as credit, and when the current period ends the days that credit can pay for are granted automatically. A balance covering a full period always buys exactly 365 days; a smaller balance buys the days it can pay for, at a slightly higher daily rate. The minimum deposit is one listing period (<span class="fee-amount">50,000</span> sats), or whatever is still missing to complete one period when you hold less than that.</p>
+          <p>There is no renewal window and nothing to do. Any deposit you make while listed stays as credit, and when the current period ends the days that credit can pay for are granted automatically. A balance covering a full period always buys exactly 365 days; a smaller balance buys the days it can pay for, at a slightly higher daily rate. A deposit is credited when it is at least one listing period (<span class="fee-amount">50,000</span> sats), or whatever is still missing to complete one period when you hold less than that.</p>
         </details>
         <details>
           <summary><span>What happens when my credit runs out?</span></summary>
@@ -692,11 +696,11 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         </details>
         <details>
           <summary><span>How is the order of the list decided?</span></summary>
-          <p>By four criteria, in this order: total excess donated (higher first), total amount paid (higher first), base fee charged (lower first) and, as a tie-breaker, WeTime points (higher first). Excess donated never decays, so paying more than the exact yearly fee is the fastest way to move up. The executor's daily fee plays no part in the order.</p>
+          <p>By four criteria, in this order: total deposited (higher first), amount donated (higher first), WeTime points (higher first) and base fee charged (lower first); when all four are equal, the server id keeps the order stable. The total deposited and the amount donated never decay, so paying more is the fastest way to move up. The executor's daily fee plays no part in the order.</p>
         </details>
         <details>
           <summary><span>What are WeTime points?</span></summary>
-          <p>Points earned in WeTime rounds: each executor periodically submits its block hash, and the faster the response within the same block, the more points. They are not transferable, have no monetary value and only break ties in this list. They measure presence and reactivity, not how a server will handle inheritance transactions.</p>
+          <p>Points earned in WeTime rounds: each executor periodically submits its block hash, and the faster the response within the same block, the more points. They are not transferable, have no monetary value and are the third ranking criterion in this list. They measure presence and reactivity, not how a server will handle inheritance transactions.</p>
         </details>
         <details>
           <summary><span>Can I change my server URL?</span></summary>
@@ -712,7 +716,7 @@ l-49 -25 -880 0 -880 0 -3 704 c-2 557 0 706 10 713 7 4 407 7 888 5 818 -2
         </details>
         <details>
           <summary><span>I had a balance from before the yearly model. What happened to it?</span></summary>
-          <p>Balances deposited under the previous rules were converted into listing time at the same yearly rate (for example, 5,000 sats became 36.5 days). Those countdowns started on 17 July 2026; to stay listed beyond that time, renew as usual.</p>
+          <p>Balances deposited under the previous rules were converted into listing time at the same yearly rate. Those countdowns started on 17 July 2026; to stay listed beyond that time, add credit as described above.</p>
         </details>
         <details>
           <summary><span>Do I need to be in this list to run a Will Executor?</span></summary>

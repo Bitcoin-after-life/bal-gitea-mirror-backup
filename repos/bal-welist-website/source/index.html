@@ -76,17 +76,15 @@ header.hero{padding:48px 0 28px;border-bottom:1px solid var(--line)}
   font-size:30px;line-height:1.05;margin:0;letter-spacing:-.01em;
 }
 .brand .sub{color:var(--muted);font-size:14px;margin-top:2px}
-.hero-stats{display:flex;gap:28px}
-/* Right side of the hero: the stats and the way to the Terms page (how to get
-   listed, yearly fee). Added 2026-11-06: the page was hard to find. */
+/* The four stats (at tip, servers, block, median time) wrap instead of
+   overflowing once the header gets narrow. */
+.hero-stats{display:flex;gap:28px;flex-wrap:wrap}
+/* Right side of the hero: the chain stats. */
 .hero-right{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap}
-.hero-cta{display:inline-flex;align-items:center;gap:10px;padding:10px 16px;border-radius:10px;
-  background:var(--accent);color:#fff;text-decoration:none;font-weight:600;font-size:14px;line-height:1.15;
-  box-shadow:0 4px 14px rgba(45,108,223,.25)}
-.hero-cta:hover{filter:brightness(1.06)}
-.hero-cta svg{width:22px;height:22px;flex:none}
-.hero-cta small{display:block;font-weight:400;font-size:12px;opacity:.85;margin-top:2px}
 .stat .n{font-family:var(--display);font-size:26px;font-weight:600;line-height:1}
+/* A date and time is much longer than a counter, so it gets the mono face and
+   a smaller size to stay on one line next to the numbers. */
+.stat .n.time{font-family:var(--mono);font-size:15px;white-space:nowrap}
 .stat .l{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:6px}
 
 .controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:22px 0 14px}
@@ -208,7 +206,7 @@ footer a{color:var(--accent);text-decoration:none}
      hard to read. On mobile the list now flows naturally with the page. */
   .mobile-list{display:grid;gap:12px}
   .info-grid{grid-template-columns:1fr}
-  .hero-stats{gap:20px}
+  .hero-stats{gap:14px 20px}
   .brand h1{font-size:24px}
   .srv{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
   .srv .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px}
@@ -307,10 +305,11 @@ footer a{color:var(--accent);text-decoration:none}
       </div>
       <div class="hero-right">
         <div class="hero-stats">
-          <div class="stat"><div class="n" id="s-online">0</div><div class="l">Online</div></div>
+          <div class="stat"><div class="n" id="s-attip">0</div><div class="l">At tip</div></div>
           <div class="stat"><div class="n" id="s-total">0</div><div class="l">Servers</div></div>
+          <div class="stat"><div class="n" id="s-block">—</div><div class="l">Block</div></div>
+          <div class="stat"><div class="n time" id="s-median">—</div><div class="l">Median time</div></div>
         </div>
-        <a class="hero-cta" href="/terms.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg><span>How to get listed<small>Terms &amp; yearly fee</small></span></a>
       </div>
   </header>
 
@@ -375,13 +374,13 @@ footer a{color:var(--accent);text-decoration:none}
 
     <div class="panel panel-ranking">
       <h2>How ranking works</h2>
-      <p class="lead">Ordered by excess donated, then total paid, then base fee (lower first), then WeTime points.</p>
+      <p class="lead">Ordered by total deposited, then amount donated, then WeTime points, then base fee (lower first).</p>
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Yearly fee</span><b class="mono"><span id="thr-min">50,000</span> sats</b></div>
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Listing period</span><b><span id="thr-cycle">365</span> days</b></div>
       <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="color:var(--muted)">Renewal</span><b>automatic from your credit</b></div>
       <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px"><span style="color:var(--muted)">Plugin integration</span><b>automatic</b></div>
-      <p class="lead" style="margin:16px 0 0">Paying more than the yearly fee moves your server up: the excess counts first in the order and never decays. Points are only a tie-breaker. <a href="/terms.html#faq" style="color:var(--accent);text-decoration:none;font-weight:600">Details in the Terms &rarr;</a></p>
-      <p class="lead" style="margin:14px 0 0;font-size:13px">The fee column shows the <strong>base fee</strong> each executor advertises. Executors may also publish a <strong>daily fee</strong>: the minimum they charge is the higher of the base fee and the daily fee multiplied by the remaining days of the inheritance. Both are signed metadata and do not affect the ranking. <a href="/terms.html#fees" style="color:var(--accent);text-decoration:none;font-weight:600">Who charges what? &rarr;</a></p>
+      <p class="lead" style="margin:16px 0 0">Paying more moves your server up: the total deposited counts first and never decays, and the amount donated counts second. Points are the third criterion and the base fee only breaks ties. <a href="/terms.html#faq" style="color:var(--accent);text-decoration:none;font-weight:600">Details in the Terms &rarr;</a></p>
+      <p class="lead" style="margin:14px 0 0;font-size:13px">The fee column shows the <strong>base fee</strong> each executor advertises. Executors may also publish a <strong>daily fee</strong>: the minimum they charge is the higher of the base fee and the daily fee multiplied by the remaining days of the inheritance. The base fee is the last tie-breaker in the order; the daily fee does not affect it. <a href="/terms.html#fees" style="color:var(--accent);text-decoration:none;font-weight:600">Who charges what? &rarr;</a></p>
     </div>
 
     <section class="info-section">
@@ -395,7 +394,7 @@ footer a{color:var(--accent);text-decoration:none}
         <div class="info-block">
           <span class="ic">02</span>
           <h3>Ranking System</h3>
-          <p>This leaderboard is ordered by excess donated (over the yearly fee), then total amount paid, then lower base fee, then WeTime points.</p>
+          <p>This leaderboard is ordered by total deposited, then amount donated, then WeTime points, then lower base fee; if all four are equal, the server id keeps the order stable.</p>
         </div>
 
         <div class="info-block">
@@ -537,8 +536,10 @@ function render() {
       </div>`);
   });
 
-  const online = allServers.filter(d => d.status === "OK").length;
-  document.getElementById('s-online').textContent = online;
+  // The counter follows the derived status: OK means the last accepted ping is
+  // at the chain tip, so it counts servers that are up to date, not merely up.
+  const atTip = allServers.filter(d => d.status === "OK").length;
+  document.getElementById('s-attip').textContent = atTip;
   document.getElementById('s-total').textContent = allServers.length;
 }
 
@@ -557,13 +558,37 @@ async function fetchData() {
     const data = await response.json();
     const info = data[chain] || {};
     allServers = Array.isArray(info.willexecutors) ? info.willexecutors : [];
+    updateChainHeader(info);
     updateFeePanel(info.ranking);
     render();
   } catch (err) {
     console.error('Fetch error:', err);
     allServers = [];
+    // The header is chain-specific, so a failed fetch must not leave the block
+    // and median of the previously selected chain on screen.
+    updateChainHeader({});
     render();
   }
+}
+
+// Header chain stats: the tip height and the median time of the last block,
+// both taken from the `/api/info` block of the selected chain. The median is
+// rendered in the visitor's own locale and timezone, so it reads on the clock
+// the visitor is looking at.
+function updateChainHeader(info) {
+  const height = parseInt(info.height, 10);
+  document.getElementById('s-block').textContent = isNaN(height) ? '—' : fmt(height);
+
+  const median = parseInt(info.median_time, 10);
+  const medianEl = document.getElementById('s-median');
+  if (isNaN(median)) {
+    medianEl.textContent = '—';
+    medianEl.removeAttribute('title');
+    return;
+  }
+  medianEl.textContent = new Date(median * 1000).toLocaleString();
+  medianEl.title = (isNaN(height) ? 'Median time of the last block' : 'Median time of block ' + fmt(height)) +
+    ': the median of the last 11 blocks, which normally reads about an hour behind the current time.';
 }
 
 // The fee panel is informational: it shows only what the backend published.
@@ -604,6 +629,12 @@ window.addEventListener('popstate', () => {
   if (!setChain(chainFromUrl()) && firstActiveChain) setChain(firstActiveChain);
   fetchData();
 });
+
+// The block height and the median time go stale while the page sits open, so
+// they are refreshed once a minute. A background tab is skipped: there is
+// nothing to look at and no reason to spend a request. The same call also
+// refreshes the list.
+setInterval(() => { if (!document.hidden) fetchData(); }, 60000);
 
 
 (async function init() {

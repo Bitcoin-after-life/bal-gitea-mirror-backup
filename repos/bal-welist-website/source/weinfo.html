@@ -335,18 +335,24 @@ footer a{color:var(--accent);text-decoration:none}
           document.getElementById('weupdate').textContent  = data.last_update || '—';
           showExpiry(data.expiry_date, data.balance);
           const statusMap = {
-            'OK': 'Health check passed',
-            'TIMEOUT': 'Connection timeout',
-            'CONNECTION': 'Connection error',
-            'STATUS': 'HTTP error',
-            'WRONG REPLY': 'Invalid JSON response',
-            'REQUEST': 'Request error',
-            'BODY': 'Body read error',
-            'DECODE': 'Decode error',
-            'KO': 'Generic error'
+            'OK': 'At chain tip',
+            'KO': 'Behind the chain tip'
           };
+          // The status is derived by the server: OK means the last accepted ping
+          // is at the chain tip, KO means it is behind - or that the updater
+          // stopped reporting, in which case the tip itself is stale.
           const st = (data.status||'').split(':')[0];
-          document.getElementById('westatus').textContent = statusMap[st] || (data.status ? 'Unknown status' : '—');
+          let statusText = '—';
+          if (st === 'OK') {
+            statusText = 'At chain tip';
+          } else if (st === 'KO') {
+            if (data.tip_fresh === false) statusText = 'Updater not reporting';
+            else if (data.blocks_behind > 0) statusText = 'Behind by ' + fmt(data.blocks_behind) + (data.blocks_behind === 1 ? ' block' : ' blocks');
+            else statusText = 'Behind the chain tip';
+          } else if (data.status) {
+            statusText = statusMap[st] || 'Unknown status';
+          }
+          document.getElementById('westatus').textContent = statusText;
           document.getElementById('westatus-badge').className = 'badge ' + (st === 'OK' ? 'ok' : (st ? 'bad' : ''));
 
           const tableBody = document.querySelector('#wetimes tbody');
